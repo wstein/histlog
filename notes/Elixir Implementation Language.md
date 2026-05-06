@@ -7,7 +7,7 @@ Histlog should be implemented in Elixir so its command tracking, session process
 
 ## What
 
-Elixir is the implementation language for histlog. Core capture, session logfile management, JSONL parsing, and backlog consolidation should be designed as Elixir modules and supervised processes where long-running behavior is needed.
+Elixir is the implementation language for histlog. Core capture, session logfile management, JSONL parsing, and finished-session consolidation should be designed as Elixir modules and supervised processes where long-running behavior is needed.
 
 ## Why
 
@@ -15,7 +15,7 @@ Histlog needs reliable file handling, background consolidation, structured data 
 
 ## How
 
-Design implementation notes, modules, tests, and operational commands around Mix projects and idiomatic Elixir conventions. Use explicit boundaries between shell integration, session log writing, JSONL encoding, and backlog consolidation so each concern can be tested independently.
+Design implementation notes, modules, tests, and operational commands around Mix projects and idiomatic Elixir conventions. Use explicit boundaries between shell integration, session log writing, JSONL encoding, and finished-session consolidation so each concern can be tested independently.
 
 ## Links
 
