@@ -157,8 +157,24 @@ defmodule Histlog.Query do
   defp read_ndjson_file(path) do
     path
     |> File.stream!(:line, [])
-    |> Stream.map(&JSON.decode!/1)
-    |> Enum.to_list()
+    |> Stream.with_index(1)
+    |> Enum.flat_map(fn {line, line_number} ->
+      case JSON.decode(String.trim_trailing(line, "\n")) do
+        {:ok, row} ->
+          [row]
+
+        {:error, reason} ->
+          warn_malformed_row(path, line_number, reason)
+          []
+      end
+    end)
+  end
+
+  defp warn_malformed_row(path, line_number, reason) do
+    IO.puts(
+      :stderr,
+      "histlog: skipped malformed record in #{path}:#{line_number}: #{inspect(reason)}"
+    )
   end
 
   defp catalog(events, event_type, id_field, value_field) do

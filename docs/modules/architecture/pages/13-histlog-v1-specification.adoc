@@ -166,6 +166,7 @@ It must never mutate the canonical meaning of source events.
 
 Each session file must have strictly increasing sequence numbers beginning at `1`.
 Malformed sessions are quarantined at the session-file level so one corrupt file cannot block the whole day.
+Query-oriented commands skip malformed materialized or live rows with an operator-visible warning so valid history remains accessible even when a file was edited or partially synced.
 
 All shell-derived input is untrusted.
 The writer redacts common secret shapes and marks records that were changed before persistence.

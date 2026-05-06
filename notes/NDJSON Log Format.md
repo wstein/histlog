@@ -15,7 +15,7 @@ NDJSON supports append-oriented logging, streaming reads, partial processing, an
 
 ## How
 
-Writers should emit one compact JSON object followed by a newline for each record. Readers should process files line by line, reject or quarantine malformed records, and avoid assuming that the whole logfile must fit in memory.
+Writers should emit one compact JSON object followed by a newline for each record. Readers should process files line by line and avoid assuming that the whole logfile must fit in memory. Consolidation rejects or quarantines malformed session records; query-oriented readers skip malformed materialized or live rows with a warning so one bad line does not prevent access to valid history.
 
 Validation happens at both event and session scope. Single events must have parseable timestamps and valid domain fields; complete session streams must have a `session_started` header, gapless sequence numbers, and catalog references that point to earlier definitions in the same file.
 
