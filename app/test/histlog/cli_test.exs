@@ -253,6 +253,17 @@ defmodule Histlog.CLITest do
   end
 
   test "paths command summarizes cwd and path-like arguments", %{root: root, date: date} do
+    cwd = Path.join(root, "repo/app")
+    parent = Path.dirname(cwd)
+    relative_dir = Path.join(cwd, "lib")
+    relative_file = Path.join(cwd, "mix.exs")
+    absolute_file = Path.join(root, "tmp/file")
+
+    File.mkdir_p!(relative_dir)
+    File.mkdir_p!(Path.dirname(absolute_file))
+    File.write!(relative_file, "")
+    File.write!(absolute_file, "")
+
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -266,7 +277,7 @@ defmodule Histlog.CLITest do
       )
 
     {:ok, writer, _event} =
-      SessionWriter.observe_execution(writer, "cat ./mix.exs /tmp/file", "/repo/app", %{
+      SessionWriter.observe_execution(writer, "cat ./mix.exs #{absolute_file} missing", cwd, %{
         "timestamp" => "2026-05-06T20:00:00Z",
         "duration_ms" => 10,
         "exit_status" => 0,
@@ -274,7 +285,7 @@ defmodule Histlog.CLITest do
       })
 
     {:ok, writer, _event} =
-      SessionWriter.observe_execution(writer, "ls ..", "/repo/app", %{
+      SessionWriter.observe_execution(writer, "ls .. lib", cwd, %{
         "timestamp" => "2026-05-06T20:00:01Z",
         "duration_ms" => 10,
         "exit_status" => 0,
@@ -301,10 +312,28 @@ defmodule Histlog.CLITest do
       end)
 
     rows = JSON.decode!(output)
-    assert %{"exec" => 2, "args" => 0, "path" => "/repo/app"} in rows
-    assert %{"exec" => 0, "args" => 1, "path" => "/repo/app/mix.exs"} in rows
-    assert %{"exec" => 0, "args" => 1, "path" => "/tmp/file"} in rows
-    assert %{"exec" => 0, "args" => 1, "path" => "/repo"} in rows
+    assert %{"exec" => 2, "args" => 0, "path" => cwd} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => relative_file} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => absolute_file} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => parent} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => relative_dir} in rows
+    refute Enum.any?(rows, &(&1["path"] == Path.join(cwd, "missing")))
+
+    filtered_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "paths",
+                   "mix",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert filtered_output == relative_file <> "\n"
   end
 
   test "unknown commands return structured errors" do

@@ -15,26 +15,30 @@ defmodule Histlog.CLI.Commands.Paths do
   @aliases Options.common_aliases() ++ [h: :help]
 
   def run(argv) do
-    with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases) do
+    with {:ok, opts, args} <- Options.parse(argv, @switches, @aliases) do
       if Keyword.get(opts, :help, false) do
         IO.write(help())
         :ok
       else
-        run_paths(opts)
+        run_paths(opts, Enum.join(args, " "))
       end
     end
   end
 
-  defp run_paths(opts) do
+  defp run_paths(opts, search) do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])) do
       rows
       |> path_rows()
+      |> filter_rows(search)
       |> Enum.sort_by(fn row -> row.path end)
       |> limit_rows(Keyword.get(opts, :limit))
       |> write_rows(output_format(opts))
     end
   end
+
+  defp filter_rows(rows, ""), do: rows
+  defp filter_rows(rows, search), do: Enum.filter(rows, &String.contains?(&1.path, search))
 
   defp path_rows(rows) do
     exec_counts = Enum.frequencies(Enum.flat_map(rows, &cwd_path/1))
@@ -58,7 +62,8 @@ defmodule Histlog.CLI.Commands.Paths do
   defp argument_paths(%{"command" => command, "cwd" => cwd}) when is_binary(command) do
     command
     |> command_tokens()
-    |> Enum.flat_map(&path_token(&1, cwd))
+    |> Enum.drop(1)
+    |> Enum.flat_map(&existing_path(&1, cwd))
   end
 
   defp argument_paths(_row), do: []
@@ -70,21 +75,14 @@ defmodule Histlog.CLI.Commands.Paths do
     |> Enum.reject(&(&1 == ""))
   end
 
-  defp path_token(token, cwd) do
-    cond do
-      token in [".", ".."] ->
-        [normalize_path(token, cwd)]
+  defp existing_path(token, cwd) do
+    path = normalize_path(token, cwd)
 
-      String.starts_with?(token, ["~", "/", "./", "../"]) ->
-        [normalize_path(token, cwd)]
-
-      String.contains?(token, "/") && !String.contains?(token, "://") ->
-        [normalize_path(token, cwd)]
-
-      true ->
-        []
-    end
+    if path_argument?(token) && File.exists?(path), do: [path], else: []
   end
+
+  defp path_argument?(token),
+    do: !String.starts_with?(token, "-") && !String.contains?(token, "://")
 
   defp normalize_path("~" <> rest, _cwd), do: Path.expand("~" <> rest)
   defp normalize_path(path, cwd) when is_binary(cwd) and cwd != "", do: Path.expand(path, cwd)
