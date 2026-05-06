@@ -29,7 +29,7 @@ Build the escript:
 make build
 app/histlog consolidate --root /tmp/histlog --date 2026-05-06
 app/histlog query --root /tmp/histlog --date 2026-05-06 --command mix
-app/histlog query --root /tmp/histlog --date 2026-05-06 --command mix --format ndjson
+app/histlog query --root /tmp/histlog --date 2026-05-06 --command mix --json
 app/histlog import app/test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
 eval "$(app/histlog init zsh)"
 ```

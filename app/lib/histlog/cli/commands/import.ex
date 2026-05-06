@@ -18,12 +18,17 @@ defmodule Histlog.CLI.Commands.Import do
          {:ok, opts} <- Options.normalize(opts) do
       root = Storage.root(opts)
       date = Keyword.get(opts, :date, Date.utc_today())
-      source = Keyword.get(opts, :source, source_name(file))
-      session_id = Keyword.get(opts, :session_id, "import-#{source}-#{Date.to_iso8601(date)}")
-      import_batch_id = Keyword.get(opts, :import_batch_id, "#{source}-#{Date.to_iso8601(date)}")
+      public_source = Keyword.get(opts, :source, source_name(file))
+      source = internal_source(public_source)
+
+      session_id =
+        Keyword.get(opts, :session_id, "import-#{public_source}-#{Date.to_iso8601(date)}")
+
+      import_batch_id =
+        Keyword.get(opts, :import_batch_id, "#{public_source}-#{Date.to_iso8601(date)}")
 
       destination =
-        Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{source}.ndjson")
+        Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{public_source}.ndjson")
 
       with {:ok, content} <- File.read(file),
            {:ok, events} <-
@@ -39,6 +44,9 @@ defmodule Histlog.CLI.Commands.Import do
   end
 
   def run([]), do: {:error, "missing import file"}
+
+  defp internal_source("native"), do: "ndjson"
+  defp internal_source(source), do: source
 
   defp source_name(file) do
     file

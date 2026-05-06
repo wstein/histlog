@@ -10,13 +10,12 @@ defmodule Histlog.Query do
   """
   def executions(opts \\ []) do
     root = Storage.root(opts)
-    date = Keyword.get(opts, :date, Date.utc_today())
+    date = Keyword.get(opts, :date)
     filters = Keyword.get(opts, :filters, %{})
 
     rows =
       root
-      |> daily_execution_rows(date)
-      |> Kernel.++(live_execution_rows(root, date))
+      |> execution_rows(date)
       |> Enum.filter(&matches?(&1, filters))
 
     {:ok, rows}
@@ -32,6 +31,19 @@ defmodule Histlog.Query do
     {:ok, daily_event_rows(root, date) ++ live_event_rows(root, date)}
   end
 
+  defp execution_rows(root, nil) do
+    root
+    |> available_dates()
+    |> Enum.flat_map(&execution_rows(root, &1))
+  end
+
+  defp execution_rows(root, date) do
+    root
+    |> daily_execution_rows(date)
+    |> Kernel.++(live_execution_rows(root, date))
+    |> Kernel.++(imported_execution_rows(root, date))
+  end
+
   defp daily_execution_rows(root, date) do
     path = Storage.daily_exec_path(root, date)
 
@@ -40,6 +52,20 @@ defmodule Histlog.Query do
     else
       []
     end
+  end
+
+  defp imported_execution_rows(root, date) do
+    root
+    |> Storage.imports_dir()
+    |> Path.join("#{Date.to_iso8601(date)}-*.ndjson")
+    |> Path.wildcard()
+    |> Enum.sort()
+    |> Enum.flat_map(fn path ->
+      path
+      |> read_ndjson_file()
+      |> Enum.filter(&(&1["event"] == "imported_execution"))
+      |> Enum.map(&imported_execution_row/1)
+    end)
   end
 
   defp daily_event_rows(root, date) do
@@ -76,14 +102,14 @@ defmodule Histlog.Query do
     events = read_ndjson_file(path)
     commands = catalog(events, "command_defined", "command_id", "command")
     folders = catalog(events, "folder_defined", "folder_id", "folder")
-    session_id = session_id(events)
+    session = session_started(events)
 
     events
     |> Enum.filter(&(&1["event"] == "execution_observed"))
     |> Enum.map(fn event ->
       %{
         "event" => "execution",
-        "session_id" => session_id,
+        "session_id" => session["session_id"],
         "exec_id" => event["exec_id"],
         "command" => Map.get(commands, event["command_id"]),
         "cwd" => Map.get(folders, event["cwd_id"]),
@@ -91,9 +117,67 @@ defmodule Histlog.Query do
         "duration_ms" => event["duration_ms"],
         "exit_status" => event["exit_status"],
         "completeness" => event["completeness"],
+        "shell" => session["shell"],
+        "host" => session["host"],
+        "tty" => session["tty"],
         "source" => "live"
       }
     end)
+  end
+
+  defp imported_execution_row(event) do
+    %{
+      "event" => "execution",
+      "session_id" => nil,
+      "command" => event["command"],
+      "cwd" => event["cwd"],
+      "timestamp" => event["timestamp"],
+      "duration_ms" => event["duration_ms"],
+      "exit_status" => event["exit_status"],
+      "completeness" => "imported",
+      "source" => "imported"
+    }
+  end
+
+  defp available_dates(root) do
+    root
+    |> date_strings()
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.flat_map(fn date ->
+      case Date.from_iso8601(date) do
+        {:ok, parsed} -> [parsed]
+        {:error, _reason} -> []
+      end
+    end)
+  end
+
+  defp date_strings(root) do
+    daily =
+      root
+      |> Storage.daily_dir()
+      |> Path.join("*.exec.ndjson")
+      |> Path.wildcard()
+      |> Enum.map(fn path -> path |> Path.basename(".exec.ndjson") end)
+
+    live =
+      Path.join([root, "sessions", "live", "*"])
+      |> Path.wildcard()
+      |> Enum.map(&Path.basename/1)
+
+    imports =
+      root
+      |> Storage.imports_dir()
+      |> Path.join("*.ndjson")
+      |> Path.wildcard()
+      |> Enum.flat_map(fn path ->
+        case Regex.run(~r/^(\d{4}-\d{2}-\d{2})-/, Path.basename(path)) do
+          [_, date] -> [date]
+          _ -> []
+        end
+      end)
+
+    daily ++ live ++ imports
   end
 
   defp read_ndjson_file(path) do
@@ -109,10 +193,8 @@ defmodule Histlog.Query do
     |> Map.new(fn event -> {event[id_field], event[value_field]} end)
   end
 
-  defp session_id([%{"event" => "session_started", "session_id" => session_id} | _events]),
-    do: session_id
-
-  defp session_id(_events), do: nil
+  defp session_started([%{"event" => "session_started"} = event | _events]), do: event
+  defp session_started(_events), do: %{}
 
   defp matches?(row, filters) do
     Enum.all?(filters, fn

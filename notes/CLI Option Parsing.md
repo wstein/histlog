@@ -21,6 +21,8 @@ Use kebab-case switches externally and snake_case atoms internally. Keep shell h
 
 `histlog init --durability safe|balanced|fast` sets the generated hook default for writer fsync behavior.
 
+`histlog query` exposes human-facing formats and filters. NDJSON is a storage and subsystem boundary, not a public query output format; use `--json`, `--yaml`, `--plain`, or shell-specific `--format` values for CLI output.
+
 ## Links
 
 - [[Shell Hook CLI Boundary]] - Defines the internal hook command surface.

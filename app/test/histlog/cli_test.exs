@@ -68,7 +68,7 @@ defmodule Histlog.CLITest do
     assert query_output =~ "0001 2026-05-06 20:00:00    1.000s ✓    mix test"
   end
 
-  test "query command can emit NDJSON output explicitly", %{root: root, date: date} do
+  test "query command can emit JSON output explicitly", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -106,15 +106,82 @@ defmodule Histlog.CLITest do
                    Date.to_iso8601(date),
                    "--command",
                    "mix",
-                   "--format",
-                   "ndjson"
+                   "--json"
                  ])
       end)
 
-    assert [%{"command" => "mix test"}] =
-             query_output
-             |> String.split("\n", trim: true)
-             |> Enum.map(&JSON.decode!/1)
+    assert [%{"command" => "mix test"}] = JSON.decode!(query_output)
+  end
+
+  test "query command rejects internal storage formats", %{root: root, date: date} do
+    assert {:error, "unsupported query format \"ndjson\""} =
+             CLI.run([
+               "query",
+               "--root",
+               root,
+               "--date",
+               Date.to_iso8601(date),
+               "--format",
+               "ndjson"
+             ])
+  end
+
+  test "query help documents rich public interface without storage formats" do
+    output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["query", "--help"])
+      end)
+
+    assert output =~ "Usage: histlog query [search] [options]"
+    assert output =~ "--failed"
+    assert output =~ "--json"
+    refute output =~ "ndjson"
+  end
+
+  test "query searches all dates by default and supports public filters", %{
+    root: root,
+    date: date
+  } do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix test", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 1500,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix format", "/repo", %{
+        "timestamp" => "2026-05-06T20:01:00Z",
+        "duration_ms" => 50,
+        "exit_status" => 1,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:02:00Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["query", "mix", "--root", root, "--failed", "--plain"])
+      end)
+
+    assert output == "mix format\n"
   end
 
   test "empty query command still emits table headers", %{root: root, date: date} do
@@ -205,15 +272,26 @@ defmodule Histlog.CLITest do
                    Date.to_iso8601(date),
                    "--command",
                    "histlog",
-                   "--format",
-                   "ndjson"
+                   "--json"
                  ])
       end)
 
-    assert [%{"command" => "histlog query", "source" => "live"}] =
-             query_output
-             |> String.split("\n", trim: true)
-             |> Enum.map(&JSON.decode!/1)
+    assert [%{"command" => "histlog query", "source" => "live"}] = JSON.decode!(query_output)
+
+    live_default_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--command",
+                   "histlog",
+                   "--plain"
+                 ])
+      end)
+
+    assert live_default_output == "histlog query\n"
 
     tail_output =
       capture_io(fn ->
