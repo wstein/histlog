@@ -7,6 +7,17 @@ The important runtime flows are append-only session capture, daily consolidation
 
 `Histlog.SessionWriter` creates a live session file, writes `session_started`, interns commands and folders, appends `execution_observed` events, and moves the file to `closed/` after `session_ended`.
 
+== Shell Hook State
+
+`Histlog.Hook` persists small JSON files under `hook-state/` so separate shell hook invocations can recover the current writer state.
+These files are ephemeral adapter state, not canonical history.
+They may be deleted, repaired, or recreated without changing the historical record.
+
+The canonical boundary remains the session NDJSON file:
+
+* `hook-state/*.json` stores disposable runtime adapter state.
+* `sessions/**/*.ndjson` stores immutable shell history events.
+
 == Consolidation
 
 `Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, appends valid events to daily materializations, and writes a manifest checkpoint.

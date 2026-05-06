@@ -6,6 +6,7 @@ The same integrity rules apply across writers, importers, consolidators, and que
 == Shared Concerns
 
 * NDJSON is the subsystem boundary.
+* `hook-state/` JSON is non-canonical adapter state used only to bridge short-lived hook processes.
 * Events are immutable truth; daily files are derived views.
 * Sequence numbers are session-local and gapless.
 * Redaction happens before persistence.
