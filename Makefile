@@ -15,10 +15,11 @@ CLEAN_DIR ?= dist
 all: build
 
 build: ## Build the native project if present; otherwise no-op.
-	@echo "No recognized native toolchain found; skipping compile."
+	cd app && mix compile --warnings-as-errors
 
 clean: ## Remove generated output files.
 	rm -rf "$(CLEAN_DIR)"
+	rm -rf app/_build app/cover app/histlog
 
 notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
