@@ -6,6 +6,8 @@ defmodule Histlog.CLITest do
   alias Histlog.CLI
   alias Histlog.SessionWriter
 
+  @fixtures Path.expand("../fixtures/import", __DIR__)
+
   setup do
     root = Path.join(System.tmp_dir!(), "histlog-cli-test-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(root) end)
@@ -61,5 +63,48 @@ defmodule Histlog.CLITest do
              query_output
              |> String.split("\n", trim: true)
              |> Enum.map(&JSON.decode!/1)
+  end
+
+  test "import command converts shell history fixtures to native import NDJSON", %{
+    root: root,
+    date: date
+  } do
+    source_path = Path.join(@fixtures, "zsh_history")
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "import",
+                   source_path,
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--source",
+                   "zsh_history",
+                   "--session-id",
+                   "import-session",
+                   "--import-batch-id",
+                   "batch-1"
+                 ])
+      end)
+
+    destination = String.trim(output)
+    assert File.exists?(destination)
+
+    events =
+      destination
+      |> File.read!()
+      |> String.split("\n", trim: true)
+      |> Enum.map(&JSON.decode!/1)
+
+    assert Enum.map(events, & &1["event"]) == [
+             "import_batch_started",
+             "imported_execution",
+             "imported_execution",
+             "imported_execution",
+             "import_batch_finished"
+           ]
   end
 end

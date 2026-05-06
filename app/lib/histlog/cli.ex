@@ -63,13 +63,16 @@ defmodule Histlog.CLI do
     root = Storage.root(opts)
     date = Keyword.get(opts, :date, Date.utc_today())
     source = Keyword.get(opts, :source, source_name(file))
+    session_id = Keyword.get(opts, :session_id, "import-#{source}-#{Date.to_iso8601(date)}")
+    import_batch_id = Keyword.get(opts, :import_batch_id, "#{source}-#{Date.to_iso8601(date)}")
 
     destination =
       Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{source}.ndjson")
 
     with {:ok, content} <- File.read(file),
-         {:ok, _events} <- Histlog.NDJSON.decode(content),
-         :ok <- Storage.atomic_write(destination, content) do
+         {:ok, events} <- Histlog.Import.from_source(session_id, source, import_batch_id, content),
+         output = Histlog.NDJSON.encode!(events),
+         :ok <- Storage.atomic_write(destination, output) do
       IO.puts(destination)
       :ok
     else
@@ -83,7 +86,7 @@ defmodule Histlog.CLI do
       histlog consolidate [--root PATH] [--date YYYY-MM-DD]
       histlog query [--root PATH] [--date YYYY-MM-DD] [--command TEXT] [--cwd PATH] [--exit-status N]
       histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
-      histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source NAME]
+      histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source zsh_history|bash_history|fish_history|ndjson]
     """)
 
     :ok
@@ -120,6 +123,12 @@ defmodule Histlog.CLI do
 
   defp parse_options(["--source", source | rest], acc),
     do: parse_options(rest, [{:source, source} | acc])
+
+  defp parse_options(["--session-id", session_id | rest], acc),
+    do: parse_options(rest, [{:session_id, session_id} | acc])
+
+  defp parse_options(["--import-batch-id", import_batch_id | rest], acc),
+    do: parse_options(rest, [{:import_batch_id, import_batch_id} | acc])
 
   defp parse_options(["--exit-status", status | rest], acc) do
     parse_options(rest, [{:exit_status, String.to_integer(status)} | acc])

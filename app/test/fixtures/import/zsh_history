@@ -1,0 +1,3 @@
+: 1778083200:0;cd ~/work/histlog
+: 1778083260:3;mix test
+git status
