@@ -529,7 +529,7 @@ defmodule Histlog.CLITest do
     assert %{"rebuilt" => true, "records_written" => 5} = JSON.decode!(output)
   end
 
-  test "query and tail include currently live session files", %{root: root, date: date} do
+  test "query includes currently live session files", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -581,25 +581,6 @@ defmodule Histlog.CLITest do
       end)
 
     assert live_default_output == "histlog query\n"
-
-    tail_output =
-      capture_io(fn ->
-        assert :ok =
-                 CLI.run([
-                   "tail",
-                   "--root",
-                   root,
-                   "--date",
-                   Date.to_iso8601(date),
-                   "--count",
-                   "1"
-                 ])
-      end)
-
-    assert [%{"event" => "execution_observed"}] =
-             tail_output
-             |> String.split("\n", trim: true)
-             |> Enum.map(&JSON.decode!/1)
   end
 
   test "verify command reports materialization integrity", %{root: root, date: date} do
@@ -744,20 +725,8 @@ defmodule Histlog.CLITest do
     assert {:error, error} = CLI.run(["query", "--date", "not-a-date"])
     assert error =~ "invalid date"
 
-    assert {:error, error} = CLI.run(["tail", "--count", "many"])
-    assert error =~ "invalid options"
-
     assert {:error, error} = CLI.run(["init", "zsh", "bash"])
     assert error =~ "unexpected arguments"
-  end
-
-  test "command aliases parse through OptionParser" do
-    output =
-      capture_io(fn ->
-        assert :ok = CLI.run(["tail", "-r", "/tmp/histlog-missing", "-d", "2026-05-06"])
-      end)
-
-    assert output == ""
   end
 
   defp strip_ansi(text), do: Regex.replace(~r/\e\[[0-9;]*m/, text, "")

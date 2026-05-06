@@ -12,4 +12,4 @@ Closed session files are consumed by `Histlog.Consolidator`, which produces dail
 
 * Shell history sources: zsh, bash, fish, and legacy/native NDJSON import files.
 * Filesystem storage under `~/.local/share/histlog/` by default.
-* CLI commands for consolidation, import, tailing, and simple queries.
+* CLI commands for consolidation, import, sessions, path summaries, and queries.

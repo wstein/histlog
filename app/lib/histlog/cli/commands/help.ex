@@ -22,7 +22,6 @@ defmodule Histlog.CLI.Commands.Help do
       paths       - Show tracked file/directory paths and usage counts
       consolidate - Materialize closed session logs
       verify      - Verify daily materialization checksums
-      tail        - Tail canonical event records
       import      - Import shell history files
       init        - Print shell integration snippets
       doctor      - Diagnose setup

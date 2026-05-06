@@ -17,7 +17,7 @@ Unit tests can verify generated strings, but shell integration bugs often come f
 
 Smoke tests should remain hermetic: use a temporary `HISTLOG_ROOT`, skip unavailable shells, avoid user rc files, and validate the resulting NDJSON through the same schema used by consolidation.
 
-Live sessions are queryable before consolidation. `histlog query` derives execution rows from active `sessions/live/<date>/*.ndjson` files, and `histlog tail` includes those live canonical events.
+Live sessions are queryable before consolidation. `histlog query` derives execution rows from active `sessions/live/<date>/*.ndjson` files without exposing raw canonical records as a public CLI format.
 
 ## Links
 

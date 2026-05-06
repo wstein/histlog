@@ -21,16 +21,6 @@ defmodule Histlog.Query do
     {:ok, rows}
   end
 
-  @doc """
-  Returns canonical daily and live event rows for tail-like views.
-  """
-  def events(opts \\ []) do
-    root = Storage.root(opts)
-    date = Keyword.get(opts, :date, Date.utc_today())
-
-    {:ok, daily_event_rows(root, date) ++ live_event_rows(root, date)}
-  end
-
   defp execution_rows(root, nil) do
     root
     |> available_dates()
@@ -66,22 +56,6 @@ defmodule Histlog.Query do
       |> Enum.filter(&(&1["event"] == "imported_execution"))
       |> Enum.map(&imported_execution_row/1)
     end)
-  end
-
-  defp daily_event_rows(root, date) do
-    path = Storage.daily_events_path(root, date)
-
-    if File.exists?(path) do
-      read_ndjson_file(path)
-    else
-      []
-    end
-  end
-
-  defp live_event_rows(root, date) do
-    root
-    |> live_session_paths(date)
-    |> Enum.flat_map(&read_ndjson_file/1)
   end
 
   defp live_execution_rows(root, date) do
