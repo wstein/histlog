@@ -84,12 +84,13 @@ defmodule Histlog.Shell.Init do
     fi
 
     export HISTLOG_ACTIVE=1
-    export HISTLOG_SESSION_ID="$(histlog hook session-start --shell zsh --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
+    export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
+    export HISTLOG_SESSION_ID="$(histlog hook session-start --root "$HISTLOG_ROOT" --shell zsh --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
 
     _histlog_preexec() {
       HISTLOG_CMD="$1"
       HISTLOG_STARTED_AT="$(date +%s%3N)"
-      histlog hook preexec --session "$HISTLOG_SESSION_ID" --command "$HISTLOG_CMD" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
+      histlog hook preexec --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --command "$HISTLOG_CMD" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
     }
 
     _histlog_precmd() {
@@ -97,14 +98,14 @@ defmodule Histlog.Shell.Init do
       local ended_at
       ended_at="$(date +%s%3N)"
       if [ -n "${HISTLOG_CMD:-}" ]; then
-        histlog hook precmd --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
+        histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
         unset HISTLOG_CMD
         unset HISTLOG_STARTED_AT
       fi
     }
 
     _histlog_zshexit() {
-      histlog hook session-end --session "$HISTLOG_SESSION_ID" --cwd "$PWD" >/dev/null 2>&1
+      histlog hook session-end --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --cwd "$PWD" >/dev/null 2>&1
     }
 
     autoload -Uz add-zsh-hook
@@ -125,7 +126,8 @@ defmodule Histlog.Shell.Init do
     fi
 
     export HISTLOG_ACTIVE=1
-    export HISTLOG_SESSION_ID="$(histlog hook session-start --shell bash --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
+    export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
+    export HISTLOG_SESSION_ID="$(histlog hook session-start --root "$HISTLOG_ROOT" --shell bash --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
 
     _histlog_preexec() {
       local cmd="$BASH_COMMAND"
@@ -134,7 +136,7 @@ defmodule Histlog.Shell.Init do
       esac
       HISTLOG_CMD="$cmd"
       HISTLOG_STARTED_AT="$(date +%s%3N)"
-      histlog hook preexec --session "$HISTLOG_SESSION_ID" --command "$cmd" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
+      histlog hook preexec --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --command "$cmd" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
     }
 
     _histlog_precmd() {
@@ -142,7 +144,7 @@ defmodule Histlog.Shell.Init do
       local ended_at
       ended_at="$(date +%s%3N)"
       if [ -n "${HISTLOG_CMD:-}" ]; then
-        histlog hook precmd --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
+        histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
         unset HISTLOG_CMD
         unset HISTLOG_STARTED_AT
       fi
@@ -156,7 +158,7 @@ defmodule Histlog.Shell.Init do
     fi
 
     _histlog_exit() {
-      histlog hook session-end --session "$HISTLOG_SESSION_ID" --cwd "$PWD" >/dev/null 2>&1
+      histlog hook session-end --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --cwd "$PWD" >/dev/null 2>&1
     }
 
     trap '_histlog_exit' EXIT
@@ -174,26 +176,29 @@ defmodule Histlog.Shell.Init do
     end
 
     set -gx HISTLOG_ACTIVE 1
-    set -gx HISTLOG_SESSION_ID (histlog hook session-start --shell fish --pid %self --cwd "$PWD")
+    if not set -q HISTLOG_ROOT
+        set -gx HISTLOG_ROOT "$HOME/.local/share/histlog"
+    end
+    set -gx HISTLOG_SESSION_ID (histlog hook session-start --root "$HISTLOG_ROOT" --shell fish --pid %self --cwd "$PWD")
 
     function __histlog_preexec --on-event fish_preexec
         set -gx HISTLOG_CMD "$argv[1]"
         set -gx HISTLOG_STARTED_AT (date +%s%3N)
-        histlog hook preexec --session "$HISTLOG_SESSION_ID" --command "$HISTLOG_CMD" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
+        histlog hook preexec --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --command "$HISTLOG_CMD" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
     end
 
     function __histlog_postexec --on-event fish_postexec
         set -l status $status
         set -l ended_at (date +%s%3N)
         if set -q HISTLOG_CMD
-            histlog hook precmd --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
+            histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
             set -e HISTLOG_CMD
             set -e HISTLOG_STARTED_AT
         end
     end
 
     function __histlog_exit --on-event fish_exit
-        histlog hook session-end --session "$HISTLOG_SESSION_ID" --cwd "$PWD" >/dev/null 2>&1
+        histlog hook session-end --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --cwd "$PWD" >/dev/null 2>&1
     end
 
     #{fish_completions()}

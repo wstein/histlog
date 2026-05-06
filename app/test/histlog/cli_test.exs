@@ -115,7 +115,7 @@ defmodule Histlog.CLITest do
       end)
 
     assert output =~ "histlog zsh integration"
-    assert output =~ "histlog hook session-start --shell zsh"
+    assert output =~ "histlog hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
     refute output =~ "alias hl="
   end
 
