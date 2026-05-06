@@ -15,10 +15,10 @@ Periodic consolidation keeps active command capture simple while still producing
 
 ## How
 
-Implement consolidation as a scheduled or explicitly triggered Elixir workflow that scans for finished sessions, validates their JSONL records, materializes consolidated output, and records enough state to avoid consolidating the same session twice.
+Implement consolidation as a scheduled or explicitly triggered Elixir workflow that scans for finished sessions, validates their NDJSON records, materializes consolidated output, and records enough state to avoid consolidating the same session twice.
 
 ## Links
 
 - [[Session Logfile Per CLI Session]] - Provides the finished session logfiles consumed by consolidation.
-- [[JSONL Log Format]] - Defines the input records consolidation must validate.
+- [[NDJSON Log Format]] - Defines the input records consolidation must validate.
 - [[Minimal Overhead Constraint]] - Explains why consolidation is deferred from the interactive capture path.

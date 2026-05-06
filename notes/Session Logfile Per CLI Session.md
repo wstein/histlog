@@ -20,6 +20,6 @@ Name and locate session logfiles so a later process can distinguish active, fini
 ## Links
 
 - [[Elixir Implementation Language]] - Defines the runtime expected to manage session logfile behavior.
-- [[JSONL Log Format]] - Defines the record format inside each session logfile.
+- [[NDJSON Log Format]] - Defines the record format inside each session logfile.
 - [[Daily Finished Session Consolidation]] - Moves finished session logfiles into durable historical storage.
 - [[Rich Command Metadata Collection]] - Describes the records written into session logfiles.
