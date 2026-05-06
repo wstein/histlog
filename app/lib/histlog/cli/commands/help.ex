@@ -25,7 +25,6 @@ defmodule Histlog.CLI.Commands.Help do
       import      - Import shell history files
       init        - Print shell integration snippets
       doctor      - Diagnose setup
-      hook        - Internal shell hook boundary
       help        - Show this help
 
     Global flags:

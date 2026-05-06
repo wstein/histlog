@@ -249,7 +249,6 @@ defmodule Histlog.Shell.Init do
         'import:import history'
         'consolidate:consolidate ended sessions'
         'doctor:diagnose setup'
-        'hook:internal shell hook boundary'
       )
       _describe 'histlog command' commands
     }
@@ -262,7 +261,7 @@ defmodule Histlog.Shell.Init do
   defp bash_completions do
     """
     _histlog_completion() {
-      COMPREPLY=($(compgen -W "init query sessions paths import consolidate doctor hook" -- "${COMP_WORDS[COMP_CWORD]}"))
+      COMPREPLY=($(compgen -W "init query sessions paths import consolidate doctor" -- "${COMP_WORDS[COMP_CWORD]}"))
     }
     complete -F _histlog_completion histlog
     """

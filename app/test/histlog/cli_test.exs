@@ -150,6 +150,7 @@ defmodule Histlog.CLITest do
     assert help_output =~ "Usage: histlog <command> [options]"
     assert help_output =~ "query       - Flexible query"
     assert help_output =~ "histlog help <command>"
+    refute help_output =~ "hook"
 
     short_help_output =
       capture_io(fn ->
