@@ -12,7 +12,7 @@ defmodule Histlog.CLI do
         :ok
 
       {:error, reason} ->
-        IO.puts(:stderr, "histlog: #{reason}")
+        IO.puts(:stderr, "histlog: #{format_error(reason)}")
         System.halt(1)
     end
   end
@@ -20,6 +20,7 @@ defmodule Histlog.CLI do
   def run(["consolidate" | argv]), do: Commands.Consolidate.run(argv)
   def run(["verify" | argv]), do: Commands.Verify.run(argv)
   def run(["query" | argv]), do: Commands.Query.run(argv)
+  def run(["paths" | argv]), do: Commands.Paths.run(argv)
   def run(["tail" | argv]), do: Commands.Tail.run(argv)
   def run(["import" | argv]), do: Commands.Import.run(argv)
   def run(["hook" | argv]), do: Commands.Hook.run(argv)
@@ -29,4 +30,8 @@ defmodule Histlog.CLI do
   def run(["help" | argv]), do: Commands.Help.run(argv)
   def run([]), do: Commands.Help.run([])
   def run([unknown | _argv]), do: {:error, {:unknown_command, unknown}}
+
+  defp format_error({:unknown_command, command}), do: "unknown command #{inspect(command)}"
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
 end

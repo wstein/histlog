@@ -7,6 +7,7 @@ defmodule Histlog.CLI.Commands.Help do
       histlog consolidate [--root PATH] [--date YYYY-MM-DD] [--rebuild]
       histlog verify [--root PATH] [--date YYYY-MM-DD]
       histlog query [search] [--command TEXT] [--regex PATTERN] [--failed|--success|--exit N] [--json|--yaml|--plain]
+      histlog paths [--root PATH] [--date YYYY-MM-DD] [--limit N] [--json|--plain]
       histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
       histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source zsh_history|bash_history|fish_history|native]
       histlog hook session-start|preexec|precmd|session-end

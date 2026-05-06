@@ -252,6 +252,56 @@ defmodule Histlog.CLITest do
     assert plain_output == "local clock\n"
   end
 
+  test "paths command summarizes cwd and path-like arguments", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "cat ./mix.exs /tmp/file", "/repo/app", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "paths",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
+      end)
+
+    rows = JSON.decode!(output)
+    assert %{"exec" => 1, "args" => 0, "path" => "/repo/app"} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => "/repo/app/mix.exs"} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => "/tmp/file"} in rows
+  end
+
+  test "unknown commands return structured errors" do
+    assert {:error, {:unknown_command, "wat"}} = CLI.run(["wat"])
+  end
+
   test "empty query command still emits table headers", %{root: root, date: date} do
     query_output =
       capture_io(fn ->

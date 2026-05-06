@@ -16,6 +16,7 @@ mix escript.build
 ./histlog verify --root /tmp/histlog --date 2026-05-06
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix --json
+./histlog paths --root /tmp/histlog --date 2026-05-06
 ./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
 ./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
 ./histlog doctor zsh
@@ -60,6 +61,7 @@ histlog completions fish
 `query` searches derived execution rows from daily materializations, imports, and currently live sessions.
 It prints a human-readable table by default and exposes public output modes such as `--json`, `--yaml`, `--plain`, and shell-specific `--format` values.
 NDJSON remains an internal storage format and is not exposed as a query output mode.
+`paths` summarizes filesystem locations observed as working directories and path-like command arguments.
 `tail` prints the latest canonical daily and live session events.
 `import` parses zsh, bash, fish, or native NDJSON history and stores synthetic import events under `imports/`.
 `doctor` prints JSON diagnostics for the selected shell integration.
