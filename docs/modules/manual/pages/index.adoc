@@ -33,6 +33,7 @@ histlog init fish | source
 
 `histlog init` auto-detects the shell from `HISTLOG_SHELL`, `SHELL`, and then parent process name.
 Pass the shell explicitly when writing setup files.
+The automated smoke suite sources generated zsh, bash, and fish snippets in real shell subprocesses when those shells are available.
 
 Completion scripts can also be printed directly:
 
