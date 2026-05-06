@@ -2,7 +2,7 @@ defmodule Histlog.CLI.Commands.Tail do
   @moduledoc false
 
   alias Histlog.CLI.Options
-  alias Histlog.Storage
+  alias Histlog.Query
 
   @switches Options.common_switches() ++ [count: :integer]
   @aliases Options.common_aliases()
@@ -10,18 +10,12 @@ defmodule Histlog.CLI.Commands.Tail do
   def run(argv) do
     with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases),
          {:ok, opts} <- Options.normalize(opts) do
-      root = Storage.root(opts)
-      date = Keyword.get(opts, :date, Date.utc_today())
       count = Keyword.get(opts, :count, 10)
-      path = Storage.daily_events_path(root, date)
+      {:ok, rows} = Query.events(opts)
 
-      if File.exists?(path) do
-        path
-        |> File.read!()
-        |> String.split("\n", trim: true)
-        |> Enum.take(-count)
-        |> Enum.each(&IO.puts/1)
-      end
+      rows
+      |> Enum.take(-count)
+      |> Enum.each(&IO.write(JSON.encode!(&1) <> "\n"))
 
       :ok
     end

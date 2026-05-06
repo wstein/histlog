@@ -106,6 +106,66 @@ defmodule Histlog.CLITest do
     assert %{"rebuilt" => true, "records_written" => 5} = JSON.decode!(output)
   end
 
+  test "query and tail include currently live session files", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "fish",
+        session_id: "session-live",
+        monotonic_start: 12_345
+      )
+
+    assert {:ok, _writer, _event} =
+             SessionWriter.observe_execution(writer, "histlog query", "/repo", %{
+               "timestamp" => "2026-05-06T20:00:00Z",
+               "duration_ms" => 10,
+               "exit_status" => 0,
+               "completeness" => "complete"
+             })
+
+    query_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--command",
+                   "histlog"
+                 ])
+      end)
+
+    assert [%{"command" => "histlog query", "source" => "live"}] =
+             query_output
+             |> String.split("\n", trim: true)
+             |> Enum.map(&JSON.decode!/1)
+
+    tail_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "tail",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--count",
+                   "1"
+                 ])
+      end)
+
+    assert [%{"event" => "execution_observed"}] =
+             tail_output
+             |> String.split("\n", trim: true)
+             |> Enum.map(&JSON.decode!/1)
+  end
+
   test "verify command reports materialization integrity", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(

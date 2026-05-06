@@ -52,8 +52,8 @@ histlog completions fish
 `consolidate` reads closed sessions for the selected day, writes daily materialized files, and emits the manifest as JSON.
 `consolidate --rebuild` ignores the existing checkpoint for that date and rewrites daily materializations from current closed sessions.
 `verify` recomputes daily materialization record counts and checksums, then compares them to the manifest.
-`query` streams derived execution rows and applies simple command, cwd, and exit status filters.
-`tail` prints the latest canonical daily events.
+`query` streams derived execution rows from daily materializations and currently live sessions.
+`tail` prints the latest canonical daily and live session events.
 `import` parses zsh, bash, fish, or native NDJSON history and stores synthetic import events under `imports/`.
 `doctor` prints JSON diagnostics for the selected shell integration.
 
