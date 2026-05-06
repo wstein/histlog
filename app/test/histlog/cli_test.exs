@@ -66,7 +66,9 @@ defmodule Histlog.CLITest do
 
     assert query_output =~ "\e[38;5;141mSess\e[0m"
     assert query_output =~ "\e[38;5;84m✓   \e[0m"
-    assert strip_ansi(query_output) =~ "0001 2026-05-06 20:00:00    1.000s ✓    mix test"
+
+    assert strip_ansi(query_output) =~
+             "0001 #{local_display("2026-05-06T20:00:00Z")}    1.000s ✓    mix test"
   end
 
   test "query command can emit JSON output explicitly", %{root: root, date: date} do
@@ -183,6 +185,71 @@ defmodule Histlog.CLITest do
       end)
 
     assert output == "mix format\n"
+  end
+
+  test "query table and time filters use local time", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "local clock", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    local_time = local_display("2026-05-06T20:00:00Z")
+
+    table_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--command",
+                   "local clock"
+                 ])
+      end)
+
+    assert strip_ansi(table_output) =~ local_time
+
+    plain_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--since",
+                   local_time,
+                   "--before",
+                   local_time,
+                   "--plain"
+                 ])
+      end)
+
+    assert plain_output == "local clock\n"
   end
 
   test "empty query command still emits table headers", %{root: root, date: date} do
@@ -483,4 +550,17 @@ defmodule Histlog.CLITest do
   end
 
   defp strip_ansi(text), do: Regex.replace(~r/\e\[[0-9;]*m/, text, "")
+
+  defp local_display(timestamp) do
+    {:ok, datetime, _offset} = DateTime.from_iso8601(timestamp)
+
+    datetime
+    |> DateTime.to_unix(:second)
+    |> :calendar.system_time_to_local_time(:second)
+    |> then(fn {{year, month, day}, {hour, minute, second}} ->
+      "#{pad(year, 4)}-#{pad(month, 2)}-#{pad(day, 2)} #{pad(hour, 2)}:#{pad(minute, 2)}:#{pad(second, 2)}"
+    end)
+  end
+
+  defp pad(value, count), do: value |> Integer.to_string() |> String.pad_leading(count, "0")
 end

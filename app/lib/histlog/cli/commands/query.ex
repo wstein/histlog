@@ -105,16 +105,7 @@ defmodule Histlog.CLI.Commands.Query do
   end
 
   defp query_options(opts) do
-    opts =
-      opts
-      |> maybe_put_date(:today, Date.utc_today())
-      |> maybe_put_date(:yesterday, Date.add(Date.utc_today(), -1))
-
     {:ok, Keyword.take(opts, [:root, :date])}
-  end
-
-  defp maybe_put_date(opts, flag, date) do
-    if Keyword.get(opts, flag, false), do: Keyword.put(opts, :date, date), else: opts
   end
 
   defp filter_rows(rows, args, opts) do
@@ -263,10 +254,8 @@ defmodule Histlog.CLI.Commands.Query do
 
   defp format_timestamp(timestamp) do
     timestamp
-    |> to_string()
+    |> local_timestamp()
     |> String.replace("T", " ")
-    |> String.replace_suffix("Z", "")
-    |> String.slice(0, 19)
     |> String.pad_trailing(19)
   end
 
@@ -486,8 +475,16 @@ defmodule Histlog.CLI.Commands.Query do
   defp time_filter(opts) do
     cond do
       Keyword.get(opts, :week, false) ->
-        today = Date.utc_today()
+        today = local_today()
         {Date.add(today, -Date.day_of_week(today) + 1) |> Date.to_iso8601(), nil}
+
+      Keyword.get(opts, :today, false) ->
+        today = local_today() |> Date.to_iso8601()
+        {today, today <> "T23:59:59"}
+
+      Keyword.get(opts, :yesterday, false) ->
+        yesterday = local_today() |> Date.add(-1) |> Date.to_iso8601()
+        {yesterday, yesterday <> "T23:59:59"}
 
       time = Keyword.get(opts, :time) ->
         parse_time_range(time)
@@ -526,14 +523,54 @@ defmodule Histlog.CLI.Commands.Query do
     value = String.trim(value)
 
     cond do
-      Regex.match?(~r/^\d{2}:\d{2}/, value) -> Date.to_iso8601(Date.utc_today()) <> "T#{value}"
+      Regex.match?(~r/^\d{2}:\d{2}/, value) -> Date.to_iso8601(local_today()) <> "T#{value}"
       Regex.match?(~r/^\d{4}-\d{2}-\d{2}$/, value) -> value
       true -> String.replace(value, " ", "T")
     end
   end
 
   defp comparable_time(nil), do: nil
-  defp comparable_time(value), do: value |> to_string() |> String.replace(" ", "T")
+  defp comparable_time(value), do: local_timestamp(value)
+
+  defp local_today do
+    {{year, month, day}, _time} = :calendar.local_time()
+    Date.new!(year, month, day)
+  end
+
+  defp local_timestamp(timestamp) do
+    with {:ok, datetime, _offset} <- DateTime.from_iso8601(to_string(timestamp)) do
+      datetime
+      |> DateTime.to_unix(:second)
+      |> :calendar.system_time_to_local_time(:second)
+      |> format_local_time()
+    else
+      _error ->
+        timestamp
+        |> to_string()
+        |> String.replace(" ", "T")
+        |> String.replace_suffix("Z", "")
+        |> String.slice(0, 19)
+    end
+  end
+
+  defp format_local_time({{year, month, day}, {hour, minute, second}}) do
+    [
+      pad(year, 4),
+      "-",
+      pad(month, 2),
+      "-",
+      pad(day, 2),
+      "T",
+      pad(hour, 2),
+      ":",
+      pad(minute, 2),
+      ":",
+      pad(second, 2)
+    ]
+    |> IO.iodata_to_binary()
+  end
+
+  defp pad(value, count), do: value |> Integer.to_string() |> String.pad_leading(count, "0")
 
   defp shell_history_line(command, format) when format in ["bash", "zsh", "fish"],
     do: command || ""
