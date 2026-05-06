@@ -23,5 +23,6 @@ The hook boundary keeps shell scripts thin and centralizes validation, redaction
 ## Links
 
 - [[Shell Hook CLI Boundary]] - Defines the shell-to-Elixir runtime boundary.
+- [[No Long Running Service]] - Explains why hook state exists instead of a daemon.
 - [[NDJSON Boundary Contract]] - Defines canonical persisted history.
 - [[Session Logfile Per CLI Session]] - Defines one append-only event stream per session.

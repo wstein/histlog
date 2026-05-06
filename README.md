@@ -2,6 +2,7 @@
 
 histlog is a log-structured, append-only shell history system implemented in Elixir.
 It records shell activity as per-session NDJSON event streams and materializes closed sessions into daily files for querying.
+It is a short-lived CLI/escript tool, not a daemon or long-running OTP service.
 
 ## Development
 

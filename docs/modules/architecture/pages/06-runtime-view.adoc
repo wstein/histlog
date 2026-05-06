@@ -2,6 +2,7 @@
 :page-layout: default
 
 The important runtime flows are append-only session capture, daily consolidation, import, and query.
+Each flow runs as a short-lived CLI invocation; histlog does not run a daemon or resident OTP service.
 
 == Session Capture
 
@@ -21,6 +22,7 @@ The canonical boundary remains the session NDJSON file:
 == Consolidation
 
 `Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, appends valid events to daily materializations, and writes a manifest checkpoint.
+It is invoked explicitly by `histlog consolidate` or by an external scheduler that runs the CLI.
 
 == Verification
 

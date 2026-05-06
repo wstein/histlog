@@ -8,7 +8,8 @@ histlog v1 intentionally favors explicit log-structured files over hidden storag
 * The implementation language is Elixir.
 * Canonical event streams use NDJSON.
 * Each CLI session writes one append-only logfile.
-* v1 does not use SQL or a long-running indexing engine.
+* histlog does not use SQL, a daemon, a long-running OTP service, or a long-running indexing engine.
+* All runtime workflows are short-lived CLI invocations; recurring work is started by the user or an external scheduler.
 * Subsystems exchange data through files rather than shared mutable state.
 
 == Operational Constraints
