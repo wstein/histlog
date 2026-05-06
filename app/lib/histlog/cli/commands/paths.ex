@@ -72,6 +72,9 @@ defmodule Histlog.CLI.Commands.Paths do
 
   defp path_token(token, cwd) do
     cond do
+      token in [".", ".."] ->
+        [normalize_path(token, cwd)]
+
       String.starts_with?(token, ["~", "/", "./", "../"]) ->
         [normalize_path(token, cwd)]
 

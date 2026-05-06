@@ -384,7 +384,7 @@ defmodule Histlog.CLI.Commands.Query do
 
   defp match_paths?(row, opts) do
     command = row["command"] || ""
-    has_path? = Regex.match?(~r/(^|\s)(\.{1,2}\/|\/|~)/, command)
+    has_path? = Regex.match?(~r/(^|\s)(\.{1,2}(\/|\s|$)|\/|~)/, command)
 
     cond do
       path = Keyword.get(opts, :path) ->

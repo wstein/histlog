@@ -273,6 +273,14 @@ defmodule Histlog.CLITest do
         "completeness" => "complete"
       })
 
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "ls ..", "/repo/app", %{
+        "timestamp" => "2026-05-06T20:00:01Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
 
     capture_io(fn ->
@@ -293,9 +301,10 @@ defmodule Histlog.CLITest do
       end)
 
     rows = JSON.decode!(output)
-    assert %{"exec" => 1, "args" => 0, "path" => "/repo/app"} in rows
+    assert %{"exec" => 2, "args" => 0, "path" => "/repo/app"} in rows
     assert %{"exec" => 0, "args" => 1, "path" => "/repo/app/mix.exs"} in rows
     assert %{"exec" => 0, "args" => 1, "path" => "/tmp/file"} in rows
+    assert %{"exec" => 0, "args" => 1, "path" => "/repo"} in rows
   end
 
   test "unknown commands return structured errors" do
