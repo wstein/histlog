@@ -53,6 +53,18 @@ defmodule Histlog.SessionWriterTest do
              "execution_observed",
              "session_ended"
            ]
+
+    [session_started, command_defined, _folder_defined, execution_observed, session_ended] =
+      events
+
+    assert session_started["session_id"] == "session-1"
+    refute Map.has_key?(command_defined, "session_id")
+    refute Map.has_key?(execution_observed, "session_id")
+    refute Map.has_key?(execution_observed, "recorded_at")
+    refute Map.has_key?(execution_observed, "started_at")
+    refute Map.has_key?(execution_observed, "ended_at")
+    assert execution_observed["timestamp"] == "2026-05-06T20:00:01Z"
+    assert session_ended["timestamp"] == "2026-05-06T20:00:03Z"
   end
 
   test "deduplicates commands and folders within a session", %{root: root} do

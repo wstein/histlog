@@ -11,16 +11,15 @@ defmodule Histlog.Event do
   @doc """
   Builds a redacted canonical event map.
   """
-  def new(event, session_id, seq, attrs \\ %{}) when is_binary(event) and is_binary(session_id) do
+  def new(event, seq, attrs \\ %{}) when is_binary(event) do
     base = %{
       "schema_version" => @schema_version,
       "event" => event,
-      "session_id" => session_id,
       "seq" => seq,
-      "recorded_at" => Map.get(attrs, "recorded_at", now())
+      "timestamp" => Map.get(attrs, "timestamp", now())
     }
 
-    attrs = Map.delete(attrs, "recorded_at")
+    attrs = Map.delete(attrs, "timestamp")
     {redacted, changed?} = Redaction.redact(Map.merge(base, attrs))
 
     event =
@@ -39,8 +38,8 @@ defmodule Histlog.Event do
   @doc """
   Builds a redacted canonical event or raises on validation failure.
   """
-  def new!(event, session_id, seq, attrs \\ %{}) do
-    case new(event, session_id, seq, attrs) do
+  def new!(event, seq, attrs \\ %{}) do
+    case new(event, seq, attrs) do
       {:ok, built} -> built
       {:error, reason} -> raise ArgumentError, "invalid histlog event: #{inspect(reason)}"
     end

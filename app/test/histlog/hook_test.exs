@@ -56,5 +56,8 @@ defmodule Histlog.HookTest do
     assert execution["duration_ms"] == 42
     assert execution["exit_status"] == 0
     assert execution["completeness"] == "complete"
+    assert execution["timestamp"] == "1970-01-01T00:00:01.000Z"
+    refute Map.has_key?(execution, "started_at")
+    refute Map.has_key?(execution, "ended_at")
   end
 end

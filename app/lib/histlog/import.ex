@@ -4,14 +4,14 @@ defmodule Histlog.Import do
   """
 
   alias Histlog.Event
-  alias Histlog.NDJSON
 
   @doc """
   Builds an import batch event stream from simple execution maps.
   """
   def batch(session_id, source, import_batch_id, executions) when is_list(executions) do
     started =
-      Event.new!("import_batch_started", session_id, 1, %{
+      Event.new!("import_batch_started", 1, %{
+        "session_id" => session_id,
         "source" => source,
         "import_batch_id" => import_batch_id
       })
@@ -22,14 +22,13 @@ defmodule Histlog.Import do
       |> Enum.map(fn {execution, seq} ->
         Event.new!(
           "imported_execution",
-          session_id,
           seq,
           Map.take(execution, ["command", "cwd", "timestamp", "exit_status"])
         )
       end)
 
     finished =
-      Event.new!("import_batch_finished", session_id, length(executions) + 2, %{
+      Event.new!("import_batch_finished", length(executions) + 2, %{
         "import_batch_id" => import_batch_id,
         "records" => length(executions)
       })
@@ -48,14 +47,14 @@ defmodule Histlog.Import do
   def parse("fish", content), do: parse_fish_history(content)
 
   def parse("ndjson", content) do
-    with {:ok, events} <- NDJSON.decode(content) do
-      executions =
-        events
-        |> Enum.filter(&(&1["event"] in ["execution_observed", "imported_execution"]))
-        |> Enum.map(&event_to_imported_execution/1)
+    executions =
+      content
+      |> String.split("\n", trim: true)
+      |> Enum.map(&JSON.decode!/1)
+      |> Enum.filter(&(&1["event"] in ["execution_observed", "imported_execution"]))
+      |> Enum.map(&event_to_imported_execution/1)
 
-      {:ok, executions}
-    end
+    {:ok, executions}
   end
 
   def parse(source, _content), do: {:error, {:unsupported_import_source, source}}
@@ -231,7 +230,7 @@ defmodule Histlog.Import do
     %{
       "command" => Map.get(event, "command", ""),
       "cwd" => Map.get(event, "cwd"),
-      "timestamp" => Map.get(event, "started_at"),
+      "timestamp" => Map.get(event, "timestamp", Map.get(event, "started_at")),
       "exit_status" => Map.get(event, "exit_status")
     }
   end

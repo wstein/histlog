@@ -42,7 +42,7 @@ defmodule Histlog.Hook do
   def precmd(opts) do
     with {:ok, writer, pending} <- load_writer_with_pending(opts) do
       attrs = %{
-        "started_at" => Map.get(pending, "started_at", Keyword.get(opts, :ended_at)),
+        "timestamp" => timestamp(Map.get(pending, "started_at", Keyword.get(opts, :ended_at))),
         "ended_at" => Keyword.get(opts, :ended_at),
         "duration_ms" =>
           duration_ms(Map.get(pending, "started_at"), Keyword.get(opts, :ended_at)),
@@ -140,6 +140,22 @@ defmodule Histlog.Hook do
       duration
     else
       _other -> nil
+    end
+  end
+
+  defp timestamp(nil), do: now()
+
+  defp timestamp(value) do
+    text = to_string(value)
+
+    case Integer.parse(text) do
+      {epoch_ms, ""} ->
+        epoch_ms
+        |> DateTime.from_unix!(:millisecond)
+        |> DateTime.to_iso8601()
+
+      _other ->
+        text
     end
   end
 

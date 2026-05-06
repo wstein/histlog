@@ -7,7 +7,7 @@ Histlog should use `execution_observed` as the primary execution event because s
 
 ## What
 
-An `execution_observed` event records the command, current working directory, available timing fields, available exit status, and a completeness value. It can represent complete, partial, or imported execution evidence without requiring a perfect start and finish pair.
+An `execution_observed` event records command and cwd identifiers, an event `timestamp`, available duration, available exit status, and a completeness value. It can represent complete, partial, or imported execution evidence without requiring a perfect start and finish pair.
 
 ## Why
 
@@ -15,7 +15,7 @@ Interactive shells are unreliable instrumentation surfaces. Hooks may fail, shel
 
 ## How
 
-Prefer `execution_observed` in the live stream. Accept optional `execution_finished` events only as extra evidence when the shell integration can provide them. Derive normalized `execution` rows during consolidation.
+Prefer `execution_observed` in the live stream. For complete executions, use `timestamp` as command start time and `duration_ms` as elapsed time. Avoid redundant `started_at`, `ended_at`, and `recorded_at` fields in canonical session logs.
 
 ## Links
 

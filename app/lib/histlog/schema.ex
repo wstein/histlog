@@ -6,13 +6,13 @@ defmodule Histlog.Schema do
   @schema_version Histlog.schema_version()
 
   @event_fields %{
-    "session_started" => ["process_id", "parent_process_id", "shell", "host", "started_at"],
-    "session_ended" => ["ended_at"],
+    "session_started" => ["session_id", "process_id", "parent_process_id", "shell", "host"],
+    "session_ended" => [],
     "session_aborted" => ["reason"],
     "command_defined" => ["command_id", "command"],
     "folder_defined" => ["folder_id", "folder"],
-    "execution_observed" => ["exec_id", "command_id", "cwd_id", "started_at", "completeness"],
-    "execution_finished" => ["exec_id", "ended_at", "completeness"],
+    "execution_observed" => ["exec_id", "command_id", "cwd_id", "completeness"],
+    "execution_finished" => ["exec_id", "completeness"],
     "cwd_changed" => ["new_cwd_id"],
     "import_batch_started" => ["source", "import_batch_id"],
     "imported_execution" => ["command", "timestamp"],
@@ -26,9 +26,8 @@ defmodule Histlog.Schema do
     with :ok <- require_field(event, "schema_version"),
          :ok <- equal(event, "schema_version", @schema_version),
          :ok <- require_string(event, "event"),
-         :ok <- require_string(event, "session_id"),
          :ok <- require_positive_integer(event, "seq"),
-         :ok <- require_string(event, "recorded_at"),
+         :ok <- require_field(event, "timestamp"),
          :ok <- validate_type_fields(event) do
       :ok
     end

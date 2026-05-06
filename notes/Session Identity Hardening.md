@@ -7,7 +7,7 @@ Histlog session identity should combine opaque IDs with process and start metada
 
 ## What
 
-Each session records an opaque `session_id`, host, process id, parent process id, wall-clock start time, monotonic start value, and shell name. Filenames may include host, pid, and start nanoseconds for operator readability.
+Each session records an opaque `session_id`, host, process id, parent process id, timestamp, monotonic start value, and shell name in the `session_started` header. Filenames may include host, pid, and start nanoseconds for operator readability.
 
 ## Why
 
@@ -15,7 +15,7 @@ PIDs can be reused, clocks can shift, and host-local sessions can overlap. Robus
 
 ## How
 
-Use `session_id` as the primary identity in events. Use process and start metadata as supporting evidence for liveness checks, stale-session detection, and human-readable filenames.
+Use `session_id` as the primary identity for the session file, not as repeated payload on every event. Later rows inherit identity from the one-file-per-session boundary.
 
 ## Links
 

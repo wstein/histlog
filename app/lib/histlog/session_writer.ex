@@ -109,11 +109,12 @@ defmodule Histlog.SessionWriter do
     }
 
     attrs = %{
+      "session_id" => session_id,
       "process_id" => normalize_process_id(process_id),
       "parent_process_id" => normalize_process_id(parent_process_id),
       "shell" => shell,
       "host" => host,
-      "started_at" => started_at,
+      "timestamp" => started_at,
       "monotonic_start" => monotonic_start
     }
 
@@ -192,13 +193,19 @@ defmodule Histlog.SessionWriter do
             "exec_id" => exec_id,
             "command_id" => command_id,
             "cwd_id" => cwd_id,
-            "started_at" => Map.get(attrs, "started_at", now()),
-            "ended_at" => Map.get(attrs, "ended_at"),
+            "timestamp" => Map.get(attrs, "timestamp", Map.get(attrs, "started_at", now())),
             "duration_ms" => Map.get(attrs, "duration_ms"),
             "exit_status" => Map.get(attrs, "exit_status"),
             "completeness" => Map.get(attrs, "completeness", "partial")
           },
-          Map.drop(attrs, ["started_at", "ended_at", "duration_ms", "exit_status", "completeness"])
+          Map.drop(attrs, [
+            "timestamp",
+            "started_at",
+            "ended_at",
+            "duration_ms",
+            "exit_status",
+            "completeness"
+          ])
         )
 
       with {:ok, writer, event} <- append(writer, "execution_observed", event_attrs) do
@@ -211,7 +218,7 @@ defmodule Histlog.SessionWriter do
   Writes `session_ended` and atomically moves the session to `closed/`.
   """
   def close(%__MODULE__{} = writer, ended_at \\ now()) do
-    with {:ok, writer, event} <- append(writer, "session_ended", %{"ended_at" => ended_at}),
+    with {:ok, writer, event} <- append(writer, "session_ended", %{"timestamp" => ended_at}),
          :ok <- Storage.close_session(writer.live_path, writer.closed_path) do
       {:ok, writer, event}
     end
@@ -220,7 +227,7 @@ defmodule Histlog.SessionWriter do
   defp append(%__MODULE__{} = writer, event_type, attrs) do
     seq = writer.seq + 1
 
-    with {:ok, event} <- Event.new(event_type, writer.session_id, seq, attrs),
+    with {:ok, event} <- Event.new(event_type, seq, attrs),
          :ok <- Storage.append_event(writer.live_path, event) do
       {:ok, %{writer | seq: seq}, event}
     end

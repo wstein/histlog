@@ -77,7 +77,7 @@ defmodule Histlog.Consolidator do
   defp load_valid_session(path, root, date) do
     with {:ok, events} <- Storage.read_events(path),
          :ok <- Schema.validate_sequence(events),
-         :ok <- validate_single_session_id(events) do
+         :ok <- validate_session_header(events) do
       {:ok, events}
     else
       {:error, reason} ->
@@ -85,14 +85,21 @@ defmodule Histlog.Consolidator do
     end
   end
 
-  defp validate_single_session_id([]), do: {:error, :empty_session}
+  defp validate_session_header([]), do: {:error, :empty_session}
 
-  defp validate_single_session_id(events) do
-    session_ids = events |> Enum.map(&Map.get(&1, "session_id")) |> Enum.uniq()
+  defp validate_session_header([
+         %{"event" => "session_started", "session_id" => session_id} | _events
+       ])
+       when is_binary(session_id) and session_id != "" do
+    :ok
+  end
 
-    case session_ids do
-      [_session_id] -> :ok
-      _other -> {:error, {:inconsistent_session_id, session_ids}}
+  defp validate_session_header(_events), do: {:error, :missing_session_header}
+
+  defp session_id(events) do
+    case events do
+      [%{"event" => "session_started", "session_id" => session_id} | _rest] -> session_id
+      _other -> nil
     end
   end
 
@@ -114,18 +121,18 @@ defmodule Histlog.Consolidator do
   defp derive_execution_rows(events) do
     commands = catalog(events, "command_defined", "command_id", "command")
     folders = catalog(events, "folder_defined", "folder_id", "folder")
+    session_id = session_id(events)
 
     events
     |> Enum.filter(&(&1["event"] == "execution_observed"))
     |> Enum.map(fn event ->
       %{
         "event" => "execution",
-        "session_id" => event["session_id"],
+        "session_id" => session_id,
         "exec_id" => event["exec_id"],
         "command" => Map.get(commands, event["command_id"]),
         "cwd" => Map.get(folders, event["cwd_id"]),
-        "started_at" => event["started_at"],
-        "ended_at" => event["ended_at"],
+        "timestamp" => event["timestamp"],
         "duration_ms" => event["duration_ms"],
         "exit_status" => event["exit_status"],
         "completeness" => event["completeness"]

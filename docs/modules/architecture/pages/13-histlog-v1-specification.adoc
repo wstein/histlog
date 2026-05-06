@@ -46,8 +46,8 @@ histlog v1 does not provide:
     YYYY-MM-DD.json
 ----
 
-Session identity includes an opaque `session_id`, host, process id, parent process id, wall-clock start time, monotonic start value, and shell name.
-The filename is useful for operators, but event data remains authoritative.
+The `session_started` event includes an opaque `session_id`, host, process id, parent process id, timestamp, monotonic start value, and shell name.
+Because each file contains exactly one session, later events inherit the session identity from the file and do not repeat `session_id`.
 
 == Canonical Events
 
@@ -58,11 +58,13 @@ Every canonical event contains:
 {
   "schema_version": 1,
   "event": "event_type",
-  "session_id": "...",
   "seq": 1,
-  "recorded_at": "2026-05-06T20:00:00Z"
+  "timestamp": "2026-05-06T20:00:00Z"
 }
 ----
+
+Only `session_started` carries `session_id`.
+All other rows stay economical and rely on the per-session file boundary.
 
 Supported event families are:
 
@@ -73,7 +75,9 @@ Supported event families are:
 * import: `import_batch_started`, `imported_execution`, `import_batch_finished`
 
 `execution_observed` is the primary execution event because shell hooks may miss completion data.
-`execution_finished` may be recorded when finish data is available, but consolidation must tolerate missing finish events.
+For a complete execution, `timestamp` is the command start time and `duration_ms` records elapsed time.
+For partial execution evidence, missing fields remain `null` and `completeness` explains the confidence level.
+`started_at`, `ended_at`, and `recorded_at` are not part of the canonical v1 session log.
 
 == Boundary Rule
 
