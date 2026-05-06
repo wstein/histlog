@@ -12,6 +12,18 @@ Use it when you want to find:
 - the directories you actually worked in
 - a clean list of commands to rerun, share, or script
 
+Example:
+
+```text
+❯ histlog query
+Sess Timestamp           Duration Exit Command
+--------------------------------------------------
+0001 2026-05-07 09:14:02    0.184s ✓    git status
+0001 2026-05-07 09:14:12    5.812s ✓    mix test
+0001 2026-05-07 09:15:01    0.038s ✗1   psql histlog_dev
+0002 2026-05-07 09:18:44   12.407s ✓    make build
+```
+
 ## Quick Start
 
 Build and install the CLI:
