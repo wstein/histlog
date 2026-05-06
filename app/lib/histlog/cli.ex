@@ -8,6 +8,46 @@ defmodule Histlog.CLI do
   alias Histlog.Storage
   alias Histlog.Verifier
 
+  @common_switches [
+    root: :string,
+    date: :string
+  ]
+
+  @query_switches @common_switches ++
+                    [
+                      command: :string,
+                      cwd: :string,
+                      exit_status: :integer
+                    ]
+
+  @tail_switches @common_switches ++ [count: :integer]
+
+  @import_switches @common_switches ++
+                     [
+                       source: :string,
+                       session_id: :string,
+                       import_batch_id: :string
+                     ]
+
+  @hook_switches @common_switches ++
+                   [
+                     shell: :string,
+                     session: :string,
+                     command: :string,
+                     cwd: :string,
+                     pid: :integer,
+                     ppid: :integer,
+                     started_at: :string,
+                     ended_at: :string,
+                     host: :string,
+                     exit_status: :integer,
+                     session_id: :string
+                   ]
+
+  @init_switches [
+    aliases: :boolean
+  ]
+
   @doc false
   def main(argv) do
     case run(argv) do
@@ -21,103 +61,118 @@ defmodule Histlog.CLI do
   end
 
   def run(["consolidate" | argv]) do
-    opts = parse_options(argv)
+    with {:ok, opts, []} <- parse_options(argv, @common_switches),
+         {:ok, opts} <- normalize_options(opts) do
+      case Consolidator.consolidate(opts) do
+        {:ok, manifest} ->
+          IO.puts(JSON.encode!(manifest))
+          :ok
 
-    case Consolidator.consolidate(opts) do
-      {:ok, manifest} ->
-        IO.puts(JSON.encode!(manifest))
-        :ok
-
-      {:error, reason} ->
-        {:error, inspect(reason)}
+        {:error, reason} ->
+          {:error, inspect(reason)}
+      end
     end
   end
 
   def run(["query" | argv]) do
-    {filters, opts} = parse_query(argv)
+    with {:ok, opts, []} <- parse_options(argv, @query_switches),
+         {:ok, opts} <- normalize_options(opts) do
+      {filters, opts} = query_options(opts)
 
-    {:ok, rows} = Query.executions(Keyword.put(opts, :filters, filters))
-    Enum.each(rows, &IO.write(JSON.encode!(&1) <> "\n"))
-    :ok
+      {:ok, rows} = Query.executions(Keyword.put(opts, :filters, filters))
+      Enum.each(rows, &IO.write(JSON.encode!(&1) <> "\n"))
+      :ok
+    end
   end
 
   def run(["verify" | argv]) do
-    opts = parse_options(argv)
+    with {:ok, opts, []} <- parse_options(argv, @common_switches),
+         {:ok, opts} <- normalize_options(opts) do
+      case Verifier.verify(opts) do
+        {:ok, report} ->
+          IO.puts(JSON.encode!(report))
+          :ok
 
-    case Verifier.verify(opts) do
-      {:ok, report} ->
-        IO.puts(JSON.encode!(report))
-        :ok
+        {:error, report} when is_map(report) ->
+          IO.puts(JSON.encode!(report))
+          {:error, "verification failed"}
 
-      {:error, report} when is_map(report) ->
-        IO.puts(JSON.encode!(report))
-        {:error, "verification failed"}
-
-      {:error, reason} ->
-        {:error, inspect(reason)}
+        {:error, reason} ->
+          {:error, inspect(reason)}
+      end
     end
   end
 
   def run(["tail" | argv]) do
-    opts = parse_options(argv)
-    root = Storage.root(opts)
-    date = Keyword.get(opts, :date, Date.utc_today())
-    count = Keyword.get(opts, :count, 10)
-    path = Storage.daily_events_path(root, date)
+    with {:ok, opts, []} <- parse_options(argv, @tail_switches),
+         {:ok, opts} <- normalize_options(opts) do
+      root = Storage.root(opts)
+      date = Keyword.get(opts, :date, Date.utc_today())
+      count = Keyword.get(opts, :count, 10)
+      path = Storage.daily_events_path(root, date)
 
-    if File.exists?(path) do
-      path
-      |> File.read!()
-      |> String.split("\n", trim: true)
-      |> Enum.take(-count)
-      |> Enum.each(&IO.puts/1)
+      if File.exists?(path) do
+        path
+        |> File.read!()
+        |> String.split("\n", trim: true)
+        |> Enum.take(-count)
+        |> Enum.each(&IO.puts/1)
+      end
+
+      :ok
     end
-
-    :ok
   end
 
   def run(["import", file | argv]) do
-    opts = parse_options(argv)
-    root = Storage.root(opts)
-    date = Keyword.get(opts, :date, Date.utc_today())
-    source = Keyword.get(opts, :source, source_name(file))
-    session_id = Keyword.get(opts, :session_id, "import-#{source}-#{Date.to_iso8601(date)}")
-    import_batch_id = Keyword.get(opts, :import_batch_id, "#{source}-#{Date.to_iso8601(date)}")
+    with {:ok, opts, []} <- parse_options(argv, @import_switches),
+         {:ok, opts} <- normalize_options(opts) do
+      root = Storage.root(opts)
+      date = Keyword.get(opts, :date, Date.utc_today())
+      source = Keyword.get(opts, :source, source_name(file))
+      session_id = Keyword.get(opts, :session_id, "import-#{source}-#{Date.to_iso8601(date)}")
+      import_batch_id = Keyword.get(opts, :import_batch_id, "#{source}-#{Date.to_iso8601(date)}")
 
-    destination =
-      Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{source}.ndjson")
+      destination =
+        Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{source}.ndjson")
 
-    with {:ok, content} <- File.read(file),
-         {:ok, events} <- Histlog.Import.from_source(session_id, source, import_batch_id, content),
-         output = Histlog.NDJSON.encode!(events),
-         :ok <- Storage.atomic_write(destination, output) do
-      IO.puts(destination)
-      :ok
-    else
-      {:error, reason} -> {:error, inspect(reason)}
+      with {:ok, content} <- File.read(file),
+           {:ok, events} <-
+             Histlog.Import.from_source(session_id, source, import_batch_id, content),
+           output = Histlog.NDJSON.encode!(events),
+           :ok <- Storage.atomic_write(destination, output) do
+        IO.puts(destination)
+        :ok
+      else
+        {:error, reason} -> {:error, inspect(reason)}
+      end
     end
   end
+
+  def run(["import" | _argv]), do: {:error, "missing import file"}
 
   def run(["hook", action | argv]) do
-    opts = parse_options(argv)
+    with {:ok, opts, []} <- parse_options(argv, @hook_switches),
+         {:ok, opts} <- normalize_options(opts) do
+      case run_hook(action, opts) do
+        {:ok, session_id} when is_binary(session_id) ->
+          IO.puts(session_id)
+          :ok
 
-    case run_hook(action, opts) do
-      {:ok, session_id} when is_binary(session_id) ->
-        IO.puts(session_id)
-        :ok
+        :ok ->
+          :ok
 
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        {:error, inspect(reason)}
+        {:error, reason} ->
+          {:error, inspect(reason)}
+      end
     end
   end
 
-  def run(["init" | argv]) do
-    {shell, opts} = parse_shell_command(argv)
+  def run(["hook" | _argv]), do: {:error, "missing hook action"}
 
-    with {:ok, shell} <- resolve_shell(shell),
+  def run(["init" | argv]) do
+    with {:ok, opts, args} <- parse_options(argv, @init_switches),
+         {:ok, shell} <- one_optional_arg(args),
+         {:ok, shell} <- resolve_shell(shell),
          {:ok, script} <- Histlog.Shell.Init.script(shell, opts) do
       IO.write(script)
       :ok
@@ -127,9 +182,9 @@ defmodule Histlog.CLI do
   end
 
   def run(["completions" | argv]) do
-    {shell, _opts} = parse_shell_command(argv)
-
-    with {:ok, shell} <- resolve_shell(shell),
+    with {:ok, _opts, args} <- parse_options(argv, []),
+         {:ok, shell} <- one_optional_arg(args),
+         {:ok, shell} <- resolve_shell(shell),
          {:ok, script} <- Histlog.Shell.Init.completions(shell) do
       IO.write(script)
       :ok
@@ -139,9 +194,9 @@ defmodule Histlog.CLI do
   end
 
   def run(["doctor" | argv]) do
-    {shell, _opts} = parse_shell_command(argv)
-
-    with {:ok, shell} <- resolve_shell(shell) do
+    with {:ok, _opts, args} <- parse_options(argv, []),
+         {:ok, shell} <- one_optional_arg(args),
+         {:ok, shell} <- resolve_shell(shell) do
       shell
       |> Histlog.Shell.Init.doctor()
       |> JSON.encode!()
@@ -176,19 +231,10 @@ defmodule Histlog.CLI do
   defp run_hook("session-end", opts), do: Histlog.Hook.session_end(opts)
   defp run_hook(action, _opts), do: {:error, {:unknown_hook_action, action}}
 
-  defp parse_shell_command(argv) do
-    {positionals, flags} = Enum.split_with(argv, &(!String.starts_with?(&1, "--")))
-    shell = List.first(positionals)
-    opts = if "--aliases" in flags, do: [aliases: true], else: []
-    {shell, opts}
-  end
-
   defp resolve_shell(nil), do: Histlog.Shell.Init.detect()
   defp resolve_shell(shell), do: {:ok, shell}
 
-  defp parse_query(argv) do
-    opts = parse_options(argv)
-
+  defp query_options(opts) do
     filters =
       opts
       |> Keyword.take([:command, :cwd, :exit_status])
@@ -197,62 +243,33 @@ defmodule Histlog.CLI do
     {filters, Keyword.drop(opts, [:command, :cwd, :exit_status])}
   end
 
-  defp parse_options(argv), do: parse_options(argv, [])
-
-  defp parse_options([], acc), do: Enum.reverse(acc)
-  defp parse_options(["--root", root | rest], acc), do: parse_options(rest, [{:root, root} | acc])
-
-  defp parse_options(["--shell", shell | rest], acc),
-    do: parse_options(rest, [{:shell, shell} | acc])
-
-  defp parse_options(["--session", session | rest], acc),
-    do: parse_options(rest, [{:session, session} | acc])
-
-  defp parse_options(["--command", command | rest], acc),
-    do: parse_options(rest, [{:command, command} | acc])
-
-  defp parse_options(["--cwd", cwd | rest], acc), do: parse_options(rest, [{:cwd, cwd} | acc])
-
-  defp parse_options(["--date", date | rest], acc) do
-    parse_options(rest, [{:date, Date.from_iso8601!(date)} | acc])
+  defp parse_options(argv, switches) do
+    case OptionParser.parse(argv, strict: switches) do
+      {opts, args, []} -> {:ok, opts, args}
+      {_opts, _args, invalid} -> {:error, "invalid options #{inspect(invalid)}"}
+    end
   end
 
-  defp parse_options(["--pid", pid | rest], acc),
-    do: parse_options(rest, [{:pid, parse_integer(pid)} | acc])
-
-  defp parse_options(["--ppid", ppid | rest], acc),
-    do: parse_options(rest, [{:ppid, parse_integer(ppid)} | acc])
-
-  defp parse_options(["--started-at", started_at | rest], acc),
-    do: parse_options(rest, [{:started_at, started_at} | acc])
-
-  defp parse_options(["--ended-at", ended_at | rest], acc),
-    do: parse_options(rest, [{:ended_at, ended_at} | acc])
-
-  defp parse_options(["--host", host | rest], acc), do: parse_options(rest, [{:host, host} | acc])
-
-  defp parse_options(["--exit-status", status | rest], acc) do
-    parse_options(rest, [{:exit_status, parse_integer(status)} | acc])
+  defp normalize_options(opts) do
+    {:ok,
+     Enum.map(opts, fn
+       {:date, date} -> {:date, parse_date(date)}
+       option -> option
+     end)}
+  rescue
+    exception in ArgumentError -> {:error, Exception.message(exception)}
   end
 
-  defp parse_options(["--count", count | rest], acc) do
-    parse_options(rest, [{:count, String.to_integer(count)} | acc])
+  defp one_optional_arg([]), do: {:ok, nil}
+  defp one_optional_arg([arg]), do: {:ok, arg}
+  defp one_optional_arg(args), do: {:error, "unexpected arguments #{inspect(args)}"}
+
+  defp parse_date(date) do
+    case Date.from_iso8601(date) do
+      {:ok, parsed} -> parsed
+      {:error, reason} -> raise ArgumentError, "invalid date #{inspect(date)}: #{reason}"
+    end
   end
-
-  defp parse_options(["--source", source | rest], acc),
-    do: parse_options(rest, [{:source, source} | acc])
-
-  defp parse_options(["--session-id", session_id | rest], acc),
-    do: parse_options(rest, [{:session_id, session_id} | acc])
-
-  defp parse_options(["--import-batch-id", import_batch_id | rest], acc),
-    do: parse_options(rest, [{:import_batch_id, import_batch_id} | acc])
-
-  defp parse_options([unknown | _rest], _acc),
-    do: raise(ArgumentError, "unknown option #{unknown}")
-
-  defp parse_integer(value) when is_integer(value), do: value
-  defp parse_integer(value), do: String.to_integer(value)
 
   defp source_name(file) do
     file
