@@ -23,6 +23,7 @@ The Mix project exposes an escript entrypoint:
 mix escript.build
 ./histlog consolidate --root /tmp/histlog --date 2026-05-06
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
+./histlog query --root /tmp/histlog --date 2026-05-06 --command mix --format ndjson
 ./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
 ./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
 ./histlog init zsh

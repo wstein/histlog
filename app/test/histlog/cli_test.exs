@@ -16,7 +16,10 @@ defmodule Histlog.CLITest do
     {:ok, root: root, date: ~D[2026-05-06]}
   end
 
-  test "consolidate and query commands emit NDJSON-compatible output", %{root: root, date: date} do
+  test "consolidate and query commands emit human-readable table output", %{
+    root: root,
+    date: date
+  } do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -61,10 +64,74 @@ defmodule Histlog.CLITest do
                  ])
       end)
 
+    assert query_output =~ "Sess Timestamp"
+    assert query_output =~ "0001 2026-05-06 20:00:00    1.000s ✓    mix test"
+  end
+
+  test "query command can emit NDJSON output explicitly", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix test", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 1000,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:02Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    query_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--command",
+                   "mix",
+                   "--format",
+                   "ndjson"
+                 ])
+      end)
+
     assert [%{"command" => "mix test"}] =
              query_output
              |> String.split("\n", trim: true)
              |> Enum.map(&JSON.decode!/1)
+  end
+
+  test "empty query command still emits table headers", %{root: root, date: date} do
+    query_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date)
+                 ])
+      end)
+
+    assert query_output ==
+             "Sess Timestamp             Duration Exit Command\n--------------------------------------------------\n"
   end
 
   test "consolidate command accepts rebuild flag", %{root: root, date: date} do
@@ -137,7 +204,9 @@ defmodule Histlog.CLITest do
                    "--date",
                    Date.to_iso8601(date),
                    "--command",
-                   "histlog"
+                   "histlog",
+                   "--format",
+                   "ndjson"
                  ])
       end)
 
