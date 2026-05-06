@@ -249,6 +249,8 @@ defmodule Histlog.Shell.Init do
       commands=(
         'init:print shell integration'
         'query:query history'
+        'sessions:list shell sessions'
+        'paths:summarize filesystem paths'
         'tail:tail live history'
         'import:import history'
         'consolidate:consolidate ended sessions'
@@ -267,7 +269,7 @@ defmodule Histlog.Shell.Init do
   defp bash_completions do
     """
     _histlog_completion() {
-      COMPREPLY=($(compgen -W "init query tail import consolidate doctor hook completions" -- "${COMP_WORDS[COMP_CWORD]}"))
+      COMPREPLY=($(compgen -W "init query sessions paths tail import consolidate doctor hook completions" -- "${COMP_WORDS[COMP_CWORD]}"))
     }
     complete -F _histlog_completion histlog
     """
@@ -277,6 +279,8 @@ defmodule Histlog.Shell.Init do
     """
     complete -c histlog -f -a "init" -d "Print shell integration"
     complete -c histlog -f -a "query" -d "Query history"
+    complete -c histlog -f -a "sessions" -d "List shell sessions"
+    complete -c histlog -f -a "paths" -d "Summarize filesystem paths"
     complete -c histlog -f -a "tail" -d "Tail live history"
     complete -c histlog -f -a "import" -d "Import history"
     complete -c histlog -f -a "consolidate" -d "Consolidate ended sessions"

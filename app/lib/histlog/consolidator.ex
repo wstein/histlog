@@ -89,13 +89,6 @@ defmodule Histlog.Consolidator do
     end
   end
 
-  defp session_id(events) do
-    case events do
-      [%{"event" => "session_started", "session_id" => session_id} | _rest] -> session_id
-      _other -> nil
-    end
-  end
-
   defp quarantine(path, root, date, reason) do
     destination =
       case Storage.quarantine_session(path, root, date) do
@@ -114,7 +107,8 @@ defmodule Histlog.Consolidator do
   defp derive_execution_rows(events) do
     commands = catalog(events, "command_defined", "command_id", "command")
     folders = catalog(events, "folder_defined", "folder_id", "folder")
-    session_id = session_id(events)
+    session = session_started(events)
+    session_id = session["session_id"]
 
     events
     |> Enum.filter(&(&1["event"] == "execution_observed"))
@@ -128,10 +122,16 @@ defmodule Histlog.Consolidator do
         "timestamp" => event["timestamp"],
         "duration_ms" => event["duration_ms"],
         "exit_status" => event["exit_status"],
-        "completeness" => event["completeness"]
+        "completeness" => event["completeness"],
+        "shell" => session["shell"],
+        "host" => session["host"],
+        "tty" => session["tty"]
       }
     end)
   end
+
+  defp session_started([%{"event" => "session_started"} = event | _events]), do: event
+  defp session_started(_events), do: %{}
 
   defp catalog(events, event_type, id_field, value_field) do
     events

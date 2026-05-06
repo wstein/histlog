@@ -336,6 +336,103 @@ defmodule Histlog.CLITest do
     assert filtered_output == relative_file <> "\n"
   end
 
+  test "sessions command lists recorded shell sessions with details", %{root: root, date: date} do
+    {:ok, first} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, first, _event} =
+      SessionWriter.observe_execution(first, "mix test", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 1500,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, first, _event} =
+      SessionWriter.observe_execution(first, "mix format", "/repo", %{
+        "timestamp" => "2026-05-06T20:01:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _first, _event} = SessionWriter.close(first, "2026-05-06T20:01:01Z")
+
+    {:ok, second} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1235,
+        parent_process_id: 1200,
+        shell: "fish",
+        session_id: "session-2",
+        monotonic_start: 12_346
+      )
+
+    {:ok, second, _event} =
+      SessionWriter.observe_execution(second, "histlog paths", "/repo/app", %{
+        "timestamp" => "2026-05-06T20:02:00Z",
+        "duration_ms" => 100,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _second, _event} = SessionWriter.close(second, "2026-05-06T20:02:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "sessions",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--details"
+                 ])
+      end)
+
+    stripped = strip_ansi(output)
+    assert stripped =~ "Sess Start"
+    assert stripped =~ "0001 #{local_display("2026-05-06T20:00:00Z")}"
+    assert stripped =~ "0002 #{local_display("2026-05-06T20:02:00Z")}"
+    assert stripped =~ "   2 zsh /repo"
+    assert stripped =~ "Session 0001 sample commands:"
+    assert stripped =~ "  mix test"
+
+    json_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "sessions",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--limit",
+                   "1",
+                   "--json"
+                 ])
+      end)
+
+    assert [%{"session" => "0002", "commands" => 1, "shell" => "fish"}] =
+             JSON.decode!(json_output)
+  end
+
   test "unknown commands return structured errors" do
     assert {:error, {:unknown_command, "wat"}} = CLI.run(["wat"])
   end

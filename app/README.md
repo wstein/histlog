@@ -25,6 +25,7 @@ mix escript.build
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix --json
 ./histlog paths --root /tmp/histlog --date 2026-05-06
+./histlog sessions --root /tmp/histlog --date 2026-05-06 --details
 ./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
 ./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
 ./histlog init zsh
