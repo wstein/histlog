@@ -79,6 +79,13 @@ For a complete execution, `timestamp` is the command start time and `duration_ms
 For partial execution evidence, missing fields remain `null` and `completeness` explains the confidence level.
 `started_at`, `ended_at`, and `recorded_at` are not part of the canonical v1 session log.
 
+== Validation
+
+Validation has two layers:
+
+* event validation checks required fields, timestamp parseability, allowed enum values, positive identifiers, non-negative durations, and integer exit statuses.
+* session validation checks the header, gapless sequence numbers, absence of repeated `session_id` fields after `session_started`, duplicate catalog IDs, and catalog references before consolidation.
+
 == Boundary Rule
 
 All subsystems communicate through NDJSON files.

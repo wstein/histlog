@@ -76,25 +76,13 @@ defmodule Histlog.Consolidator do
 
   defp load_valid_session(path, root, date) do
     with {:ok, events} <- Storage.read_events(path),
-         :ok <- Schema.validate_sequence(events),
-         :ok <- validate_session_header(events) do
+         :ok <- Schema.validate_session(events) do
       {:ok, events}
     else
       {:error, reason} ->
         quarantine(path, root, date, inspect(reason))
     end
   end
-
-  defp validate_session_header([]), do: {:error, :empty_session}
-
-  defp validate_session_header([
-         %{"event" => "session_started", "session_id" => session_id} | _events
-       ])
-       when is_binary(session_id) and session_id != "" do
-    :ok
-  end
-
-  defp validate_session_header(_events), do: {:error, :missing_session_header}
 
   defp session_id(events) do
     case events do

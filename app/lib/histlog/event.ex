@@ -12,11 +12,13 @@ defmodule Histlog.Event do
   Builds a redacted canonical event map.
   """
   def new(event, seq, attrs \\ %{}) when is_binary(event) do
+    timestamp = Map.get(attrs, "timestamp") || now()
+
     base = %{
       "schema_version" => @schema_version,
       "event" => event,
       "seq" => seq,
-      "timestamp" => Map.get(attrs, "timestamp", now())
+      "timestamp" => timestamp
     }
 
     attrs = Map.delete(attrs, "timestamp")

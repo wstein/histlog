@@ -62,4 +62,80 @@ defmodule Histlog.EventTest do
 
     assert {:error, {:invalid_sequence, [1, 3]}} = Schema.validate_sequence(events)
   end
+
+  test "rejects invalid observed execution semantics" do
+    assert {:error, {:invalid_field, "completeness"}} =
+             Event.new("execution_observed", 1, %{
+               "exec_id" => 1,
+               "command_id" => 1,
+               "cwd_id" => 1,
+               "duration_ms" => 0,
+               "exit_status" => 0,
+               "completeness" => "maybe"
+             })
+
+    assert {:error, {:invalid_field, "duration_ms"}} =
+             Event.new("execution_observed", 1, %{
+               "exec_id" => 1,
+               "command_id" => 1,
+               "cwd_id" => 1,
+               "duration_ms" => -1,
+               "exit_status" => 0,
+               "completeness" => "complete"
+             })
+  end
+
+  test "rejects invalid timestamps" do
+    event =
+      Event.new!("session_ended", 1, %{
+        "timestamp" => "2026-05-06T20:00:00Z"
+      })
+
+    assert {:error, {:invalid_field, "timestamp"}} =
+             Schema.validate_event(%{event | "timestamp" => "not-a-time"})
+  end
+
+  test "validates catalog references across a complete session stream" do
+    events = [
+      Event.new!("session_started", 1, %{
+        "session_id" => "session-1",
+        "process_id" => 1234,
+        "parent_process_id" => 1200,
+        "shell" => "zsh",
+        "host" => "machine",
+        "timestamp" => "2026-05-06T20:00:00Z"
+      }),
+      Event.new!("command_defined", 2, %{"command_id" => 1, "command" => "pwd"}),
+      Event.new!("folder_defined", 3, %{"folder_id" => 1, "folder" => "/repo"}),
+      Event.new!("execution_observed", 4, %{
+        "exec_id" => 1,
+        "command_id" => 1,
+        "cwd_id" => 1,
+        "completeness" => "complete"
+      }),
+      Event.new!("session_ended", 5, %{"timestamp" => "2026-05-06T20:00:01Z"})
+    ]
+
+    assert :ok = Schema.validate_session(events)
+
+    broken = List.update_at(events, 3, &Map.put(&1, "command_id", 2))
+    assert {:error, {:undefined_command_id, 2}} = Schema.validate_session(broken)
+  end
+
+  test "rejects repeated session ids outside the session header" do
+    events = [
+      Event.new!("session_started", 1, %{
+        "session_id" => "session-1",
+        "process_id" => 1234,
+        "parent_process_id" => 1200,
+        "shell" => "zsh",
+        "host" => "machine",
+        "timestamp" => "2026-05-06T20:00:00Z"
+      }),
+      Event.new!("session_ended", 2, %{"timestamp" => "2026-05-06T20:00:01Z"})
+      |> Map.put("session_id", "session-1")
+    ]
+
+    assert {:error, {:unexpected_session_id, 2}} = Schema.validate_session(events)
+  end
 end

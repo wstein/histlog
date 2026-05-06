@@ -17,6 +17,8 @@ NDJSON supports append-oriented logging, streaming reads, partial processing, an
 
 Writers should emit one compact JSON object followed by a newline for each record. Readers should process files line by line, reject or quarantine malformed records, and avoid assuming that the whole logfile must fit in memory.
 
+Validation happens at both event and session scope. Single events must have parseable timestamps and valid domain fields; complete session streams must have a `session_started` header, gapless sequence numbers, and catalog references that point to earlier definitions in the same file.
+
 ## Links
 
 - [[Session Logfile Per CLI Session]] - Defines where NDJSON records are written during active CLI sessions.
