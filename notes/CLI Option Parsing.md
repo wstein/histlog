@@ -19,7 +19,7 @@ Use kebab-case switches externally and snake_case atoms internally. Keep shell h
 
 Public filters must fail loudly when the user supplies malformed syntax. Invalid regular expressions, dates, integers, and duration filters should return CLI errors instead of empty result sets.
 
-`histlog init --binary PATH` pins the executable path used by generated hooks. This reduces PATH-shadowing risk for users who want an explicit binary boundary.
+`histlog init --binary PATH` pins the executable path used by generated hooks. This reduces PATH-shadowing risk for users who want an explicit binary boundary. When this option is supplied, generated init code must assign `HISTLOG_BIN` directly rather than treating the path as an environment default.
 
 `histlog init --durability safe|balanced|fast` sets the generated hook default for writer fsync behavior.
 

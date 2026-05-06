@@ -738,7 +738,8 @@ defmodule Histlog.CLITest do
         assert :ok = CLI.run(["init", "zsh", "--binary", "/opt/histlog/bin/histlog"])
       end)
 
-    assert output =~ "HISTLOG_BIN=\"${HISTLOG_BIN:-/opt/histlog/bin/histlog}\""
+    assert output =~ "HISTLOG_BIN=\"/opt/histlog/bin/histlog\""
+    refute output =~ "HISTLOG_BIN:-/opt/histlog/bin/histlog"
   end
 
   test "init command accepts a default durability mode" do

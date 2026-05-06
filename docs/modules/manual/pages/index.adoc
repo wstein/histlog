@@ -41,7 +41,7 @@ eval "$(histlog init zsh --durability balanced)"
 
 `histlog init` auto-detects the shell from `HISTLOG_SHELL`, `SHELL`, and then parent process name.
 Pass the shell explicitly when writing setup files.
-Use `--binary` when setup should pin an exact histlog executable instead of relying on PATH lookup.
+Use `--binary` when setup should pin an exact histlog executable instead of relying on PATH lookup. When `--binary` is supplied, the generated script assigns `HISTLOG_BIN` directly instead of honoring a pre-existing environment value.
 Durability modes are `safe`, `balanced`, and `fast`; `balanced` is the default.
 The automated smoke suite sources generated zsh, bash, and fish snippets in real shell subprocesses when those shells are available.
 

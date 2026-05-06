@@ -37,7 +37,12 @@ defmodule Histlog.ShellInitTest do
 
   test "init can pin an explicit histlog binary path" do
     assert {:ok, script} = Init.script("zsh", binary: "/opt/histlog/bin/histlog")
-    assert script =~ "HISTLOG_BIN=\"${HISTLOG_BIN:-/opt/histlog/bin/histlog}\""
+    assert script =~ "HISTLOG_BIN=\"/opt/histlog/bin/histlog\""
+    refute script =~ "HISTLOG_BIN:-/opt/histlog/bin/histlog"
+
+    assert {:ok, fish_script} = Init.script("fish", binary: "/opt/histlog/bin/histlog")
+    assert fish_script =~ "set -gx HISTLOG_BIN '/opt/histlog/bin/histlog'"
+    refute fish_script =~ "if not set -q HISTLOG_BIN"
   end
 
   test "init can set default durability mode" do
