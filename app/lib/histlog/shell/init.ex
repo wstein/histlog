@@ -26,14 +26,16 @@ defmodule Histlog.Shell.Init do
     aliases? = Keyword.get(opts, :aliases, false)
     binary = Keyword.get(opts, :binary, "histlog")
     pinned_binary? = Keyword.has_key?(opts, :binary)
-    durability = Keyword.get(opts, :durability, "balanced")
 
-    case shell do
-      "zsh" -> {:ok, zsh_script(aliases?, binary, pinned_binary?, durability)}
-      "bash" -> {:ok, bash_script(aliases?, binary, pinned_binary?, durability)}
-      "fish" -> {:ok, fish_script(aliases?, binary, pinned_binary?, durability)}
-      shell when shell in @future_shells -> {:error, {:unsupported_shell, shell}}
-      shell -> {:error, {:unknown_shell, shell}}
+    with :ok <- validate_binary(binary, pinned_binary?),
+         {:ok, durability} <- Histlog.Durability.normalize(Keyword.get(opts, :durability)) do
+      case shell do
+        "zsh" -> {:ok, zsh_script(aliases?, binary, pinned_binary?, durability)}
+        "bash" -> {:ok, bash_script(aliases?, binary, pinned_binary?, durability)}
+        "fish" -> {:ok, fish_script(aliases?, binary, pinned_binary?, durability)}
+        shell when shell in @future_shells -> {:error, {:unsupported_shell, shell}}
+        shell -> {:error, {:unknown_shell, shell}}
+      end
     end
   end
 
@@ -71,6 +73,16 @@ defmodule Histlog.Shell.Init do
       shell when shell in @supported_shells -> shell
       shell when shell in @future_shells -> shell
       _other -> nil
+    end
+  end
+
+  defp validate_binary(_binary, false), do: :ok
+
+  defp validate_binary(binary, true) do
+    if Path.type(binary) == :absolute do
+      :ok
+    else
+      {:error, "init --binary requires an absolute path"}
     end
   end
 

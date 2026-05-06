@@ -60,4 +60,49 @@ defmodule Histlog.HookTest do
     refute Map.has_key?(execution, "started_at")
     refute Map.has_key?(execution, "ended_at")
   end
+
+  test "reports broken hook-state JSON without appending events", %{root: root} do
+    Storage.ensure_layout(root, ~D[2026-05-06])
+    File.write!(Hook.state_path(root, "broken"), "{not-json\n")
+
+    assert {:error, {:invalid_hook_state, _reason}} =
+             Hook.precmd(root: root, session: "broken", cwd: "/repo", ended_at: "1000")
+  end
+
+  test "reports stale missing hook-state without crashing", %{root: root} do
+    assert {:error, :enoent} =
+             Hook.preexec(root: root, session: "missing", command: "pwd", cwd: "/")
+  end
+
+  test "reports invalid persisted writer state without raising", %{root: root} do
+    Storage.ensure_layout(root, ~D[2026-05-06])
+
+    File.write!(
+      Hook.state_path(root, "bad-writer"),
+      JSON.encode!(%{
+        "writer" => %{"date" => "2026-05-06", "durability" => "reckless"},
+        "pending" => nil
+      }) <>
+        "\n"
+    )
+
+    assert {:error, {:invalid_hook_state, reason}} =
+             Hook.precmd(root: root, session: "bad-writer", cwd: "/repo", ended_at: "1000")
+
+    assert reason =~ "invalid durability"
+  end
+
+  test "rejects invalid session-start durability without creating hook state", %{root: root} do
+    assert {:error, reason} =
+             Hook.session_start(
+               root: root,
+               shell: "fish",
+               pid: 1234,
+               session_id: "bad-durability",
+               durability: "reckless"
+             )
+
+    assert reason =~ "invalid durability"
+    refute File.exists?(Hook.state_path(root, "bad-durability"))
+  end
 end

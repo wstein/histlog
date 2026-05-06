@@ -124,6 +124,31 @@ defmodule Histlog.ConsolidatorTest do
     refute File.exists?(manifest_path <> ".pending")
   end
 
+  for {daily_state, exec_state} <- [
+        {:stage, :stage},
+        {:target, :stage},
+        {:stage, :target},
+        {:target, :target}
+      ] do
+    test "recovers pending transaction with daily #{daily_state} and exec #{exec_state}", %{
+      root: root,
+      date: date
+    } do
+      %{daily_content: daily_content, exec_content: exec_content, manifest: manifest} =
+        write_pending_transaction!(root, date, unquote(daily_state), unquote(exec_state))
+
+      assert {:ok, recovered} = Consolidator.consolidate(root: root, date: date)
+      assert recovered["checksum"] == manifest["checksum"]
+      assert File.read!(Storage.daily_events_path(root, date)) == daily_content
+      assert File.read!(Storage.daily_exec_path(root, date)) == exec_content
+
+      assert JSON.decode!(File.read!(Storage.manifest_path(root, date)))["exec_checksum"] ==
+               manifest["exec_checksum"]
+
+      refute File.exists?(Storage.manifest_path(root, date) <> ".pending")
+    end
+  end
+
   test "quarantines malformed sessions and continues", %{root: root, date: date} do
     Storage.ensure_layout(root, date)
     bad_path = Path.join(Storage.closed_dir(root, date), "session-bad.ndjson")
@@ -162,4 +187,58 @@ defmodule Histlog.ConsolidatorTest do
     {:ok, writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:03Z")
     writer
   end
+
+  defp write_pending_transaction!(root, date, daily_state, exec_state) do
+    Storage.ensure_layout(root, date)
+
+    daily_path = Storage.daily_events_path(root, date)
+    exec_path = Storage.daily_exec_path(root, date)
+    manifest_path = Storage.manifest_path(root, date)
+    daily_stage = daily_path <> ".stage-#{System.unique_integer([:positive])}"
+    exec_stage = exec_path <> ".stage-#{System.unique_integer([:positive])}"
+
+    daily_content =
+      JSON.encode!(%{"event" => "session_started", "session_id" => "recovered"}) <> "\n"
+
+    exec_content = JSON.encode!(%{"event" => "execution", "command" => "recovered"}) <> "\n"
+
+    write_recovery_file!(daily_state, daily_path, daily_stage, daily_content)
+    write_recovery_file!(exec_state, exec_path, exec_stage, exec_content)
+
+    manifest = %{
+      "schema_version" => 1,
+      "date" => Date.to_iso8601(date),
+      "sessions_processed" => ["session-recovered.ndjson"],
+      "records_written" => 1,
+      "exec_records_written" => 1,
+      "checksum" => Histlog.Manifest.checksum(daily_content),
+      "exec_checksum" => Histlog.Manifest.checksum(exec_content),
+      "quarantined_sessions" => []
+    }
+
+    pending = %{
+      "schema_version" => 1,
+      "transaction" => "consolidation",
+      "date" => Date.to_iso8601(date),
+      "manifest" => manifest,
+      "daily" => %{
+        "target" => daily_path,
+        "tmp" => daily_stage,
+        "checksum" => Histlog.Manifest.checksum(daily_content)
+      },
+      "exec" => %{
+        "target" => exec_path,
+        "tmp" => exec_stage,
+        "checksum" => Histlog.Manifest.checksum(exec_content)
+      },
+      "manifest_path" => manifest_path
+    }
+
+    File.write!(manifest_path <> ".pending", JSON.encode!(pending) <> "\n")
+
+    %{daily_content: daily_content, exec_content: exec_content, manifest: manifest}
+  end
+
+  defp write_recovery_file!(:target, target, _stage, content), do: File.write!(target, content)
+  defp write_recovery_file!(:stage, _target, stage, content), do: File.write!(stage, content)
 end

@@ -12,8 +12,10 @@ defmodule Histlog.Hook do
   def session_start(opts) do
     root = Storage.root(opts)
 
-    with {:ok, writer} <-
+    with {:ok, durability} <- Histlog.Durability.normalize(Keyword.get(opts, :durability)),
+         {:ok, writer} <-
            opts
+           |> Keyword.put(:durability, durability)
            |> session_start_writer_opts(root)
            |> SessionWriter.start(),
          :ok <- write_state(writer) do
@@ -109,10 +111,29 @@ defmodule Histlog.Hook do
     session_id = Keyword.fetch!(opts, :session)
 
     with {:ok, content} <- File.read(state_path(root, session_id)),
-         {:ok, state} <- JSON.decode(content) do
-      {:ok, SessionWriter.from_state(state["writer"]), state["pending"]}
+         {:ok, state} <- JSON.decode(content),
+         {:ok, writer} <- writer_from_state(state) do
+      {:ok, writer, state["pending"]}
+    else
+      {:error, %JSON.DecodeError{} = error} ->
+        {:error, {:invalid_hook_state, Exception.message(error)}}
+
+      {:error, {_reason, _line, _byte} = error} ->
+        {:error, {:invalid_hook_state, inspect(error)}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
+
+  defp writer_from_state(%{"writer" => writer_state}) when is_map(writer_state) do
+    {:ok, SessionWriter.from_state(writer_state)}
+  rescue
+    exception in [ArgumentError, FunctionClauseError, KeyError] ->
+      {:error, {:invalid_hook_state, Exception.message(exception)}}
+  end
+
+  defp writer_from_state(_state), do: {:error, {:invalid_hook_state, "missing writer state"}}
 
   defp write_state(writer, pending \\ nil) do
     state = %{

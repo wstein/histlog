@@ -17,6 +17,7 @@ defmodule Histlog.CLI.Commands.Init do
       IO.write(script)
       :ok
     else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
       {:error, reason} -> {:error, inspect(reason)}
     end
   end

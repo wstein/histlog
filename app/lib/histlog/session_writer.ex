@@ -43,7 +43,7 @@ defmodule Histlog.SessionWriter do
       monotonic_start: state["monotonic_start"],
       live_path: state["live_path"],
       closed_path: state["closed_path"],
-      durability: normalize_durability(state["durability"]),
+      durability: Histlog.Durability.normalize!(state["durability"]),
       seq: state["seq"],
       next_command_id: state["next_command_id"],
       next_folder_id: state["next_folder_id"],
@@ -93,7 +93,7 @@ defmodule Histlog.SessionWriter do
     monotonic_start = Keyword.get_lazy(opts, :monotonic_start, &System.monotonic_time/0)
     start_ns = System.convert_time_unit(monotonic_start, :native, :nanosecond)
     session_id = Keyword.get_lazy(opts, :session_id, &new_session_id/0)
-    durability = normalize_durability(Keyword.get(opts, :durability, "balanced"))
+    durability = Histlog.Durability.normalize!(Keyword.get(opts, :durability, "balanced"))
     filename = Storage.session_filename(host, process_id, start_ns)
 
     Storage.ensure_layout(root, date)
@@ -247,15 +247,6 @@ defmodule Histlog.SessionWriter do
     do: event_type in ["session_started", "session_ended", "session_aborted"]
 
   defp sync_event?("fast", _event_type), do: false
-
-  defp normalize_durability(nil), do: "balanced"
-  defp normalize_durability(value) when value in ["safe", "balanced", "fast"], do: value
-
-  defp normalize_durability(value) when value in [:safe, :balanced, :fast],
-    do: Atom.to_string(value)
-
-  defp normalize_durability(value),
-    do: raise(ArgumentError, "invalid durability #{inspect(value)}")
 
   defp default_host do
     case :inet.gethostname() do

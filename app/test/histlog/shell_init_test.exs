@@ -50,6 +50,14 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "HISTLOG_DURABILITY=\"${HISTLOG_DURABILITY:-safe}\""
   end
 
+  test "init rejects relative binary paths and invalid durability" do
+    assert {:error, "init --binary requires an absolute path"} =
+             Init.script("zsh", binary: "histlog")
+
+    assert {:error, reason} = Init.script("zsh", durability: "reckless")
+    assert reason =~ "invalid durability"
+  end
+
   test "future shells are explicit unsupported targets" do
     assert {:error, {:unsupported_shell, "nu"}} = Init.script("nu")
     assert {:error, {:unsupported_shell, "powershell"}} = Init.script("powershell")

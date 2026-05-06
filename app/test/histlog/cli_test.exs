@@ -742,6 +742,11 @@ defmodule Histlog.CLITest do
     refute output =~ "HISTLOG_BIN:-/opt/histlog/bin/histlog"
   end
 
+  test "init command rejects relative binary paths" do
+    assert {:error, error} = CLI.run(["init", "zsh", "--binary", "histlog"])
+    assert error =~ "absolute path"
+  end
+
   test "init command accepts a default durability mode" do
     output =
       capture_io(fn ->
@@ -749,6 +754,25 @@ defmodule Histlog.CLITest do
       end)
 
     assert output =~ "HISTLOG_DURABILITY=\"${HISTLOG_DURABILITY:-fast}\""
+  end
+
+  test "init and hook commands reject invalid durability modes" do
+    assert {:error, error} = CLI.run(["init", "zsh", "--durability", "reckless"])
+    assert error =~ "invalid durability"
+
+    assert {:error, error} =
+             CLI.run([
+               "hook",
+               "session-start",
+               "--shell",
+               "zsh",
+               "--pid",
+               "123",
+               "--durability",
+               "reckless"
+             ])
+
+    assert error =~ "invalid durability"
   end
 
   test "init command prints aliases only when requested" do

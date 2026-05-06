@@ -24,7 +24,8 @@ defmodule Histlog.CLI.Commands.Hook do
 
   def run([action | argv]) do
     with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases),
-         {:ok, opts} <- Options.normalize(opts) do
+         {:ok, opts} <- Options.normalize(opts),
+         :ok <- validate_durability(opts) do
       case dispatch(action, opts) do
         {:ok, session_id} when is_binary(session_id) ->
           IO.puts(session_id)
@@ -46,4 +47,17 @@ defmodule Histlog.CLI.Commands.Hook do
   defp dispatch("precmd", opts), do: Hook.precmd(opts)
   defp dispatch("session-end", opts), do: Hook.session_end(opts)
   defp dispatch(action, _opts), do: {:error, {:unknown_hook_action, action}}
+
+  defp validate_durability(opts) do
+    case Keyword.fetch(opts, :durability) do
+      {:ok, value} ->
+        case Histlog.Durability.normalize(value) do
+          {:ok, _mode} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      :error ->
+        :ok
+    end
+  end
 end
