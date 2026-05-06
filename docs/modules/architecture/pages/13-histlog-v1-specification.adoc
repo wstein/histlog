@@ -159,7 +159,7 @@ The v1 module boundaries are:
 |Manifest encoding, checksum, and processed-session tracking.
 
 |`Histlog.Import`
-|External history ingestion as synthetic event streams.
+|External zsh, bash, fish, and native NDJSON history ingestion as synthetic event streams.
 
 |`Histlog.Query`
 |Streaming file-based query helpers.

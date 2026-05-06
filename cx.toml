@@ -107,16 +107,19 @@ root_level = 1
 [sections.docs]
 # Section globs classify files that are already in the master list.
 # They do not pull ignored files into the bundle; use [files].include for that.
-include = ["docs/**", "README.md", "*.md"]
+include = ["docs/**", "README.md", "*.md", "app/README.md"]
 
 [sections.notes]
 include = ["notes/**"]
 
 [sections.src]
-include = ["src/**"]
+include = ["app/lib/**", "app/mix.exs", "app/.formatter.exs", "app/.gitignore"]
 
 [sections.tests]
-include = ["tests/**"]
+include = ["app/test/**"]
+
+[sections.config]
+include = ["Makefile", "antora-playbook.yml", "cx.toml", "cx-mcp.toml", ".editorconfig", ".mcp.json", ".codex/**", ".claude/**", ".vscode/**"]
 
 [sections.unassigned]
 # Keep this catch-all visible while learning the repo shape. Replace it with

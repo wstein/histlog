@@ -1,8 +1,20 @@
 = Runtime View
 :page-layout: default
 
-Capture the most important runtime scenarios.
+The important runtime flows are append-only session capture, daily consolidation, import, and query.
 
-== Key Scenarios
+== Session Capture
 
-Describe the flows that matter most for correctness, latency, or safety.
+`Histlog.SessionWriter` creates a live session file, writes `session_started`, interns commands and folders, appends `execution_observed` events, and moves the file to `closed/` after `session_ended`.
+
+== Consolidation
+
+`Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, appends valid events to daily materializations, and writes a manifest checkpoint.
+
+== Import
+
+`Histlog.Import` parses zsh, bash, fish, or native NDJSON inputs into `import_batch_*` and `imported_execution` events.
+
+== Query
+
+`Histlog.Query` streams derived execution rows and applies simple filters without loading a database.

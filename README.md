@@ -1,32 +1,42 @@
-# myproject
+# histlog
 
-This project was bootstrapped with `cx init`.
+histlog is a log-structured, append-only shell history system implemented in Elixir.
+It records shell activity as per-session NDJSON event streams and materializes closed sessions into daily files for querying.
+
+## Development
+
+Useful repository commands:
+
+```sh
+make format
+make test
+make lint
+make build
+```
+
+The Elixir application lives under `app/`.
+
+## CLI
+
+Build the escript from the application directory:
+
+```sh
+cd app
+mix escript.build
+./histlog consolidate --root /tmp/histlog --date 2026-05-06
+./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
+./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
+```
 
 ## Documentation
 
-The repository includes a minimal Antora documentation site under `docs/`
-with these first-class surfaces:
+The repository includes an Antora documentation site under `docs/`:
 
-- `onboarding`: entrypoint and team orientation
-- `manual`: operator-focused workflows and commands
-- `architecture`: arc42-based system documentation
+- `onboarding`: first steps and contributor orientation
+- `manual`: operator workflows and command reference
+- `architecture`: arc42-based system design, including the v1 specification
 
-Useful entrypoints:
+## Notes
 
-- `antora-playbook.yml`
-- `docs/README.md`
-- `docs/modules/onboarding/pages/index.adoc`
-- `docs/modules/manual/pages/index.adoc`
-- `docs/modules/architecture/pages/index.adoc`
-
-## Context Bundling
-
-`cx.toml` is already configured to treat `docs/**`, `notes/**`, and
-repository markdown as the docs section.
-
-## Next Steps
-
-1. Replace placeholder text in the Antora pages with project-specific content.
-2. Adjust `site.url` in `antora-playbook.yml` before publishing the docs site.
-3. Use `cx docs export` or `cx bundle --include-doc-exports` once the docs
-   become part of your review workflow.
+Durable project knowledge lives in `notes/`.
+Run `cx` note checks before architecture-heavy changes when the local tool is available.

@@ -1,8 +1,22 @@
 = Glossary
 :page-layout: default
 
-Define project-specific language so the docs stay precise over time.
-
 == Terms
 
-Add short definitions for names, acronyms, and concepts used across the docs.
+NDJSON::
+Newline-delimited JSON. histlog writes one JSON object per line.
+
+Session file::
+One append-only NDJSON file written by a single shell session.
+
+Closed session::
+A session file that was moved from `sessions/live/` to `sessions/closed/`.
+
+Consolidation::
+The process that validates closed sessions and materializes daily files.
+
+Manifest::
+A JSON checkpoint that records processed sessions, checksums, counts, and quarantined files.
+
+Quarantine::
+The storage area for malformed session files that should not block other sessions.

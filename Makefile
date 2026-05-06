@@ -11,10 +11,19 @@
 #
 CLEAN_DIR ?= dist
 
-.PHONY: all build clean notes help
+.PHONY: all build test format lint clean notes help
 all: build
 
 build: ## Build the native project if present; otherwise no-op.
+	cd app && mix compile --warnings-as-errors
+
+test: ## Run the Elixir test suite.
+	cd app && mix test
+
+format: ## Format Elixir source and tests.
+	cd app && mix format
+
+lint: ## Run warning-as-error compilation as the repository lint gate.
 	cd app && mix compile --warnings-as-errors
 
 clean: ## Remove generated output files.
@@ -25,4 +34,4 @@ notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
 
 help: ## Show available targets.
-	@printf "Available targets:\n  build clean notes\n"
+	@printf "Available targets:\n  build test format lint clean notes\n"

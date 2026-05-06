@@ -1,8 +1,13 @@
 = Solution Strategy
 :page-layout: default
 
-Summarize the big architectural moves that answer the goals and constraints.
+histlog treats files as the source-of-truth boundary and Elixir as the orchestration layer.
 
 == Core Approach
 
-Describe the main design strategy in a few direct points.
+* Model shell activity as immutable events.
+* Write one NDJSON stream per CLI session.
+* Use session-local command and folder identifiers.
+* Materialize closed sessions into daily files and manifests.
+* Keep query and import workflows streaming and file-based.
+* Quarantine malformed sessions at the session-file boundary.

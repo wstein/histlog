@@ -1,8 +1,20 @@
 = Deployment View
 :page-layout: default
 
-Describe where the system runs and how it is packaged.
+histlog v1 is packaged as a Mix application with an escript command-line entrypoint.
 
-== Environments
+== Local Runtime
 
-Document the deployment units, environments, and operational boundaries.
+The default data root is `~/.local/share/histlog/`.
+Development and verification run through the repository `Makefile` and Mix.
+
+== Generated Artifacts
+
+The generated escript binary is ignored by Git.
+Build it locally with:
+
+[source,sh]
+----
+cd app
+mix escript.build
+----

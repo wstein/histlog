@@ -1,13 +1,18 @@
 = Introduction And Goals
 :page-layout: default
 
-Describe why `myproject` exists, who it serves, and what success looks
-like.
+histlog exists to make interactive shell history useful as durable operational evidence without requiring a database in v1.
 
-== Business Or Product Goals
+== Product Goals
 
-Capture the outcomes this system must enable.
+* Capture shell sessions, commands, working directories, durations, and exit statuses.
+* Preserve raw command evidence as immutable NDJSON events.
+* Keep interactive shell overhead low by deferring analysis to consolidation.
+* Support future database or index targets as derived materializations.
 
 == Stakeholders
 
-List the key users, operators, and maintainers the architecture must support.
+* Shell users who want reliable command history.
+* Maintainers who need deterministic file formats and tests.
+* Operators who need inspectable recovery from partial or corrupt sessions.
+* Future integrations that consume event streams, derived execution rows, or manifests.

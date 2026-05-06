@@ -1,12 +1,15 @@
 = Context And Scope
 :page-layout: default
 
-Explain the system boundary and the most important external interactions.
+histlog sits between interactive shells and file-based history analysis.
 
-== Business Context
+== System Context
 
-Describe the surrounding process or product boundary.
+Shell integrations write event records through `Histlog.SessionWriter`.
+Closed session files are consumed by `Histlog.Consolidator`, which produces daily canonical streams, derived execution rows, and manifests.
 
-== Technical Context
+== External Interfaces
 
-List external systems, data flows, and interfaces.
+* Shell history sources: zsh, bash, fish, and legacy/native NDJSON import files.
+* Filesystem storage under `~/.local/share/histlog/` by default.
+* CLI commands for consolidation, import, tailing, and simple queries.

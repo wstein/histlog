@@ -1,8 +1,13 @@
 = Cross-Cutting Concepts
 :page-layout: default
 
-Use this chapter for concepts that apply across multiple building blocks.
+The same integrity rules apply across writers, importers, consolidators, and queries.
 
 == Shared Concerns
 
-Examples include observability, security, configuration, and error handling.
+* NDJSON is the subsystem boundary.
+* Events are immutable truth; daily files are derived views.
+* Sequence numbers are session-local and gapless.
+* Redaction happens before persistence.
+* Corrupt sessions are quarantined at file granularity.
+* Atomic writes use temporary files followed by rename.

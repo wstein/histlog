@@ -1,8 +1,14 @@
 = Architecture Decisions
 :page-layout: default
 
-Capture the architectural choices that deserve durable context.
+This page summarizes accepted v1 decisions.
 
 == Decision Log
 
-Summarize the most important accepted or pending decisions.
+* D-001: Elixir is the implementation language.
+* D-002: v1 uses no database.
+* D-003: Per-session NDJSON streams are canonical truth.
+* D-004: `execution_observed` is the primary execution event.
+* D-005: Daily consolidation materializes query-friendly files.
+* D-006: Shell imports become synthetic event streams.
+* D-007: Corrupt sessions are quarantined instead of silently skipped.

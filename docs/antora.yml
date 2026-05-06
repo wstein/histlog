@@ -1,5 +1,5 @@
-name: myproject
-title: myproject Documentation
+name: histlog
+title: histlog Documentation
 version: "0.1"
 nav:
   - modules/ROOT/nav.adoc

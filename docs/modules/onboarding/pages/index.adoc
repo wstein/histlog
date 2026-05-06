@@ -1,18 +1,18 @@
 = Start Here
 :page-layout: default
 
-Welcome to `myproject`.
+Welcome to `histlog`.
 
 == What This Project Is
 
-Replace this section with a short explanation of the product, service, or tool
-you are building.
+histlog is an Elixir implementation of a log-structured shell history system.
+It captures interactive shell activity as append-only per-session NDJSON streams, then consolidates closed sessions into daily materialized files.
 
 == First Steps
 
-* Explain how to build or run the project locally.
-* Point contributors to the primary workflows they should learn first.
-* Link deeper operational detail into xref:manual:index.adoc[the manual].
+* Read xref:architecture:13-histlog-v1-specification.adoc[the v1 specification] for the architectural contract.
+* Use xref:manual:index.adoc[the manual] for CLI commands and local workflows.
+* Run `make test` and `make lint` before committing implementation changes.
 
 == How The Docs Are Organized
 

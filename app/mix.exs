@@ -15,6 +15,7 @@ defmodule Histlog.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Histlog.Application, []},
       extra_applications: [:crypto, :logger]
     ]
   end

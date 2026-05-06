@@ -1,8 +1,16 @@
 = Building Block View
 :page-layout: default
 
-Describe the major subsystems, modules, or services.
+histlog is organized as a small set of Elixir modules around the NDJSON file boundary.
 
 == Top-Level Structure
 
-List the main building blocks and why they exist.
+* `Histlog.Event` builds and encodes canonical events.
+* `Histlog.Schema` validates event shape and session sequence numbers.
+* `Histlog.Storage` owns filesystem layout, atomic writes, and quarantine moves.
+* `Histlog.SessionWriter` writes one append-only live session file.
+* `Histlog.Consolidator` materializes closed sessions into daily outputs.
+* `Histlog.Manifest` records consolidation checkpoints and checksums.
+* `Histlog.Import` parses external shell history into synthetic event streams.
+* `Histlog.Query` streams derived execution rows for simple file-based queries.
+* `Histlog.CLI` exposes operational workflows as an escript entrypoint.

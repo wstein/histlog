@@ -1,12 +1,18 @@
 = Constraints
 :page-layout: default
 
-Document the decisions and external conditions the architecture must honor.
+histlog v1 intentionally favors explicit log-structured files over hidden storage services.
 
 == Technical Constraints
 
-Record platform, runtime, or integration boundaries.
+* The implementation language is Elixir.
+* Canonical event streams use NDJSON.
+* Each CLI session writes one append-only logfile.
+* v1 does not use SQL or a long-running indexing engine.
+* Subsystems exchange data through files rather than shared mutable state.
 
-== Organizational Constraints
+== Operational Constraints
 
-Record team, compliance, or release-process limits that shape the design.
+* Consolidation must be idempotent and atomic.
+* Corrupt sessions must be quarantined without blocking valid sessions.
+* Shell-derived strings are untrusted and must pass through redaction before persistence.

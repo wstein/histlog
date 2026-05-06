@@ -1,8 +1,11 @@
 = Risks And Technical Debt
 :page-layout: default
 
-Record known risks, sharp edges, and debt that should stay visible.
+The current implementation is an MVP foundation with explicit remaining risks.
 
 == Open Risks
 
-List the issues worth revisiting during planning and release reviews.
+* Shell hook scripts are not yet implemented.
+* Import parsers cover representative fixtures but not every shell-history edge case.
+* Redaction uses conservative pattern matching and should be expanded with real-world samples.
+* Consolidation appends new sessions to existing materialized files; future compaction may need stronger rebuild controls.

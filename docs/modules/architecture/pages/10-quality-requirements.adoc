@@ -1,8 +1,12 @@
 = Quality Requirements
 :page-layout: default
 
-Document the quality attributes that matter most for this system.
+histlog's quality bar is defined by correctness under failure and low overhead during interactive shell use.
 
 == Quality Goals
 
-Examples include reliability, performance, security, and maintainability.
+* Reliability: closed sessions can be consolidated repeatedly without duplicate output.
+* Safety: shell-derived strings are redacted before persistence.
+* Recoverability: malformed sessions are quarantined and recorded in manifests.
+* Performance: command capture performs append-only writes and defers analysis.
+* Maintainability: formatter, tests, and warnings-as-errors compile remain green.

@@ -1,7 +1,7 @@
 site:
-  title: myproject Documentation
-  url: https://example.invalid/myproject/
-  start_page: myproject::index.adoc
+  title: histlog Documentation
+  url: https://example.invalid/histlog/
+  start_page: histlog::index.adoc
 
 content:
   sources:
