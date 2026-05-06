@@ -27,6 +27,56 @@ defmodule Histlog.SessionWriter do
   ]
 
   @doc """
+  Rebuilds a writer from persisted hook state.
+  """
+  def from_state(state) when is_map(state) do
+    %__MODULE__{
+      root: state["root"],
+      date: Date.from_iso8601!(state["date"]),
+      session_id: state["session_id"],
+      host: state["host"],
+      process_id: state["process_id"],
+      parent_process_id: state["parent_process_id"],
+      shell: state["shell"],
+      started_at: state["started_at"],
+      monotonic_start: state["monotonic_start"],
+      live_path: state["live_path"],
+      closed_path: state["closed_path"],
+      seq: state["seq"],
+      next_command_id: state["next_command_id"],
+      next_folder_id: state["next_folder_id"],
+      next_exec_id: state["next_exec_id"],
+      commands: state["commands"] || %{},
+      folders: state["folders"] || %{}
+    }
+  end
+
+  @doc """
+  Converts a writer to JSON-serializable hook state.
+  """
+  def to_state(%__MODULE__{} = writer) do
+    %{
+      "root" => writer.root,
+      "date" => Date.to_iso8601(writer.date),
+      "session_id" => writer.session_id,
+      "host" => writer.host,
+      "process_id" => normalize_process_id(writer.process_id),
+      "parent_process_id" => normalize_process_id(writer.parent_process_id),
+      "shell" => writer.shell,
+      "started_at" => writer.started_at,
+      "monotonic_start" => writer.monotonic_start,
+      "live_path" => writer.live_path,
+      "closed_path" => writer.closed_path,
+      "seq" => writer.seq,
+      "next_command_id" => writer.next_command_id,
+      "next_folder_id" => writer.next_folder_id,
+      "next_exec_id" => writer.next_exec_id,
+      "commands" => writer.commands,
+      "folders" => writer.folders
+    }
+  end
+
+  @doc """
   Starts a session file and writes `session_started`.
   """
   def start(opts \\ []) do

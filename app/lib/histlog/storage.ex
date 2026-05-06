@@ -22,6 +22,7 @@ defmodule Histlog.Storage do
       live_dir(root, date),
       closed_dir(root, date),
       quarantine_dir(root, date),
+      hook_state_dir(root),
       daily_dir(root),
       imports_dir(root),
       exports_dir(root),
@@ -42,6 +43,7 @@ defmodule Histlog.Storage do
   def imports_dir(root), do: Path.join(root, "imports")
   def exports_dir(root), do: Path.join(root, "exports")
   def manifests_dir(root), do: Path.join(root, "manifests")
+  def hook_state_dir(root), do: Path.join(root, "hook-state")
 
   def daily_events_path(root, date),
     do: Path.join(daily_dir(root), Date.to_iso8601(date) <> ".ndjson")

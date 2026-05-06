@@ -80,6 +80,22 @@ defmodule Histlog.CLI do
     end
   end
 
+  def run(["hook", action | argv]) do
+    opts = parse_options(argv)
+
+    case run_hook(action, opts) do
+      {:ok, session_id} when is_binary(session_id) ->
+        IO.puts(session_id)
+        :ok
+
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
+    end
+  end
+
   def run(_argv) do
     IO.puts("""
     histlog commands:
@@ -87,10 +103,17 @@ defmodule Histlog.CLI do
       histlog query [--root PATH] [--date YYYY-MM-DD] [--command TEXT] [--cwd PATH] [--exit-status N]
       histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
       histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source zsh_history|bash_history|fish_history|ndjson]
+      histlog hook session-start|preexec|precmd|session-end
     """)
 
     :ok
   end
+
+  defp run_hook("session-start", opts), do: Histlog.Hook.session_start(opts)
+  defp run_hook("preexec", opts), do: Histlog.Hook.preexec(opts)
+  defp run_hook("precmd", opts), do: Histlog.Hook.precmd(opts)
+  defp run_hook("session-end", opts), do: Histlog.Hook.session_end(opts)
+  defp run_hook(action, _opts), do: {:error, {:unknown_hook_action, action}}
 
   defp parse_query(argv) do
     opts = parse_options(argv)
@@ -108,18 +131,42 @@ defmodule Histlog.CLI do
   defp parse_options([], acc), do: Enum.reverse(acc)
   defp parse_options(["--root", root | rest], acc), do: parse_options(rest, [{:root, root} | acc])
 
-  defp parse_options(["--date", date | rest], acc) do
-    parse_options(rest, [{:date, Date.from_iso8601!(date)} | acc])
-  end
+  defp parse_options(["--shell", shell | rest], acc),
+    do: parse_options(rest, [{:shell, shell} | acc])
 
-  defp parse_options(["--count", count | rest], acc) do
-    parse_options(rest, [{:count, String.to_integer(count)} | acc])
-  end
+  defp parse_options(["--session", session | rest], acc),
+    do: parse_options(rest, [{:session, session} | acc])
 
   defp parse_options(["--command", command | rest], acc),
     do: parse_options(rest, [{:command, command} | acc])
 
   defp parse_options(["--cwd", cwd | rest], acc), do: parse_options(rest, [{:cwd, cwd} | acc])
+
+  defp parse_options(["--date", date | rest], acc) do
+    parse_options(rest, [{:date, Date.from_iso8601!(date)} | acc])
+  end
+
+  defp parse_options(["--pid", pid | rest], acc),
+    do: parse_options(rest, [{:pid, parse_integer(pid)} | acc])
+
+  defp parse_options(["--ppid", ppid | rest], acc),
+    do: parse_options(rest, [{:ppid, parse_integer(ppid)} | acc])
+
+  defp parse_options(["--started-at", started_at | rest], acc),
+    do: parse_options(rest, [{:started_at, started_at} | acc])
+
+  defp parse_options(["--ended-at", ended_at | rest], acc),
+    do: parse_options(rest, [{:ended_at, ended_at} | acc])
+
+  defp parse_options(["--host", host | rest], acc), do: parse_options(rest, [{:host, host} | acc])
+
+  defp parse_options(["--exit-status", status | rest], acc) do
+    parse_options(rest, [{:exit_status, parse_integer(status)} | acc])
+  end
+
+  defp parse_options(["--count", count | rest], acc) do
+    parse_options(rest, [{:count, String.to_integer(count)} | acc])
+  end
 
   defp parse_options(["--source", source | rest], acc),
     do: parse_options(rest, [{:source, source} | acc])
@@ -130,12 +177,11 @@ defmodule Histlog.CLI do
   defp parse_options(["--import-batch-id", import_batch_id | rest], acc),
     do: parse_options(rest, [{:import_batch_id, import_batch_id} | acc])
 
-  defp parse_options(["--exit-status", status | rest], acc) do
-    parse_options(rest, [{:exit_status, String.to_integer(status)} | acc])
-  end
-
   defp parse_options([unknown | _rest], _acc),
     do: raise(ArgumentError, "unknown option #{unknown}")
+
+  defp parse_integer(value) when is_integer(value), do: value
+  defp parse_integer(value), do: String.to_integer(value)
 
   defp source_name(file) do
     file
