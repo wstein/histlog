@@ -79,4 +79,55 @@ defmodule Histlog.ImportTest do
 
     assert :ok = Schema.validate_sequence(events)
   end
+
+  test "parses zsh multiline commands as one execution" do
+    content = File.read!(Path.join(@fixtures, "zsh_multiline_history"))
+
+    assert {:ok,
+            [
+              %{"command" => "printf 'one\ntwo'", "timestamp" => "2026-05-06T16:02:00Z"},
+              %{"command" => "echo done", "timestamp" => "2026-05-06T16:03:00Z"}
+            ]} = Import.parse("zsh_history", content)
+  end
+
+  test "parses bash multiline commands under timestamp markers" do
+    content = File.read!(Path.join(@fixtures, "bash_multiline_history"))
+
+    assert {:ok,
+            [
+              %{"command" => "printf 'one\ntwo'", "timestamp" => "2026-05-06T16:02:00Z"},
+              %{"command" => "echo done", "timestamp" => "2026-05-06T16:03:00Z"}
+            ]} = Import.parse("bash_history", content)
+  end
+
+  test "parses fish escaped scalar values" do
+    content = File.read!(Path.join(@fixtures, "fish_escaped_history"))
+
+    assert {:ok,
+            [
+              %{
+                "command" => "printf \"one\ntwo\"",
+                "cwd" => "/tmp/fish\\ path",
+                "timestamp" => "2026-05-06T16:02:00Z"
+              },
+              %{
+                "command" => "echo tab\tseparated",
+                "timestamp" => "2026-05-06T16:03:00Z"
+              }
+            ]} = Import.parse("fish_history", content)
+  end
+
+  test "parses legacy histlog native ndjson export fixtures" do
+    content = File.read!(Path.join(@fixtures, "legacy_histlog_export.ndjson"))
+
+    assert {:ok,
+            [
+              %{
+                "command" => "mix test",
+                "cwd" => "/repo",
+                "timestamp" => "2026-05-06T16:00:00Z",
+                "exit_status" => 0
+              }
+            ]} = Import.parse("ndjson", content)
+  end
 end

@@ -72,7 +72,7 @@ defmodule Histlog.Import do
   defp parse_zsh_history(content) do
     executions =
       content
-      |> String.split("\n", trim: true)
+      |> zsh_history_lines()
       |> Enum.reject(&String.starts_with?(&1, "#"))
       |> Enum.map(&parse_zsh_line/1)
       |> Enum.reject(&is_nil/1)
@@ -93,19 +93,92 @@ defmodule Histlog.Import do
   defp parse_zsh_line(command), do: imported_execution(command, nil)
 
   defp parse_bash_history(content) do
-    {executions, pending_timestamp} =
+    {executions, pending_timestamp, current_lines} =
       content
       |> String.split("\n", trim: true)
-      |> Enum.reduce({[], nil}, fn line, {executions, pending_timestamp} ->
+      |> Enum.reduce({[], nil, []}, fn line, {executions, pending_timestamp, current_lines} ->
         if String.match?(line, ~r/^#\d+$/) do
-          {executions, line |> String.trim_leading("#") |> parse_epoch()}
+          executions = flush_bash_execution(executions, pending_timestamp, current_lines)
+          {executions, line |> String.trim_leading("#") |> parse_epoch(), []}
         else
-          {[imported_execution(line, pending_timestamp) | executions], nil}
+          current_lines = current_lines ++ [line]
+
+          if command_complete?(Enum.join(current_lines, "\n")) do
+            {[imported_execution(Enum.join(current_lines, "\n"), pending_timestamp) | executions],
+             nil, []}
+          else
+            {executions, pending_timestamp, current_lines}
+          end
         end
       end)
 
+    executions = flush_bash_execution(executions, pending_timestamp, current_lines)
     _unused = pending_timestamp
     {:ok, Enum.reverse(executions)}
+  end
+
+  defp zsh_history_lines(content) do
+    {records, current} =
+      content
+      |> String.split("\n", trim: true)
+      |> Enum.reduce({[], nil}, fn line, {records, current} ->
+        cond do
+          String.starts_with?(line, ": ") ->
+            records = flush_line_record(records, current)
+            {records, line}
+
+          current && !command_complete?(zsh_command(current)) ->
+            {records, current <> "\n" <> line}
+
+          true ->
+            records = flush_line_record(records, current)
+            {records, line}
+        end
+      end)
+
+    records
+    |> flush_line_record(current)
+    |> Enum.reverse()
+  end
+
+  defp flush_bash_execution(executions, _pending_timestamp, []), do: executions
+
+  defp flush_bash_execution(executions, pending_timestamp, current_lines) do
+    [imported_execution(Enum.join(current_lines, "\n"), pending_timestamp) | executions]
+  end
+
+  defp flush_line_record(records, nil), do: records
+  defp flush_line_record(records, record), do: [record | records]
+
+  defp zsh_command(": " <> rest) do
+    case String.split(rest, ";", parts: 2) do
+      [_prefix, command] -> command
+      _other -> rest
+    end
+  end
+
+  defp zsh_command(command), do: command
+
+  defp command_complete?(command) do
+    balanced?(command, "'") && balanced?(command, "\"")
+  end
+
+  defp balanced?(command, quote) do
+    command
+    |> count_unescaped(quote)
+    |> rem(2)
+    |> Kernel.==(0)
+  end
+
+  defp count_unescaped(command, quote) do
+    command
+    |> String.graphemes()
+    |> Enum.reduce({0, false}, fn
+      "\\", {count, false} -> {count, true}
+      ^quote, {count, false} -> {count + 1, false}
+      _char, {count, _escaped?} -> {count, false}
+    end)
+    |> elem(0)
   end
 
   defp parse_fish_history(content) do
@@ -116,7 +189,7 @@ defmodule Histlog.Import do
         cond do
           String.starts_with?(line, "- cmd: ") ->
             records = flush_fish_record(records, current)
-            {records, %{"command" => unescape_fish_value(String.trim_leading(line, "- cmd: "))}}
+            {records, %{"command" => parse_fish_scalar(String.trim_leading(line, "- cmd: "))}}
 
           String.starts_with?(line, "  when: ") ->
             timestamp =
@@ -130,7 +203,7 @@ defmodule Histlog.Import do
             {records, current}
 
           String.starts_with?(line, "    - ") ->
-            cwd = line |> String.trim_leading("    - ") |> unescape_fish_value()
+            cwd = line |> String.trim_leading("    - ") |> parse_fish_scalar()
             {records, Map.put_new(current, "cwd", cwd)}
 
           true ->
@@ -185,10 +258,22 @@ defmodule Histlog.Import do
     |> DateTime.to_iso8601()
   end
 
-  defp unescape_fish_value(value) do
+  defp parse_fish_scalar(value) do
     value
     |> String.trim()
-    |> String.trim("\"")
-    |> String.replace("\\n", "\n")
+    |> decode_fish_escapes()
   end
+
+  defp decode_fish_escapes("\"" <> rest) do
+    rest
+    |> String.slice(0, String.length(rest) - 1)
+    |> String.replace("\\\"", "\"")
+    |> String.replace("\\\\n", "\n")
+    |> String.replace("\\\\t", "\t")
+    |> String.replace("\\n", "\n")
+    |> String.replace("\\t", "\t")
+    |> String.replace("\\\\", "\\")
+  end
+
+  defp decode_fish_escapes(value), do: value
 end

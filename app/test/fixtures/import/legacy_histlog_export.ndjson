@@ -1,0 +1,3 @@
+{"schema_version":1,"event":"import_batch_started","session_id":"legacy-session","seq":1,"recorded_at":"2026-05-06T16:00:00Z","source":"legacy_histlog","import_batch_id":"legacy-1"}
+{"schema_version":1,"event":"imported_execution","session_id":"legacy-session","seq":2,"recorded_at":"2026-05-06T16:00:01Z","command":"mix test","cwd":"/repo","timestamp":"2026-05-06T16:00:00Z","exit_status":0}
+{"schema_version":1,"event":"import_batch_finished","session_id":"legacy-session","seq":3,"recorded_at":"2026-05-06T16:00:02Z","import_batch_id":"legacy-1","records":1}

@@ -1,0 +1,6 @@
+- cmd: "printf \"one\\ntwo\""
+  when: 1778083320
+  paths:
+    - "/tmp/fish\\ path"
+- cmd: "echo tab\\tseparated"
+  when: 1778083380
