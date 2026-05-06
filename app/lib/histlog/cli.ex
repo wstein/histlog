@@ -1,0 +1,136 @@
+defmodule Histlog.CLI do
+  @moduledoc """
+  Command-line interface for histlog v1.
+  """
+
+  alias Histlog.Consolidator
+  alias Histlog.Query
+  alias Histlog.Storage
+
+  @doc false
+  def main(argv) do
+    case run(argv) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        IO.puts(:stderr, "histlog: #{reason}")
+        System.halt(1)
+    end
+  end
+
+  def run(["consolidate" | argv]) do
+    opts = parse_options(argv)
+
+    case Consolidator.consolidate(opts) do
+      {:ok, manifest} ->
+        IO.puts(JSON.encode!(manifest))
+        :ok
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
+    end
+  end
+
+  def run(["query" | argv]) do
+    {filters, opts} = parse_query(argv)
+
+    {:ok, rows} = Query.executions(Keyword.put(opts, :filters, filters))
+    Enum.each(rows, &IO.write(JSON.encode!(&1) <> "\n"))
+    :ok
+  end
+
+  def run(["tail" | argv]) do
+    opts = parse_options(argv)
+    root = Storage.root(opts)
+    date = Keyword.get(opts, :date, Date.utc_today())
+    count = Keyword.get(opts, :count, 10)
+    path = Storage.daily_events_path(root, date)
+
+    if File.exists?(path) do
+      path
+      |> File.read!()
+      |> String.split("\n", trim: true)
+      |> Enum.take(-count)
+      |> Enum.each(&IO.puts/1)
+    end
+
+    :ok
+  end
+
+  def run(["import", file | argv]) do
+    opts = parse_options(argv)
+    root = Storage.root(opts)
+    date = Keyword.get(opts, :date, Date.utc_today())
+    source = Keyword.get(opts, :source, source_name(file))
+
+    destination =
+      Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{source}.ndjson")
+
+    with {:ok, content} <- File.read(file),
+         {:ok, _events} <- Histlog.NDJSON.decode(content),
+         :ok <- Storage.atomic_write(destination, content) do
+      IO.puts(destination)
+      :ok
+    else
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+
+  def run(_argv) do
+    IO.puts("""
+    histlog commands:
+      histlog consolidate [--root PATH] [--date YYYY-MM-DD]
+      histlog query [--root PATH] [--date YYYY-MM-DD] [--command TEXT] [--cwd PATH] [--exit-status N]
+      histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
+      histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source NAME]
+    """)
+
+    :ok
+  end
+
+  defp parse_query(argv) do
+    opts = parse_options(argv)
+
+    filters =
+      opts
+      |> Keyword.take([:command, :cwd, :exit_status])
+      |> Map.new()
+
+    {filters, Keyword.drop(opts, [:command, :cwd, :exit_status])}
+  end
+
+  defp parse_options(argv), do: parse_options(argv, [])
+
+  defp parse_options([], acc), do: Enum.reverse(acc)
+  defp parse_options(["--root", root | rest], acc), do: parse_options(rest, [{:root, root} | acc])
+
+  defp parse_options(["--date", date | rest], acc) do
+    parse_options(rest, [{:date, Date.from_iso8601!(date)} | acc])
+  end
+
+  defp parse_options(["--count", count | rest], acc) do
+    parse_options(rest, [{:count, String.to_integer(count)} | acc])
+  end
+
+  defp parse_options(["--command", command | rest], acc),
+    do: parse_options(rest, [{:command, command} | acc])
+
+  defp parse_options(["--cwd", cwd | rest], acc), do: parse_options(rest, [{:cwd, cwd} | acc])
+
+  defp parse_options(["--source", source | rest], acc),
+    do: parse_options(rest, [{:source, source} | acc])
+
+  defp parse_options(["--exit-status", status | rest], acc) do
+    parse_options(rest, [{:exit_status, String.to_integer(status)} | acc])
+  end
+
+  defp parse_options([unknown | _rest], _acc),
+    do: raise(ArgumentError, "unknown option #{unknown}")
+
+  defp source_name(file) do
+    file
+    |> Path.basename()
+    |> String.replace(~r/[^A-Za-z0-9_.-]/, "_")
+  end
+end

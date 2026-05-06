@@ -1,21 +1,28 @@
-# App
+# histlog
 
-**TODO: Add description**
+histlog is a log-structured, append-only shell history system implemented in Elixir.
+It stores canonical shell activity as per-session NDJSON event streams and materializes closed sessions into daily files for querying.
 
-## Installation
+## Development
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `app` to your list of dependencies in `mix.exs`:
+Run the formatter and tests from this directory:
 
-```elixir
-def deps do
-  [
-    {:app, "~> 0.1.0"}
-  ]
-end
+```sh
+mix format
+mix test
+mix compile --warnings-as-errors
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/app>.
+## CLI
 
+The Mix project exposes an escript entrypoint:
+
+```sh
+mix escript.build
+./histlog consolidate --root /tmp/histlog --date 2026-05-06
+./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
+./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
+./histlog import ./events.ndjson --root /tmp/histlog --date 2026-05-06
+```
+
+All command surfaces preserve the v1 boundary rule: canonical data crosses subsystem boundaries as NDJSON files.
