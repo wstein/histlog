@@ -44,6 +44,22 @@ histlog query --today --failed
 histlog query --command git --plain
 ```
 
+More query examples:
+
+```sh
+histlog query --today
+histlog query --yesterday
+histlog query --week
+histlog query --success
+histlog query --failed
+histlog query --dir .
+histlog query --slow
+histlog query --duration '>10s'
+histlog query --regex 'git (commit|push)'
+histlog query --json
+histlog query --limit 20
+```
+
 ```sh
 histlog sessions
 histlog paths
