@@ -5,7 +5,8 @@ defmodule Histlog.CLI.Commands.Verify do
   alias Histlog.Verifier
 
   def run(argv) do
-    with {:ok, opts, []} <- Options.parse(argv, Options.common_switches()),
+    with {:ok, opts, []} <-
+           Options.parse(argv, Options.common_switches(), Options.common_aliases()),
          {:ok, opts} <- Options.normalize(opts) do
       case Verifier.verify(opts) do
         {:ok, report} ->

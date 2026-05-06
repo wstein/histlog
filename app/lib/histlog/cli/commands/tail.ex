@@ -5,9 +5,10 @@ defmodule Histlog.CLI.Commands.Tail do
   alias Histlog.Storage
 
   @switches Options.common_switches() ++ [count: :integer]
+  @aliases Options.common_aliases()
 
   def run(argv) do
-    with {:ok, opts, []} <- Options.parse(argv, @switches),
+    with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases),
          {:ok, opts} <- Options.normalize(opts) do
       root = Storage.root(opts)
       date = Keyword.get(opts, :date, Date.utc_today())

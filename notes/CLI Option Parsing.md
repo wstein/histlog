@@ -17,6 +17,8 @@ The CLI has separate surfaces for consolidation, verification, query, import, sh
 
 Use kebab-case switches externally and snake_case atoms internally. Keep shell hook parsing narrow, since hooks are internal but still cross the shell boundary.
 
+`histlog init --binary PATH` pins the executable path used by generated hooks. This reduces PATH-shadowing risk for users who want an explicit binary boundary.
+
 ## Links
 
 - [[Shell Hook CLI Boundary]] - Defines the internal hook command surface.

@@ -29,10 +29,12 @@ Print the integration code and opt in explicitly:
 eval "$(histlog init zsh)"
 eval "$(histlog init bash)"
 histlog init fish | source
+eval "$(histlog init zsh --binary /absolute/path/to/histlog)"
 ----
 
 `histlog init` auto-detects the shell from `HISTLOG_SHELL`, `SHELL`, and then parent process name.
 Pass the shell explicitly when writing setup files.
+Use `--binary` when setup should pin an exact histlog executable instead of relying on PATH lookup.
 The automated smoke suite sources generated zsh, bash, and fish snippets in real shell subprocesses when those shells are available.
 
 Completion scripts can also be printed directly:

@@ -19,8 +19,10 @@ defmodule Histlog.CLI.Commands.Hook do
                 session_id: :string
               ]
 
+  @aliases Options.common_aliases()
+
   def run([action | argv]) do
-    with {:ok, opts, []} <- Options.parse(argv, @switches),
+    with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases),
          {:ok, opts} <- Options.normalize(opts) do
       case dispatch(action, opts) do
         {:ok, session_id} when is_binary(session_id) ->

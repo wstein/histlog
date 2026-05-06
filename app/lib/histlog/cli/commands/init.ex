@@ -4,7 +4,8 @@ defmodule Histlog.CLI.Commands.Init do
   alias Histlog.CLI.Options
 
   @switches [
-    aliases: :boolean
+    aliases: :boolean,
+    binary: :string
   ]
 
   def run(argv) do

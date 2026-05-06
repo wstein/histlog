@@ -15,7 +15,7 @@ defmodule Histlog.ShellInitTest do
     assert {:ok, script} = Init.script("zsh")
     assert script =~ "add-zsh-hook preexec _histlog_preexec"
     assert script =~ "_histlog_now_ms"
-    assert script =~ "histlog hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
+    assert script =~ "\"$HISTLOG_BIN\" hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
     assert script =~ "compdef _histlog histlog"
     refute script =~ "alias hl="
   end
@@ -32,6 +32,11 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "function __histlog_preexec --on-event fish_preexec"
     assert script =~ "function __histlog_postexec --on-event fish_postexec"
     assert script =~ "alias hl='histlog'"
+  end
+
+  test "init can pin an explicit histlog binary path" do
+    assert {:ok, script} = Init.script("zsh", binary: "/opt/histlog/bin/histlog")
+    assert script =~ "HISTLOG_BIN=\"${HISTLOG_BIN:-/opt/histlog/bin/histlog}\""
   end
 
   test "completions can be printed separately" do

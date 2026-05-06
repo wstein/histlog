@@ -11,8 +11,10 @@ defmodule Histlog.CLI.Commands.Query do
                 exit_status: :integer
               ]
 
+  @aliases Options.common_aliases() ++ [c: :command]
+
   def run(argv) do
-    with {:ok, opts, []} <- Options.parse(argv, @switches),
+    with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases),
          {:ok, opts} <- Options.normalize(opts) do
       {filters, query_opts} = query_options(opts)
 

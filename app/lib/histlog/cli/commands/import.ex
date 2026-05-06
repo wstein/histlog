@@ -11,8 +11,10 @@ defmodule Histlog.CLI.Commands.Import do
                 import_batch_id: :string
               ]
 
+  @aliases Options.common_aliases()
+
   def run([file | argv]) do
-    with {:ok, opts, []} <- Options.parse(argv, @switches),
+    with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases),
          {:ok, opts} <- Options.normalize(opts) do
       root = Storage.root(opts)
       date = Keyword.get(opts, :date, Date.utc_today())

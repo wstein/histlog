@@ -8,6 +8,13 @@ defmodule Histlog.CLI.Options do
     ]
   end
 
+  def common_aliases do
+    [
+      r: :root,
+      d: :date
+    ]
+  end
+
   def parse(argv, switches, aliases \\ []) do
     case OptionParser.parse(argv, strict: switches, aliases: aliases) do
       {opts, args, []} -> {:ok, opts, args}

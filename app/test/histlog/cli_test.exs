@@ -160,8 +160,17 @@ defmodule Histlog.CLITest do
       end)
 
     assert output =~ "histlog zsh integration"
-    assert output =~ "histlog hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
+    assert output =~ "\"$HISTLOG_BIN\" hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
     refute output =~ "alias hl="
+  end
+
+  test "init command accepts an explicit binary path" do
+    output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["init", "zsh", "--binary", "/opt/histlog/bin/histlog"])
+      end)
+
+    assert output =~ "HISTLOG_BIN=\"${HISTLOG_BIN:-/opt/histlog/bin/histlog}\""
   end
 
   test "init command prints aliases only when requested" do
@@ -192,5 +201,28 @@ defmodule Histlog.CLITest do
 
     assert %{"shell" => "zsh", "checks" => checks} = JSON.decode!(output)
     assert Enum.any?(checks, &(&1["check"] == "shell" and &1["status"] == "ok"))
+  end
+
+  test "command option parsing reports errors" do
+    assert {:error, error} = CLI.run(["query", "--unknown"])
+    assert error =~ "invalid options"
+
+    assert {:error, error} = CLI.run(["query", "--date", "not-a-date"])
+    assert error =~ "invalid date"
+
+    assert {:error, error} = CLI.run(["tail", "--count", "many"])
+    assert error =~ "invalid options"
+
+    assert {:error, error} = CLI.run(["init", "zsh", "bash"])
+    assert error =~ "unexpected arguments"
+  end
+
+  test "command aliases parse through OptionParser" do
+    output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["tail", "-r", "/tmp/histlog-missing", "-d", "2026-05-06"])
+      end)
+
+    assert output == ""
   end
 end
