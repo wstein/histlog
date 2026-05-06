@@ -1,1 +1,8 @@
 * xref:manual:index.adoc[Manual]
+** xref:manual:install.adoc[Install And Build]
+** xref:manual:shell-integration.adoc[Shell Integration]
+** xref:manual:query.adoc[Query History]
+** xref:manual:paths-and-sessions.adoc[Paths And Sessions]
+** xref:manual:consolidate-and-verify.adoc[Consolidate And Verify]
+** xref:manual:import.adoc[Import History]
+** xref:manual:shell-compatibility.adoc[Shell Compatibility]

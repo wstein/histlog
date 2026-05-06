@@ -1,0 +1,29 @@
+= Consolidate And Verify
+:page-layout: default
+
+`consolidate` reads closed sessions for the selected day, writes daily materialized files, and emits the manifest as JSON.
+
+[source,sh]
+----
+histlog consolidate --root /tmp/histlog --date 2026-05-06
+histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
+----
+
+`consolidate --rebuild` ignores the existing checkpoint for that date and rewrites daily materializations from current closed sessions.
+
+Materialization commit is transaction-like:
+
+* stage daily and execution outputs
+* write a pending transaction record
+* atomically move each staged output into place
+* write the manifest
+* remove the pending record
+
+If a previous run stopped partway through, the next consolidation recovers the pending transaction before scanning new sessions.
+
+`verify` recomputes daily materialization record counts and checksums, then compares them to the manifest.
+
+[source,sh]
+----
+histlog verify --root /tmp/histlog --date 2026-05-06
+----

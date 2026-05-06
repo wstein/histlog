@@ -1,0 +1,21 @@
+= Paths And Sessions
+:page-layout: default
+
+`paths` summarizes filesystem locations observed as working directories and path-like command arguments.
+Argument paths are recognized by expanding command arguments that point to valid local filesystem paths.
+
+[source,sh]
+----
+histlog paths --root /tmp/histlog --date 2026-05-06
+histlog paths --plain
+histlog paths --json
+----
+
+`sessions` lists recorded shell sessions and can include additional metadata.
+
+[source,sh]
+----
+histlog sessions --root /tmp/histlog --date 2026-05-06
+histlog sessions --details
+histlog sessions --json
+----

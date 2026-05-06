@@ -1,0 +1,25 @@
+= Query History
+:page-layout: default
+
+`query` searches derived execution rows from daily materializations, imports, and currently live sessions.
+It prints a colorized human-readable table by default.
+
+[source,sh]
+----
+histlog query --root /tmp/histlog --date 2026-05-06 --command mix
+histlog query --root /tmp/histlog --date 2026-05-06 --command mix --json
+histlog query --today --failed
+histlog query "mix test" --plain
+----
+
+Public output modes are:
+
+* `--json`
+* `--yaml`
+* `--plain`
+* `--format bash|zsh|fish|nu|powershell`
+
+NDJSON remains an internal storage format and is not a query output mode.
+Use `histlog export --format ndjson` for pipelines that need line-oriented JSON.
+
+Malformed query filters, such as invalid regular expressions or duration expressions, return an error instead of an empty result set.

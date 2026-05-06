@@ -13,7 +13,7 @@ CLEAN_DIR ?= dist
 PREFIX ?= $(HOME)/.local
 HISTLOG_ESCRIPT := $(CURDIR)/app/histlog
 
-.PHONY: all build install test format lint clean notes help
+.PHONY: all build install test format format-check lint ci clean notes help
 all: build
 
 build: ## Compile and build the histlog escript.
@@ -31,8 +31,13 @@ test: ## Run the Elixir test suite.
 format: ## Format Elixir source and tests.
 	cd app && mix format
 
+format-check: ## Check Elixir formatting without modifying files.
+	cd app && mix format --check-formatted
+
 lint: ## Run warning-as-error compilation as the repository lint gate.
 	cd app && mix compile --warnings-as-errors
+
+ci: format-check lint test ## Run the local CI gate.
 
 clean: ## Remove generated output files.
 	rm -rf "$(CLEAN_DIR)"
@@ -42,4 +47,4 @@ notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
 
 help: ## Show available targets.
-	@printf "Available targets:\n  build install test format lint clean notes\n"
+	@printf "Available targets:\n  build install test format format-check lint ci clean notes\n"

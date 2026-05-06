@@ -1,0 +1,22 @@
+= Import History
+:page-layout: default
+
+`import` parses zsh, bash, fish, or native histlog history and stores synthetic import events under `imports/`.
+
+[source,sh]
+----
+histlog import test/fixtures/import/zsh_history \
+  --root /tmp/histlog \
+  --date 2026-05-06 \
+  --source zsh_history
+----
+
+Supported sources:
+
+* `zsh_history`
+* `bash_history`
+* `fish_history`
+* `native`
+
+Imported records become synthetic event streams.
+They do not mutate canonical session logs.

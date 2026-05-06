@@ -1,0 +1,31 @@
+= Shell Compatibility
+:page-layout: default
+
+histlog v1 supports zsh, bash, and fish through generated shell snippets.
+
+[cols="1,1,3",options="header"]
+|===
+| Shell
+| Quality
+| Notes
+
+| zsh
+| 10/10
+| Uses `preexec`, `precmd`, and `zshexit`; this is the cleanest v1 integration target.
+
+| fish
+| 9/10
+| Uses `fish_preexec`, `fish_postexec`, and `fish_exit`; `%self` behavior is covered by smoke tests where fish is available.
+
+| bash
+| 7/10
+| Uses `DEBUG`, `PROMPT_COMMAND`, and `EXIT`; existing `DEBUG` traps are a documented limitation in v1.
+
+| nu
+| future
+| Not supported in v1.
+
+| powershell
+| future
+| Not supported in v1.
+|===

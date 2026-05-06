@@ -1,0 +1,33 @@
+= Install And Build
+:page-layout: default
+
+The Elixir app exposes an escript entrypoint.
+
+[source,sh]
+----
+cd app
+mix escript.build
+./histlog query --help
+----
+
+From the repository root, `make build` compiles the application and rebuilds `app/histlog`.
+
+[source,sh]
+----
+make build
+make install
+----
+
+`make install` symlinks `${PREFIX:-$HOME/.local}/bin/histlog` to the repo-built `app/histlog`.
+That local-development install keeps interactive shells on the latest rebuilt escript without a daemon.
+
+Quality gates:
+
+[source,sh]
+----
+make format
+make format-check
+make lint
+make test
+make ci
+----

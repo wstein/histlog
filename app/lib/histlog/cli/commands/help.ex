@@ -8,6 +8,7 @@ defmodule Histlog.CLI.Commands.Help do
   def run(["query"]), do: Commands.Query.run(["--help"])
   def run(["paths"]), do: Commands.Paths.run(["--help"])
   def run(["sessions"]), do: Commands.Sessions.run(["--help"])
+  def run(["export"]), do: Commands.Export.run(["--help"])
   def run(["help"]), do: write_top_level()
   def run([command]), do: {:error, "no command-specific help for #{inspect(command)}"}
   def run(args), do: {:error, "unexpected help arguments #{inspect(args)}"}
@@ -20,6 +21,7 @@ defmodule Histlog.CLI.Commands.Help do
       query       - Flexible query of command history
       sessions    - List and inspect recorded shell sessions
       paths       - Show tracked file/directory paths and usage counts
+      export      - Export derived rows for pipelines
       consolidate - Materialize closed session logs
       verify      - Verify daily materialization checksums
       import      - Import shell history files
