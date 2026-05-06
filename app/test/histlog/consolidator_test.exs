@@ -71,6 +71,59 @@ defmodule Histlog.ConsolidatorTest do
            |> length() == 5
   end
 
+  test "recovers pending materialization before appending new sessions", %{root: root, date: date} do
+    Storage.ensure_layout(root, date)
+
+    daily_path = Storage.daily_events_path(root, date)
+    exec_path = Storage.daily_exec_path(root, date)
+    manifest_path = Storage.manifest_path(root, date)
+    daily_stage = daily_path <> ".stage-test"
+    exec_stage = exec_path <> ".stage-test"
+
+    daily_content = JSON.encode!(%{"event" => "session_started"}) <> "\n"
+    exec_content = JSON.encode!(%{"event" => "execution", "command" => "recovered"}) <> "\n"
+
+    File.write!(daily_path, daily_content)
+    File.write!(exec_stage, exec_content)
+
+    manifest = %{
+      "schema_version" => 1,
+      "date" => Date.to_iso8601(date),
+      "sessions_processed" => ["session-recovered.ndjson"],
+      "records_written" => 1,
+      "exec_records_written" => 1,
+      "checksum" => Histlog.Manifest.checksum(daily_content),
+      "exec_checksum" => Histlog.Manifest.checksum(exec_content),
+      "quarantined_sessions" => []
+    }
+
+    pending = %{
+      "schema_version" => 1,
+      "transaction" => "consolidation",
+      "date" => Date.to_iso8601(date),
+      "manifest" => manifest,
+      "daily" => %{
+        "target" => daily_path,
+        "tmp" => daily_stage,
+        "checksum" => Histlog.Manifest.checksum(daily_content)
+      },
+      "exec" => %{
+        "target" => exec_path,
+        "tmp" => exec_stage,
+        "checksum" => Histlog.Manifest.checksum(exec_content)
+      },
+      "manifest_path" => manifest_path
+    }
+
+    File.write!(manifest_path <> ".pending", JSON.encode!(pending) <> "\n")
+
+    assert {:ok, recovered} = Consolidator.consolidate(root: root, date: date)
+    assert recovered["sessions_processed"] == ["session-recovered.ndjson"]
+    assert File.read!(exec_path) == exec_content
+    assert JSON.decode!(File.read!(manifest_path))["checksum"] == manifest["checksum"]
+    refute File.exists?(manifest_path <> ".pending")
+  end
+
   test "quarantines malformed sessions and continues", %{root: root, date: date} do
     Storage.ensure_layout(root, date)
     bad_path = Path.join(Storage.closed_dir(root, date), "session-bad.ndjson")

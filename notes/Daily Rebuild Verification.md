@@ -17,6 +17,8 @@ Consolidation is idempotent only if the manifest and materialized files agree. U
 
 Verification does not repair files. It returns a JSON report with per-file checks and an overall `ok` boolean. `histlog consolidate --rebuild --date YYYY-MM-DD` can then regenerate daily materializations from current closed sessions.
 
+Consolidation writes a pending transaction before committing daily materialized files. A later run must recover that pending transaction before scanning new sessions, so a crash between output writes and manifest writes does not cause duplicate appends.
+
 ## Links
 
 - [[Manifest And Checkpointing]] - Defines the manifest fields verified here.

@@ -154,10 +154,15 @@ The protocol is:
 2. skip sessions already present in the manifest
 3. validate each session's NDJSON and sequence numbers
 4. quarantine malformed sessions and continue processing other sessions
-5. write temporary outputs
-6. fsync files
-7. atomically rename temporary outputs into place
-8. write the manifest
+5. write staged daily and execution outputs
+6. write a pending consolidation transaction
+7. fsync staged files
+8. atomically rename staged outputs into place
+9. write the manifest
+10. remove the pending transaction
+
+If a previous run left a pending transaction, consolidation must recover it before scanning new sessions.
+Recovery completes any remaining staged file renames and writes the matching manifest so query materializations and manifests cannot drift silently.
 
 Consolidation is idempotent.
 It must never mutate the canonical meaning of source events.
