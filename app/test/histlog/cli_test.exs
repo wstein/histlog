@@ -64,8 +64,9 @@ defmodule Histlog.CLITest do
                  ])
       end)
 
-    assert query_output =~ "Sess Timestamp"
-    assert query_output =~ "0001 2026-05-06 20:00:00    1.000s ✓    mix test"
+    assert query_output =~ "\e[38;5;141mSess\e[0m"
+    assert query_output =~ "\e[38;5;84m✓   \e[0m"
+    assert strip_ansi(query_output) =~ "0001 2026-05-06 20:00:00    1.000s ✓    mix test"
   end
 
   test "query command can emit JSON output explicitly", %{root: root, date: date} do
@@ -198,7 +199,7 @@ defmodule Histlog.CLITest do
       end)
 
     assert query_output ==
-             "Sess Timestamp             Duration Exit Command\n--------------------------------------------------\n"
+             "\e[38;5;141mSess\e[0m \e[38;5;14mTimestamp\e[0m          \e[33m Duration\e[0m \e[38;5;84mExit\e[0m Command\n--------------------------------------------------\n"
   end
 
   test "consolidate command accepts rebuild flag", %{root: root, date: date} do
@@ -480,4 +481,6 @@ defmodule Histlog.CLITest do
 
     assert output == ""
   end
+
+  defp strip_ansi(text), do: Regex.replace(~r/\e\[[0-9;]*m/, text, "")
 end

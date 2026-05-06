@@ -233,17 +233,17 @@ defmodule Histlog.CLI.Commands.Query do
     labels = session_labels(rows)
 
     [
-      "Sess Timestamp             Duration Exit Command",
+      "#{color("Sess", "38;5;141")} #{color("Timestamp", "38;5;14")}          #{color(" Duration", "33")} #{color("Exit", "38;5;84")} Command",
       "--------------------------------------------------"
       | Enum.map(rows, &table_row(&1, labels))
     ]
   end
 
   defp table_row(row, labels) do
-    session = Map.get(labels, row["session_id"], "????")
-    timestamp = format_timestamp(row["timestamp"])
-    duration = format_duration(row["duration_ms"])
-    exit = format_exit(row["exit_status"])
+    session = Map.get(labels, row["session_id"], "????") |> color("38;5;141")
+    timestamp = row["timestamp"] |> format_timestamp() |> color("38;5;14")
+    duration = row["duration_ms"] |> format_duration() |> color("33")
+    exit = row["exit_status"] |> format_exit() |> color(exit_color(row["exit_status"]))
     command = row["command"] |> to_string() |> String.replace("\n", "\\n")
 
     "#{session} #{timestamp} #{duration} #{exit} #{command}"
@@ -284,6 +284,12 @@ defmodule Histlog.CLI.Commands.Query do
   defp format_exit(nil), do: String.pad_trailing("?", 4)
   defp format_exit(0), do: String.pad_trailing("✓", 4)
   defp format_exit(status), do: "✗#{status}" |> String.slice(0, 4) |> String.pad_trailing(4)
+
+  defp exit_color(nil), do: "38;5;8"
+  defp exit_color(0), do: "38;5;84"
+  defp exit_color(_status), do: "38;5;203"
+
+  defp color(text, code), do: "\e[#{code}m#{text}\e[0m"
 
   defp match_command?(_row, nil, _fuzzy?), do: true
   defp match_command?(row, command, true), do: fuzzy_match?(row["command"] || "", command)
