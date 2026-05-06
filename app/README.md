@@ -11,6 +11,7 @@ Run the formatter and tests from this directory:
 mix format
 mix test
 mix compile --warnings-as-errors
+mix escript.build
 ```
 
 ## CLI

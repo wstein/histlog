@@ -10,12 +10,18 @@
 #   make notes    # show the notes directory path
 #
 CLEAN_DIR ?= dist
+PREFIX ?= $(HOME)/.local
 
-.PHONY: all build test format lint clean notes help
+.PHONY: all build install test format lint clean notes help
 all: build
 
-build: ## Build the native project if present; otherwise no-op.
+build: ## Compile and build the histlog escript.
 	cd app && mix compile --warnings-as-errors
+	cd app && mix escript.build
+
+install: build ## Install the histlog escript under PREFIX/bin.
+	mkdir -p "$(PREFIX)/bin"
+	cp app/histlog "$(PREFIX)/bin/histlog"
 
 test: ## Run the Elixir test suite.
 	cd app && mix test
@@ -34,4 +40,4 @@ notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
 
 help: ## Show available targets.
-	@printf "Available targets:\n  build test format lint clean notes\n"
+	@printf "Available targets:\n  build install test format lint clean notes\n"

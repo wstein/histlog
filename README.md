@@ -12,21 +12,23 @@ make format
 make test
 make lint
 make build
+make install
 ```
 
 The Elixir application lives under `app/`.
+`make build` compiles the app and rebuilds `app/histlog`.
+`make install` copies that escript to `${PREFIX:-$HOME/.local}/bin/histlog`.
 
 ## CLI
 
-Build the escript from the application directory:
+Build the escript:
 
 ```sh
-cd app
-mix escript.build
-./histlog consolidate --root /tmp/histlog --date 2026-05-06
-./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
-./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
-eval "$(./histlog init zsh)"
+make build
+app/histlog consolidate --root /tmp/histlog --date 2026-05-06
+app/histlog query --root /tmp/histlog --date 2026-05-06 --command mix
+app/histlog import app/test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
+eval "$(app/histlog init zsh)"
 ```
 
 ## Documentation
