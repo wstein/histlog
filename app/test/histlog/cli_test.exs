@@ -4,7 +4,9 @@ defmodule Histlog.CLITest do
   import ExUnit.CaptureIO
 
   alias Histlog.CLI
+  alias Histlog.Consolidator
   alias Histlog.SessionWriter
+  alias Histlog.Storage
 
   @fixtures Path.expand("../fixtures/import", __DIR__)
 
@@ -63,6 +65,49 @@ defmodule Histlog.CLITest do
              query_output
              |> String.split("\n", trim: true)
              |> Enum.map(&JSON.decode!/1)
+  end
+
+  test "verify command reports materialization integrity", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "pwd", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+    assert {:ok, _manifest} = Consolidator.consolidate(root: root, date: date)
+
+    output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
+      end)
+
+    assert %{"ok" => true, "checks" => %{"daily" => %{"ok" => true}}} = JSON.decode!(output)
+
+    File.write!(Storage.daily_events_path(root, date), "corrupted\n")
+
+    output =
+      capture_io(fn ->
+        assert {:error, "verification failed"} =
+                 CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
+      end)
+
+    assert %{"ok" => false, "errors" => errors} = JSON.decode!(output)
+    assert Enum.any?(errors, &String.contains?(&1, "daily"))
   end
 
   test "import command converts shell history fixtures to native import NDJSON", %{

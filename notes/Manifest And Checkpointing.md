@@ -17,8 +17,11 @@ Flat-file materialization shifts integrity work into the application. Manifests 
 
 Write manifests after successful output materialization. Consolidators should read an existing manifest before processing, skip already processed session files, and produce deterministic manifest content for the same input set.
 
+`histlog verify --date YYYY-MM-DD` recomputes record counts and checksums from the daily materialized files and compares them to the manifest. Verification is read-only; rebuild support is a separate operational workflow.
+
 ## Links
 
 - [[Daily Finished Session Consolidation]] - Produces daily manifests as part of materialization.
+- [[Daily Rebuild Verification]] - Defines read-only verification of materialized daily files.
 - [[NDJSON Boundary Contract]] - Keeps checkpointing at the file boundary.
 - [[Minimal Overhead Constraint]] - Allows checkpoint work outside the interactive shell path.

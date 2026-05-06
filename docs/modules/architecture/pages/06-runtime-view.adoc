@@ -22,6 +22,10 @@ The canonical boundary remains the session NDJSON file:
 
 `Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, appends valid events to daily materializations, and writes a manifest checkpoint.
 
+== Verification
+
+`Histlog.Verifier` reads one daily manifest, recomputes record counts and SHA-256 checksums for the daily canonical and derived execution files, and reports whether the materialized files still match the checkpoint.
+
 == Import
 
 `Histlog.Import` parses zsh, bash, fish, or native NDJSON inputs into `import_batch_*` and `imported_execution` events.

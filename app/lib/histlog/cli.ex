@@ -6,6 +6,7 @@ defmodule Histlog.CLI do
   alias Histlog.Consolidator
   alias Histlog.Query
   alias Histlog.Storage
+  alias Histlog.Verifier
 
   @doc false
   def main(argv) do
@@ -38,6 +39,23 @@ defmodule Histlog.CLI do
     {:ok, rows} = Query.executions(Keyword.put(opts, :filters, filters))
     Enum.each(rows, &IO.write(JSON.encode!(&1) <> "\n"))
     :ok
+  end
+
+  def run(["verify" | argv]) do
+    opts = parse_options(argv)
+
+    case Verifier.verify(opts) do
+      {:ok, report} ->
+        IO.puts(JSON.encode!(report))
+        :ok
+
+      {:error, report} when is_map(report) ->
+        IO.puts(JSON.encode!(report))
+        {:error, "verification failed"}
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
+    end
   end
 
   def run(["tail" | argv]) do
@@ -139,6 +157,7 @@ defmodule Histlog.CLI do
     IO.puts("""
     histlog commands:
       histlog consolidate [--root PATH] [--date YYYY-MM-DD]
+      histlog verify [--root PATH] [--date YYYY-MM-DD]
       histlog query [--root PATH] [--date YYYY-MM-DD] [--command TEXT] [--cwd PATH] [--exit-status N]
       histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
       histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source zsh_history|bash_history|fish_history|ndjson]
