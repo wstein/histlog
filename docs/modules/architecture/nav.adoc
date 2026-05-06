@@ -11,3 +11,4 @@
 ** xref:architecture:10-quality-requirements.adoc[10. Quality Requirements]
 ** xref:architecture:11-risks-and-technical-debt.adoc[11. Risks And Technical Debt]
 ** xref:architecture:12-glossary.adoc[12. Glossary]
+** xref:architecture:13-histlog-v1-specification.adoc[13. histlog v1 Specification]

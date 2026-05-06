@@ -20,3 +20,4 @@ mixing project onboarding or operator runbooks into the same surface.
 * xref:architecture:10-quality-requirements.adoc[Quality Requirements]
 * xref:architecture:11-risks-and-technical-debt.adoc[Risks And Technical Debt]
 * xref:architecture:12-glossary.adoc[Glossary]
+* xref:architecture:13-histlog-v1-specification.adoc[histlog v1 Specification]

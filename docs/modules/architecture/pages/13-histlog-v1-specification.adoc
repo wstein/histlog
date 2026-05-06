@@ -1,0 +1,189 @@
+= histlog v1 Specification
+:page-layout: default
+
+histlog v1 is a log-structured, append-only shell history system implemented in Elixir.
+It captures interactive shell sessions, executed commands, working directory state, durations, and exit statuses without using a database.
+
+The v1 source of truth is a set of per-session NDJSON event streams.
+Daily consolidation materializes those events into query-friendly files and manifests.
+
+== Goals
+
+histlog v1 must:
+
+* preserve raw shell activity as immutable events
+* keep one append-only logfile per CLI session
+* use NDJSON as the subsystem boundary and storage format
+* consolidate finished sessions into daily historical outputs
+* tolerate partial sessions, crashes, malformed records, and missing finish information
+* remain database-free while keeping future database materialization possible
+
+== Non-Goals
+
+histlog v1 does not provide:
+
+* SQL database storage
+* global deduplication
+* distributed synchronization
+* real-time indexing
+* backward compatibility with any legacy runtime
+
+== Filesystem Layout
+
+[source,text]
+----
+~/.local/share/histlog/
+  sessions/
+    live/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
+    closed/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
+    quarantine/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
+  daily/
+    YYYY-MM-DD.ndjson
+    YYYY-MM-DD.exec.ndjson
+  imports/
+  exports/
+  manifests/
+    YYYY-MM-DD.json
+----
+
+Session identity includes an opaque `session_id`, host, process id, parent process id, wall-clock start time, monotonic start value, and shell name.
+The filename is useful for operators, but event data remains authoritative.
+
+== Canonical Events
+
+Every canonical event contains:
+
+[source,json]
+----
+{
+  "schema_version": 1,
+  "event": "event_type",
+  "session_id": "...",
+  "seq": 1,
+  "recorded_at": "2026-05-06T20:00:00Z"
+}
+----
+
+Supported event families are:
+
+* session lifecycle: `session_started`, `session_ended`, `session_aborted`
+* catalog: `command_defined`, `folder_defined`
+* execution: `execution_observed`, optional `execution_finished`
+* state: `cwd_changed`
+* import: `import_batch_started`, `imported_execution`, `import_batch_finished`
+
+`execution_observed` is the primary execution event because shell hooks may miss completion data.
+`execution_finished` may be recorded when finish data is available, but consolidation must tolerate missing finish events.
+
+== Boundary Rule
+
+All subsystems communicate through NDJSON files.
+Runtime code must not rely on shared memory, global mutable state, or in-process shortcuts between writers, importers, consolidators, and query code.
+Elixir modules may call shared parsing and validation libraries, but persisted NDJSON files are the integration contract.
+
+== Write Path
+
+[source,text]
+----
+Shell -> Histlog.SessionWriter -> sessions/live/<date>/session-*.ndjson
+----
+
+The writer:
+
+* validates each event before append
+* assigns strictly increasing sequence numbers with no gaps
+* applies redaction before persistence
+* appends one compact JSON object followed by a newline
+* writes `session_started` first
+* writes `session_ended` and moves the file to `closed/` on clean shell exit
+
+== Consolidation
+
+Consolidation runs periodically or on demand.
+It consumes closed session files and writes:
+
+* `daily/YYYY-MM-DD.ndjson` for merged canonical events
+* `daily/YYYY-MM-DD.exec.ndjson` for derived execution rows
+* `manifests/YYYY-MM-DD.json` for processed sessions, record counts, and checksums
+
+The protocol is:
+
+1. scan closed sessions for a day
+2. skip sessions already present in the manifest
+3. validate each session's NDJSON and sequence numbers
+4. quarantine malformed sessions and continue processing other sessions
+5. write temporary outputs
+6. fsync files
+7. atomically rename temporary outputs into place
+8. write the manifest
+
+Consolidation is idempotent.
+It must never mutate the canonical meaning of source events.
+
+== Integrity And Safety
+
+Each session file must have strictly increasing sequence numbers beginning at `1`.
+Malformed sessions are quarantined at the session-file level so one corrupt file cannot block the whole day.
+
+All shell-derived input is untrusted.
+The writer redacts common secret shapes and marks records that were changed before persistence.
+Shell integration must not interpolate untrusted strings into shell commands; Elixir code must prefer `System.cmd/3` with argument lists for external commands.
+
+== Elixir Modules
+
+The v1 module boundaries are:
+
+[cols="1,2"]
+|===
+|Module |Responsibility
+
+|`Histlog.Application`
+|OTP application supervision.
+
+|`Histlog.Event`
+|Event construction, redaction metadata, and NDJSON encoding.
+
+|`Histlog.Schema`
+|Event validation and sequence validation.
+
+|`Histlog.Storage`
+|Filesystem layout, atomic writes, session moves, quarantine, and streaming reads.
+
+|`Histlog.SessionWriter`
+|Append-only writer for one shell session.
+
+|`Histlog.Consolidator`
+|Daily materialization, derived execution output, and manifest creation.
+
+|`Histlog.Manifest`
+|Manifest encoding, checksum, and processed-session tracking.
+
+|`Histlog.Import`
+|External history ingestion as synthetic event streams.
+
+|`Histlog.Query`
+|Streaming file-based query helpers.
+
+|`Histlog.Shell.Zsh`, `Histlog.Shell.Bash`, `Histlog.Shell.Fish`
+|Shell integration helpers.
+|===
+
+== Testing Strategy
+
+Required automated tests cover:
+
+* event validation
+* NDJSON encode and decode
+* redaction
+* session-local command and folder interning
+* sequence monotonicity
+* session file close and atomic move
+* consolidation idempotency
+* derived execution rows from partial and complete observations
+* corruption quarantine
+* import event shape
+
+== Invariant
+
+Events are immutable truth.
+Everything else is a derived view.
