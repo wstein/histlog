@@ -17,6 +17,30 @@ mix escript.build
 ./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
 ----
 
+== Shell Integration
+
+histlog does not edit shell rc files.
+Print the integration code and opt in explicitly:
+
+[source,sh]
+----
+eval "$(histlog init zsh)"
+eval "$(histlog init bash)"
+histlog init fish | source
+----
+
+`histlog init` auto-detects the shell from `HISTLOG_SHELL`, `SHELL`, and then parent process name.
+Pass the shell explicitly when writing setup files.
+
+Completion scripts can also be printed directly:
+
+[source,sh]
+----
+histlog completions zsh
+histlog completions bash
+histlog completions fish
+----
+
 `consolidate` reads closed sessions for the selected day, writes daily materialized files, and emits the manifest as JSON.
 `query` streams derived execution rows and applies simple command, cwd, and exit status filters.
 `tail` prints the latest canonical daily events.

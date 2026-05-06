@@ -85,7 +85,7 @@ Elixir modules may call shared parsing and validation libraries, but persisted N
 
 [source,text]
 ----
-Shell -> Histlog.SessionWriter -> sessions/live/<date>/session-*.ndjson
+Shell hook adapter -> histlog hook CLI -> Histlog.SessionWriter -> sessions/live/<date>/session-*.ndjson
 ----
 
 The writer:
@@ -96,6 +96,34 @@ The writer:
 * appends one compact JSON object followed by a newline
 * writes `session_started` first
 * writes `session_ended` and moves the file to `closed/` on clean shell exit
+
+== Shell Integration
+
+`histlog init [SHELL]` prints shell-native integration code to stdout.
+It must never silently edit shell rc files.
+
+Recommended setup:
+
+[source,sh]
+----
+eval "$(histlog init zsh)"
+eval "$(histlog init bash)"
+histlog init fish | source
+----
+
+The generated shell code is a thin adapter.
+It must call internal hook commands and must not construct NDJSON itself.
+
+Supported v1 hook commands are:
+
+* `histlog hook session-start`
+* `histlog hook preexec`
+* `histlog hook precmd`
+* `histlog hook session-end`
+
+The generated code suppresses hook errors by default, quotes variables, avoids recursive capture of `histlog hook ...`, and passes command text only as data.
+Completion setup is included by default.
+Aliases are opt-in through `histlog init SHELL --aliases`.
 
 == Consolidation
 
