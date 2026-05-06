@@ -18,3 +18,7 @@ Build it locally with:
 cd app
 mix escript.build
 ----
+
+From the repository root, `make build` compiles and rebuilds `app/histlog`.
+`make install` creates `${PREFIX:-$HOME/.local}/bin/histlog` as a symbolic link to that repo-built escript.
+This is the preferred local-development install scheme because shell hooks invoke a short-lived executable and pick up rebuilds immediately.

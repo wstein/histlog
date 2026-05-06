@@ -11,6 +11,7 @@
 #
 CLEAN_DIR ?= dist
 PREFIX ?= $(HOME)/.local
+HISTLOG_ESCRIPT := $(CURDIR)/app/histlog
 
 .PHONY: all build install test format lint clean notes help
 all: build
@@ -19,9 +20,10 @@ build: ## Compile and build the histlog escript.
 	cd app && mix compile --warnings-as-errors
 	cd app && mix escript.build
 
-install: build ## Install the histlog escript under PREFIX/bin.
+install: build ## Symlink the histlog escript under PREFIX/bin.
 	mkdir -p "$(PREFIX)/bin"
-	cp app/histlog "$(PREFIX)/bin/histlog"
+	rm -f "$(PREFIX)/bin/histlog"
+	ln -s "$(HISTLOG_ESCRIPT)" "$(PREFIX)/bin/histlog"
 
 test: ## Run the Elixir test suite.
 	cd app && mix test

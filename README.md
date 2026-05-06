@@ -18,7 +18,8 @@ make install
 
 The Elixir application lives under `app/`.
 `make build` compiles the app and rebuilds `app/histlog`.
-`make install` copies that escript to `${PREFIX:-$HOME/.local}/bin/histlog`.
+`make install` symlinks `${PREFIX:-$HOME/.local}/bin/histlog` to the repo-built `app/histlog`.
+That keeps local interactive shells on the latest `make build` output without introducing a daemon.
 
 ## CLI
 

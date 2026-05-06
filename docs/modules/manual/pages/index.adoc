@@ -21,7 +21,8 @@ mix escript.build
 ----
 
 From the repository root, `make build` compiles the application and rebuilds `app/histlog`.
-Use `make install` to copy that escript to `${PREFIX:-$HOME/.local}/bin/histlog`.
+Use `make install` to symlink `${PREFIX:-$HOME/.local}/bin/histlog` to the repo-built `app/histlog`.
+That local-development install keeps interactive shells on the latest rebuilt escript without a daemon.
 
 == Shell Integration
 

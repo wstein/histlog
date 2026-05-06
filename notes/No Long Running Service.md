@@ -15,7 +15,7 @@ Shell history capture should stay simple, inspectable, reversible, and easy to d
 
 ## How
 
-Package the user-facing command as an escript. Store any cross-invocation adapter state explicitly in files such as `hook-state/`, and keep canonical history in NDJSON.
+Package the user-facing command as an escript. For local development, install it by symlinking `~/.local/bin/histlog` to the repo-built `app/histlog` so shell hooks pick up rebuilds immediately. Store any cross-invocation adapter state explicitly in files such as `hook-state/`, and keep canonical history in NDJSON.
 
 ## Links
 
