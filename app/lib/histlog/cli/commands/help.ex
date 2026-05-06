@@ -4,7 +4,7 @@ defmodule Histlog.CLI.Commands.Help do
   def run(_argv) do
     IO.puts("""
     histlog commands:
-      histlog consolidate [--root PATH] [--date YYYY-MM-DD]
+      histlog consolidate [--root PATH] [--date YYYY-MM-DD] [--rebuild]
       histlog verify [--root PATH] [--date YYYY-MM-DD]
       histlog query [--root PATH] [--date YYYY-MM-DD] [--command TEXT] [--cwd PATH] [--exit-status N]
       histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]

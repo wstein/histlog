@@ -12,6 +12,7 @@ The Elixir app exposes an escript entrypoint.
 cd app
 mix escript.build
 ./histlog consolidate --root /tmp/histlog --date 2026-05-06
+./histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
 ./histlog verify --root /tmp/histlog --date 2026-05-06
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
 ./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
@@ -49,6 +50,7 @@ histlog completions fish
 ----
 
 `consolidate` reads closed sessions for the selected day, writes daily materialized files, and emits the manifest as JSON.
+`consolidate --rebuild` ignores the existing checkpoint for that date and rewrites daily materializations from current closed sessions.
 `verify` recomputes daily materialization record counts and checksums, then compares them to the manifest.
 `query` streams derived execution rows and applies simple command, cwd, and exit status filters.
 `tail` prints the latest canonical daily events.

@@ -51,6 +51,26 @@ defmodule Histlog.ConsolidatorTest do
            |> length() == 5
   end
 
+  test "rebuild rewrites daily files from closed sessions", %{root: root, date: date} do
+    closed_session!(root, date, "session-1", "pwd", "/repo", 0)
+
+    assert {:ok, first} = Consolidator.consolidate(root: root, date: date)
+    daily_path = Storage.daily_events_path(root, date)
+    File.write!(daily_path, "corrupted\n")
+
+    assert {:ok, rebuilt} = Consolidator.consolidate(root: root, date: date, rebuild: true)
+
+    refute first["checksum"] == Histlog.Manifest.checksum("corrupted\n")
+    assert rebuilt["sessions_processed"] == first["sessions_processed"]
+    assert rebuilt["records_written"] == 5
+    assert rebuilt["rebuilt"] == true
+
+    assert daily_path
+           |> File.read!()
+           |> String.split("\n", trim: true)
+           |> length() == 5
+  end
+
   test "quarantines malformed sessions and continues", %{root: root, date: date} do
     Storage.ensure_layout(root, date)
     bad_path = Path.join(Storage.closed_dir(root, date), "session-bad.ndjson")

@@ -19,6 +19,8 @@ Write manifests after successful output materialization. Consolidators should re
 
 `histlog verify --date YYYY-MM-DD` recomputes record counts and checksums from the daily materialized files and compares them to the manifest. Verification is read-only; rebuild support is a separate operational workflow.
 
+`histlog consolidate --rebuild --date YYYY-MM-DD` starts from an empty manifest for that date, ignores prior processed-session checkpoints, and rewrites daily materializations from closed session files.
+
 ## Links
 
 - [[Daily Finished Session Consolidation]] - Produces daily manifests as part of materialization.

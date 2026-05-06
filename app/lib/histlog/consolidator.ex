@@ -17,22 +17,26 @@ defmodule Histlog.Consolidator do
     Storage.ensure_layout(root, date)
 
     manifest_path = Storage.manifest_path(root, date)
+    rebuild? = Keyword.get(opts, :rebuild, false)
 
-    with {:ok, manifest} <- Manifest.read(manifest_path, date),
-         {:ok, result} <- consolidate_new_sessions(root, date, manifest),
+    with {:ok, manifest} <- read_manifest(manifest_path, date, rebuild?),
+         {:ok, result} <- consolidate_new_sessions(root, date, manifest, rebuild?),
          :ok <- Manifest.write(manifest_path, result.manifest) do
       {:ok, result.manifest}
     end
   end
 
-  defp consolidate_new_sessions(root, date, manifest) do
+  defp read_manifest(_manifest_path, date, true), do: {:ok, Manifest.empty(date)}
+  defp read_manifest(manifest_path, date, false), do: Manifest.read(manifest_path, date)
+
+  defp consolidate_new_sessions(root, date, manifest, rebuild?) do
     session_paths =
       root
       |> Storage.closed_dir(date)
       |> Path.join("*.ndjson")
       |> Path.wildcard()
       |> Enum.sort()
-      |> Enum.reject(&Manifest.processed?(manifest, &1))
+      |> maybe_reject_processed(manifest, rebuild?)
 
     {valid, quarantined} =
       Enum.reduce(session_paths, {[], []}, fn path, {valid, quarantined} ->
@@ -54,8 +58,8 @@ defmodule Histlog.Consolidator do
     daily_path = Storage.daily_events_path(root, date)
     exec_path = Storage.daily_exec_path(root, date)
 
-    existing_daily = read_existing(daily_path)
-    existing_exec = read_existing(exec_path)
+    existing_daily = read_existing(daily_path, rebuild?)
+    existing_exec = read_existing(exec_path, rebuild?)
     daily_content = existing_daily <> encode_rows(canonical_events)
     exec_content = existing_exec <> encode_rows(execution_rows)
 
@@ -67,6 +71,7 @@ defmodule Histlog.Consolidator do
         "exec_records_written" => count_ndjson_records(exec_content),
         "checksum" => Manifest.checksum(daily_content),
         "exec_checksum" => Manifest.checksum(exec_content),
+        "rebuilt" => rebuild?,
         "quarantined_sessions" => quarantined
       }
 
@@ -136,7 +141,15 @@ defmodule Histlog.Consolidator do
 
   defp encode_rows(rows), do: Enum.map_join(rows, "", &(JSON.encode!(&1) <> "\n"))
 
-  defp read_existing(path) do
+  defp maybe_reject_processed(session_paths, _manifest, true), do: session_paths
+
+  defp maybe_reject_processed(session_paths, manifest, false) do
+    Enum.reject(session_paths, &Manifest.processed?(manifest, &1))
+  end
+
+  defp read_existing(_path, true), do: ""
+
+  defp read_existing(path, false) do
     case File.read(path) do
       {:ok, content} -> content
       {:error, :enoent} -> ""

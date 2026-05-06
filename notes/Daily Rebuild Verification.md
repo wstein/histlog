@@ -15,7 +15,7 @@ Consolidation is idempotent only if the manifest and materialized files agree. U
 
 ## How
 
-Verification does not repair files. It returns a JSON report with per-file checks and an overall `ok` boolean. Future rebuild support can use this report as a preflight signal.
+Verification does not repair files. It returns a JSON report with per-file checks and an overall `ok` boolean. `histlog consolidate --rebuild --date YYYY-MM-DD` can then regenerate daily materializations from current closed sessions.
 
 ## Links
 

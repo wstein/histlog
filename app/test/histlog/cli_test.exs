@@ -67,6 +67,45 @@ defmodule Histlog.CLITest do
              |> Enum.map(&JSON.decode!/1)
   end
 
+  test "consolidate command accepts rebuild flag", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "pwd", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "consolidate",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--rebuild"
+                 ])
+      end)
+
+    assert %{"rebuilt" => true, "records_written" => 5} = JSON.decode!(output)
+  end
+
   test "verify command reports materialization integrity", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(
