@@ -23,6 +23,9 @@ mix escript.build
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
 ./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
 ./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
+./histlog init zsh
+./histlog completions fish
+./histlog doctor zsh
 ```
 
 All command surfaces preserve the v1 boundary rule: canonical data crosses subsystem boundaries as NDJSON files.

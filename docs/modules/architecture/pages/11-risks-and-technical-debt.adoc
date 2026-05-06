@@ -5,7 +5,7 @@ The current implementation is an MVP foundation with explicit remaining risks.
 
 == Open Risks
 
-* Shell hook scripts are not yet implemented.
+* Generated zsh, bash, and fish hook scripts are implemented, but they still need manual testing in real interactive shells.
 * Import parsers cover representative fixtures but not every shell-history edge case.
 * Redaction uses conservative pattern matching and should be expanded with real-world samples.
 * Consolidation appends new sessions to existing materialized files; future compaction may need stronger rebuild controls.

@@ -15,6 +15,7 @@ mix escript.build
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
 ./histlog tail --root /tmp/histlog --date 2026-05-06 --count 10
 ./histlog import test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
+./histlog doctor zsh
 ----
 
 == Shell Integration
@@ -45,6 +46,7 @@ histlog completions fish
 `query` streams derived execution rows and applies simple command, cwd, and exit status filters.
 `tail` prints the latest canonical daily events.
 `import` parses zsh, bash, fish, or native NDJSON history and stores synthetic import events under `imports/`.
+`doctor` prints JSON diagnostics for the selected shell integration.
 
 == Relationship To The Other Docs
 

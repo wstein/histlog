@@ -193,7 +193,7 @@ The v1 module boundaries are:
 |Streaming file-based query helpers.
 
 |`Histlog.Shell.Zsh`, `Histlog.Shell.Bash`, `Histlog.Shell.Fish`
-|Shell integration helpers.
+|Shell integration helpers and init script generation.
 |===
 
 == Testing Strategy
