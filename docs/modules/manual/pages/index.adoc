@@ -30,11 +30,13 @@ eval "$(histlog init zsh)"
 eval "$(histlog init bash)"
 histlog init fish | source
 eval "$(histlog init zsh --binary /absolute/path/to/histlog)"
+eval "$(histlog init zsh --durability balanced)"
 ----
 
 `histlog init` auto-detects the shell from `HISTLOG_SHELL`, `SHELL`, and then parent process name.
 Pass the shell explicitly when writing setup files.
 Use `--binary` when setup should pin an exact histlog executable instead of relying on PATH lookup.
+Durability modes are `safe`, `balanced`, and `fast`; `balanced` is the default.
 The automated smoke suite sources generated zsh, bash, and fish snippets in real shell subprocesses when those shells are available.
 
 Completion scripts can also be printed directly:

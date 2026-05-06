@@ -25,11 +25,12 @@ defmodule Histlog.Shell.Init do
   def script(shell, opts \\ []) do
     aliases? = Keyword.get(opts, :aliases, false)
     binary = Keyword.get(opts, :binary, "histlog")
+    durability = Keyword.get(opts, :durability, "balanced")
 
     case shell do
-      "zsh" -> {:ok, zsh_script(aliases?, binary)}
-      "bash" -> {:ok, bash_script(aliases?, binary)}
-      "fish" -> {:ok, fish_script(aliases?, binary)}
+      "zsh" -> {:ok, zsh_script(aliases?, binary, durability)}
+      "bash" -> {:ok, bash_script(aliases?, binary, durability)}
+      "fish" -> {:ok, fish_script(aliases?, binary, durability)}
       shell when shell in @future_shells -> {:error, {:unsupported_shell, shell}}
       shell -> {:error, {:unknown_shell, shell}}
     end
@@ -77,7 +78,7 @@ defmodule Histlog.Shell.Init do
     end
   end
 
-  defp zsh_script(aliases?, binary) do
+  defp zsh_script(aliases?, binary, durability) do
     """
     # histlog zsh integration
     if [ -n "${HISTLOG_ACTIVE:-}" ]; then
@@ -87,7 +88,8 @@ defmodule Histlog.Shell.Init do
     export HISTLOG_ACTIVE=1
     export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
     export HISTLOG_BIN="${HISTLOG_BIN:-#{shell_param_default(binary)}}"
-    export HISTLOG_SESSION_ID="$("$HISTLOG_BIN" hook session-start --root "$HISTLOG_ROOT" --shell zsh --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
+    export HISTLOG_DURABILITY="${HISTLOG_DURABILITY:-#{shell_param_default(durability)}}"
+    export HISTLOG_SESSION_ID="$("$HISTLOG_BIN" hook session-start --root "$HISTLOG_ROOT" --shell zsh --pid $$ --ppid ${PPID:-0} --cwd "$PWD" --durability "$HISTLOG_DURABILITY")"
 
     _histlog_now_ms() {
       if command -v perl >/dev/null 2>&1; then
@@ -128,7 +130,7 @@ defmodule Histlog.Shell.Init do
     """
   end
 
-  defp bash_script(aliases?, binary) do
+  defp bash_script(aliases?, binary, durability) do
     """
     # histlog bash integration
     if [ -n "${HISTLOG_ACTIVE:-}" ]; then
@@ -138,7 +140,8 @@ defmodule Histlog.Shell.Init do
     export HISTLOG_ACTIVE=1
     export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
     export HISTLOG_BIN="${HISTLOG_BIN:-#{shell_param_default(binary)}}"
-    export HISTLOG_SESSION_ID="$("$HISTLOG_BIN" hook session-start --root "$HISTLOG_ROOT" --shell bash --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
+    export HISTLOG_DURABILITY="${HISTLOG_DURABILITY:-#{shell_param_default(durability)}}"
+    export HISTLOG_SESSION_ID="$("$HISTLOG_BIN" hook session-start --root "$HISTLOG_ROOT" --shell bash --pid $$ --ppid ${PPID:-0} --cwd "$PWD" --durability "$HISTLOG_DURABILITY")"
 
     _histlog_now_ms() {
       if command -v perl >/dev/null 2>&1; then
@@ -187,7 +190,7 @@ defmodule Histlog.Shell.Init do
     """
   end
 
-  defp fish_script(aliases?, binary) do
+  defp fish_script(aliases?, binary, durability) do
     """
     # histlog fish integration
     if set -q HISTLOG_ACTIVE
@@ -201,7 +204,10 @@ defmodule Histlog.Shell.Init do
     if not set -q HISTLOG_BIN
         set -gx HISTLOG_BIN #{shell_quote(binary)}
     end
-    set -gx HISTLOG_SESSION_ID ("$HISTLOG_BIN" hook session-start --root "$HISTLOG_ROOT" --shell fish --pid %self --cwd "$PWD")
+    if not set -q HISTLOG_DURABILITY
+        set -gx HISTLOG_DURABILITY #{shell_quote(durability)}
+    end
+    set -gx HISTLOG_SESSION_ID ("$HISTLOG_BIN" hook session-start --root "$HISTLOG_ROOT" --shell fish --pid %self --cwd "$PWD" --durability "$HISTLOG_DURABILITY")
 
     function __histlog_now_ms
         if command -q perl

@@ -88,4 +88,55 @@ defmodule Histlog.SessionWriterTest do
     assert first_folder_id == second_folder_id
     assert writer.seq == 3
   end
+
+  test "persists configured durability mode in hook-safe writer state", %{root: root} do
+    assert {:ok, writer} =
+             SessionWriter.start(
+               root: root,
+               host: "machine",
+               process_id: 1234,
+               parent_process_id: 1200,
+               shell: "zsh",
+               session_id: "session-1",
+               monotonic_start: 12_345,
+               durability: "fast"
+             )
+
+    assert writer.durability == "fast"
+
+    restored =
+      writer
+      |> SessionWriter.to_state()
+      |> SessionWriter.from_state()
+
+    assert restored.durability == "fast"
+  end
+
+  test "defaults durability to balanced and rejects invalid modes", %{root: root} do
+    assert {:ok, writer} =
+             SessionWriter.start(
+               root: root,
+               host: "machine",
+               process_id: 1234,
+               parent_process_id: 1200,
+               shell: "zsh",
+               session_id: "session-1",
+               monotonic_start: 12_345
+             )
+
+    assert writer.durability == "balanced"
+
+    assert_raise ArgumentError, ~r/invalid durability/, fn ->
+      SessionWriter.start(
+        root: root,
+        host: "machine",
+        process_id: 1235,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-2",
+        monotonic_start: 12_346,
+        durability: "reckless"
+      )
+    end
+  end
 end

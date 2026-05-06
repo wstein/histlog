@@ -173,6 +173,15 @@ defmodule Histlog.CLITest do
     assert output =~ "HISTLOG_BIN=\"${HISTLOG_BIN:-/opt/histlog/bin/histlog}\""
   end
 
+  test "init command accepts a default durability mode" do
+    output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["init", "zsh", "--durability", "fast"])
+      end)
+
+    assert output =~ "HISTLOG_DURABILITY=\"${HISTLOG_DURABILITY:-fast}\""
+  end
+
   test "init command prints aliases only when requested" do
     output =
       capture_io(fn ->

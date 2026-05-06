@@ -18,6 +18,7 @@ defmodule Histlog.SessionWriter do
     :monotonic_start,
     :live_path,
     :closed_path,
+    :durability,
     seq: 0,
     next_command_id: 1,
     next_folder_id: 1,
@@ -42,6 +43,7 @@ defmodule Histlog.SessionWriter do
       monotonic_start: state["monotonic_start"],
       live_path: state["live_path"],
       closed_path: state["closed_path"],
+      durability: normalize_durability(state["durability"]),
       seq: state["seq"],
       next_command_id: state["next_command_id"],
       next_folder_id: state["next_folder_id"],
@@ -67,6 +69,7 @@ defmodule Histlog.SessionWriter do
       "monotonic_start" => writer.monotonic_start,
       "live_path" => writer.live_path,
       "closed_path" => writer.closed_path,
+      "durability" => writer.durability,
       "seq" => writer.seq,
       "next_command_id" => writer.next_command_id,
       "next_folder_id" => writer.next_folder_id,
@@ -90,6 +93,7 @@ defmodule Histlog.SessionWriter do
     monotonic_start = Keyword.get_lazy(opts, :monotonic_start, &System.monotonic_time/0)
     start_ns = System.convert_time_unit(monotonic_start, :native, :nanosecond)
     session_id = Keyword.get_lazy(opts, :session_id, &new_session_id/0)
+    durability = normalize_durability(Keyword.get(opts, :durability, "balanced"))
     filename = Storage.session_filename(host, process_id, start_ns)
 
     Storage.ensure_layout(root, date)
@@ -105,7 +109,8 @@ defmodule Histlog.SessionWriter do
       started_at: started_at,
       monotonic_start: monotonic_start,
       live_path: Path.join(Storage.live_dir(root, date), filename),
-      closed_path: Path.join(Storage.closed_dir(root, date), filename)
+      closed_path: Path.join(Storage.closed_dir(root, date), filename),
+      durability: durability
     }
 
     attrs = %{
@@ -228,10 +233,29 @@ defmodule Histlog.SessionWriter do
     seq = writer.seq + 1
 
     with {:ok, event} <- Event.new(event_type, seq, attrs),
-         :ok <- Storage.append_event(writer.live_path, event) do
+         :ok <-
+           Storage.append_event(writer.live_path, event,
+             sync?: sync_event?(writer.durability, event_type)
+           ) do
       {:ok, %{writer | seq: seq}, event}
     end
   end
+
+  defp sync_event?("safe", _event_type), do: true
+
+  defp sync_event?("balanced", event_type),
+    do: event_type in ["session_started", "session_ended", "session_aborted"]
+
+  defp sync_event?("fast", _event_type), do: false
+
+  defp normalize_durability(nil), do: "balanced"
+  defp normalize_durability(value) when value in ["safe", "balanced", "fast"], do: value
+
+  defp normalize_durability(value) when value in [:safe, :balanced, :fast],
+    do: Atom.to_string(value)
+
+  defp normalize_durability(value),
+    do: raise(ArgumentError, "invalid durability #{inspect(value)}")
 
   defp default_host do
     case :inet.gethostname() do

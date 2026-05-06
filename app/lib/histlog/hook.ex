@@ -98,6 +98,7 @@ defmodule Histlog.Hook do
       started_at: Keyword.get(opts, :started_at),
       host: Keyword.get(opts, :host, default_host()),
       session_id: Keyword.get(opts, :session_id),
+      durability: Keyword.get(opts, :durability),
       date: Keyword.get(opts, :date, Date.utc_today())
     ]
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)

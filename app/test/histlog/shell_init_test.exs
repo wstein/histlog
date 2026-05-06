@@ -16,6 +16,7 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "add-zsh-hook preexec _histlog_preexec"
     assert script =~ "_histlog_now_ms"
     assert script =~ "\"$HISTLOG_BIN\" hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
+    assert script =~ "--durability \"$HISTLOG_DURABILITY\""
     assert script =~ "compdef _histlog histlog"
     refute script =~ "alias hl="
   end
@@ -37,6 +38,11 @@ defmodule Histlog.ShellInitTest do
   test "init can pin an explicit histlog binary path" do
     assert {:ok, script} = Init.script("zsh", binary: "/opt/histlog/bin/histlog")
     assert script =~ "HISTLOG_BIN=\"${HISTLOG_BIN:-/opt/histlog/bin/histlog}\""
+  end
+
+  test "init can set default durability mode" do
+    assert {:ok, script} = Init.script("bash", durability: "safe")
+    assert script =~ "HISTLOG_DURABILITY=\"${HISTLOG_DURABILITY:-safe}\""
   end
 
   test "completions can be printed separately" do

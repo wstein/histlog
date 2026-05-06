@@ -67,16 +67,17 @@ defmodule Histlog.Storage do
   end
 
   @doc """
-  Appends one validated event to a session stream and fsyncs it.
+  Appends one validated event to a session stream.
   """
-  def append_event(path, event) do
+  def append_event(path, event, opts \\ []) do
     line = Event.encode_line!(event)
+    sync? = Keyword.get(opts, :sync?, true)
     File.mkdir_p!(Path.dirname(path))
 
     with {:ok, :ok} <-
            File.open(path, [:append, :binary], fn io ->
              IO.binwrite(io, line)
-             :file.sync(io)
+             if sync?, do: :file.sync(io), else: :ok
            end) do
       :ok
     end

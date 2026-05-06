@@ -16,7 +16,8 @@ defmodule Histlog.CLI.Commands.Hook do
                 ended_at: :string,
                 host: :string,
                 exit_status: :integer,
-                session_id: :string
+                session_id: :string,
+                durability: :string
               ]
 
   @aliases Options.common_aliases()
