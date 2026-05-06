@@ -14,3 +14,4 @@ histlog is organized as a small set of Elixir modules around the NDJSON file bou
 * `Histlog.Import` parses external shell history into synthetic event streams.
 * `Histlog.Query` streams derived execution rows for simple file-based queries.
 * `Histlog.CLI` exposes operational workflows as an escript entrypoint.
+* `Histlog.CLI.Commands.*` owns command-specific option parsing and workflow dispatch.
