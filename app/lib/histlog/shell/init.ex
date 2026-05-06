@@ -87,18 +87,26 @@ defmodule Histlog.Shell.Init do
     export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
     export HISTLOG_SESSION_ID="$(histlog hook session-start --root "$HISTLOG_ROOT" --shell zsh --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
 
+    _histlog_now_ms() {
+      if command -v perl >/dev/null 2>&1; then
+        perl -MTime::HiRes=time -e 'printf "%.0f\\n", time() * 1000'
+      else
+        printf '%s000\\n' "$(date +%s)"
+      fi
+    }
+
     _histlog_preexec() {
       HISTLOG_CMD="$1"
-      HISTLOG_STARTED_AT="$(date +%s%3N)"
+      HISTLOG_STARTED_AT="$(_histlog_now_ms)"
       histlog hook preexec --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --command "$HISTLOG_CMD" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
     }
 
     _histlog_precmd() {
-      local status="$?"
+      local histlog_status="$?"
       local ended_at
-      ended_at="$(date +%s%3N)"
+      ended_at="$(_histlog_now_ms)"
       if [ -n "${HISTLOG_CMD:-}" ]; then
-        histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
+        histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$histlog_status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
         unset HISTLOG_CMD
         unset HISTLOG_STARTED_AT
       fi
@@ -129,20 +137,28 @@ defmodule Histlog.Shell.Init do
     export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
     export HISTLOG_SESSION_ID="$(histlog hook session-start --root "$HISTLOG_ROOT" --shell bash --pid $$ --ppid ${PPID:-0} --cwd "$PWD")"
 
+    _histlog_now_ms() {
+      if command -v perl >/dev/null 2>&1; then
+        perl -MTime::HiRes=time -e 'printf "%.0f\\n", time() * 1000'
+      else
+        printf '%s000\\n' "$(date +%s)"
+      fi
+    }
+
     _histlog_preexec() {
-      local cmd="$BASH_COMMAND"
+      local cmd="${1:-$BASH_COMMAND}"
       case "$cmd" in
         _histlog_*|histlog\\ hook*|history\\ -a*|PROMPT_COMMAND*) return ;;
       esac
       HISTLOG_CMD="$cmd"
-      HISTLOG_STARTED_AT="$(date +%s%3N)"
+      HISTLOG_STARTED_AT="$(_histlog_now_ms)"
       histlog hook preexec --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --command "$cmd" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
     }
 
     _histlog_precmd() {
       local status="$?"
       local ended_at
-      ended_at="$(date +%s%3N)"
+      ended_at="$(_histlog_now_ms)"
       if [ -n "${HISTLOG_CMD:-}" ]; then
         histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
         unset HISTLOG_CMD
@@ -181,17 +197,25 @@ defmodule Histlog.Shell.Init do
     end
     set -gx HISTLOG_SESSION_ID (histlog hook session-start --root "$HISTLOG_ROOT" --shell fish --pid %self --cwd "$PWD")
 
+    function __histlog_now_ms
+        if command -q perl
+            perl -MTime::HiRes=time -e 'printf "%.0f\\n", time() * 1000'
+        else
+            printf '%s000\\n' (date +%s)
+        end
+    end
+
     function __histlog_preexec --on-event fish_preexec
         set -gx HISTLOG_CMD "$argv[1]"
-        set -gx HISTLOG_STARTED_AT (date +%s%3N)
+        set -gx HISTLOG_STARTED_AT (__histlog_now_ms)
         histlog hook preexec --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --command "$HISTLOG_CMD" --cwd "$PWD" --started-at "$HISTLOG_STARTED_AT" >/dev/null 2>&1
     end
 
     function __histlog_postexec --on-event fish_postexec
-        set -l status $status
-        set -l ended_at (date +%s%3N)
+        set -l histlog_status $status
+        set -l ended_at (__histlog_now_ms)
         if set -q HISTLOG_CMD
-            histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
+            histlog hook precmd --root "$HISTLOG_ROOT" --session "$HISTLOG_SESSION_ID" --exit-status "$histlog_status" --cwd "$PWD" --ended-at "$ended_at" >/dev/null 2>&1
             set -e HISTLOG_CMD
             set -e HISTLOG_STARTED_AT
         end
@@ -222,7 +246,9 @@ defmodule Histlog.Shell.Init do
       )
       _describe 'histlog command' commands
     }
-    compdef _histlog histlog
+    if whence -w compdef >/dev/null 2>&1; then
+      compdef _histlog histlog
+    fi
     """
   end
 

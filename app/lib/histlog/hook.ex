@@ -13,16 +13,9 @@ defmodule Histlog.Hook do
     root = Storage.root(opts)
 
     with {:ok, writer} <-
-           SessionWriter.start(
-             root: root,
-             shell: Keyword.fetch!(opts, :shell),
-             process_id: Keyword.fetch!(opts, :pid),
-             parent_process_id: Keyword.get(opts, :ppid, 0),
-             started_at: Keyword.get(opts, :started_at),
-             host: Keyword.get(opts, :host, default_host()),
-             session_id: Keyword.get(opts, :session_id),
-             date: Keyword.get(opts, :date, Date.utc_today())
-           ),
+           opts
+           |> session_start_writer_opts(root)
+           |> SessionWriter.start(),
          :ok <- write_state(writer) do
       {:ok, writer.session_id}
     end
@@ -94,6 +87,20 @@ defmodule Histlog.Hook do
     with {:ok, writer, _pending} <- load_writer_with_pending(opts) do
       {:ok, writer}
     end
+  end
+
+  defp session_start_writer_opts(opts, root) do
+    [
+      root: root,
+      shell: Keyword.fetch!(opts, :shell),
+      process_id: Keyword.fetch!(opts, :pid),
+      parent_process_id: Keyword.get(opts, :ppid, 0),
+      started_at: Keyword.get(opts, :started_at),
+      host: Keyword.get(opts, :host, default_host()),
+      session_id: Keyword.get(opts, :session_id),
+      date: Keyword.get(opts, :date, Date.utc_today())
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
 
   defp load_writer_with_pending(opts) do

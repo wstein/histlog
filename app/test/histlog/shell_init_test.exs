@@ -14,6 +14,7 @@ defmodule Histlog.ShellInitTest do
   test "zsh init prints hooks, completions, and no aliases by default" do
     assert {:ok, script} = Init.script("zsh")
     assert script =~ "add-zsh-hook preexec _histlog_preexec"
+    assert script =~ "_histlog_now_ms"
     assert script =~ "histlog hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
     assert script =~ "compdef _histlog histlog"
     refute script =~ "alias hl="
@@ -22,6 +23,7 @@ defmodule Histlog.ShellInitTest do
   test "bash init filters recursive hook capture" do
     assert {:ok, script} = Init.script("bash")
     assert script =~ "trap '_histlog_preexec' DEBUG"
+    assert script =~ "local cmd=\"${1:-$BASH_COMMAND}\""
     assert script =~ "histlog\\ hook*"
   end
 
