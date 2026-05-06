@@ -96,6 +96,45 @@ defmodule Histlog.CLI do
     end
   end
 
+  def run(["init" | argv]) do
+    {shell, opts} = parse_shell_command(argv)
+
+    with {:ok, shell} <- resolve_shell(shell),
+         {:ok, script} <- Histlog.Shell.Init.script(shell, opts) do
+      IO.write(script)
+      :ok
+    else
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+
+  def run(["completions" | argv]) do
+    {shell, _opts} = parse_shell_command(argv)
+
+    with {:ok, shell} <- resolve_shell(shell),
+         {:ok, script} <- Histlog.Shell.Init.completions(shell) do
+      IO.write(script)
+      :ok
+    else
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+
+  def run(["doctor" | argv]) do
+    {shell, _opts} = parse_shell_command(argv)
+
+    with {:ok, shell} <- resolve_shell(shell) do
+      shell
+      |> Histlog.Shell.Init.doctor()
+      |> JSON.encode!()
+      |> IO.puts()
+
+      :ok
+    else
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+
   def run(_argv) do
     IO.puts("""
     histlog commands:
@@ -104,6 +143,9 @@ defmodule Histlog.CLI do
       histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
       histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source zsh_history|bash_history|fish_history|ndjson]
       histlog hook session-start|preexec|precmd|session-end
+      histlog init [zsh|bash|fish] [--aliases]
+      histlog completions [zsh|bash|fish]
+      histlog doctor [zsh|bash|fish]
     """)
 
     :ok
@@ -114,6 +156,16 @@ defmodule Histlog.CLI do
   defp run_hook("precmd", opts), do: Histlog.Hook.precmd(opts)
   defp run_hook("session-end", opts), do: Histlog.Hook.session_end(opts)
   defp run_hook(action, _opts), do: {:error, {:unknown_hook_action, action}}
+
+  defp parse_shell_command(argv) do
+    {positionals, flags} = Enum.split_with(argv, &(!String.starts_with?(&1, "--")))
+    shell = List.first(positionals)
+    opts = if "--aliases" in flags, do: [aliases: true], else: []
+    {shell, opts}
+  end
+
+  defp resolve_shell(nil), do: Histlog.Shell.Init.detect()
+  defp resolve_shell(shell), do: {:ok, shell}
 
   defp parse_query(argv) do
     opts = parse_options(argv)
