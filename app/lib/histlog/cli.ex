@@ -29,6 +29,9 @@ defmodule Histlog.CLI do
   def run(["completions" | argv]), do: Commands.Completions.run(argv)
   def run(["doctor" | argv]), do: Commands.Doctor.run(argv)
   def run(["help" | argv]), do: Commands.Help.run(argv)
+  def run(["--help" | _argv]), do: Commands.Help.run([])
+  def run(["-h" | _argv]), do: Commands.Help.run([])
+  def run(["--help-all" | _argv]), do: Commands.Help.run(["--all"])
   def run([]), do: Commands.Help.run([])
   def run([unknown | _argv]), do: {:error, {:unknown_command, unknown}}
 

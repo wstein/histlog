@@ -141,6 +141,42 @@ defmodule Histlog.CLITest do
     refute output =~ "ndjson"
   end
 
+  test "top-level help flags and help forwarding match public CLI expectations" do
+    help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["--help"])
+      end)
+
+    assert help_output =~ "Usage: histlog <command> [options]"
+    assert help_output =~ "query       - Flexible query"
+    assert help_output =~ "histlog help <command>"
+
+    short_help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["-h"])
+      end)
+
+    assert short_help_output == help_output
+
+    query_help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["help", "query"])
+      end)
+
+    assert query_help_output =~ "Usage: histlog query [search] [options]"
+    assert query_help_output =~ "--duration DURATION"
+    refute query_help_output =~ "histlog commands:"
+
+    sessions_help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["help", "sessions"])
+      end)
+
+    assert sessions_help_output =~ "Usage: histlog sessions [options]"
+
+    assert {:error, "no command-specific help for \"missing\""} = CLI.run(["help", "missing"])
+  end
+
   test "query searches all dates by default and supports public filters", %{
     root: root,
     date: date

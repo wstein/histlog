@@ -1,20 +1,42 @@
 defmodule Histlog.CLI.Commands.Help do
   @moduledoc false
 
-  def run(_argv) do
+  alias Histlog.CLI.Commands
+
+  def run([]), do: write_top_level()
+  def run(["--all"]), do: write_top_level()
+  def run(["query"]), do: Commands.Query.run(["--help"])
+  def run(["paths"]), do: Commands.Paths.run(["--help"])
+  def run(["sessions"]), do: Commands.Sessions.run(["--help"])
+  def run(["help"]), do: write_top_level()
+  def run([command]), do: {:error, "no command-specific help for #{inspect(command)}"}
+  def run(args), do: {:error, "unexpected help arguments #{inspect(args)}"}
+
+  defp write_top_level do
     IO.puts("""
-    histlog commands:
-      histlog consolidate [--root PATH] [--date YYYY-MM-DD] [--rebuild]
-      histlog verify [--root PATH] [--date YYYY-MM-DD]
-      histlog query [search] [--command TEXT] [--regex PATTERN] [--failed|--success|--exit N] [--json|--yaml|--plain]
-      histlog paths [--root PATH] [--date YYYY-MM-DD] [--limit N] [--json|--plain]
-      histlog sessions [--root PATH] [--date YYYY-MM-DD] [--limit N] [--details]
-      histlog tail [--root PATH] [--date YYYY-MM-DD] [--count N]
-      histlog import FILE [--root PATH] [--date YYYY-MM-DD] [--source zsh_history|bash_history|fish_history|native]
-      histlog hook session-start|preexec|precmd|session-end
-      histlog init [zsh|bash|fish] [--aliases]
-      histlog completions [zsh|bash|fish]
-      histlog doctor [zsh|bash|fish]
+    Usage: histlog <command> [options]
+
+    Available commands:
+      query       - Flexible query of command history
+      sessions    - List and inspect recorded shell sessions
+      paths       - Show tracked file/directory paths and usage counts
+      consolidate - Materialize closed session logs
+      verify      - Verify daily materialization checksums
+      tail        - Tail canonical event records
+      import      - Import shell history files
+      init        - Print shell integration snippets
+      completions - Print shell completion snippets
+      doctor      - Diagnose setup
+      hook        - Internal shell hook boundary
+      help        - Show this help
+
+    Global flags:
+      -h, --help        Show top-level help
+      --help-all        Show full help
+
+    For command-specific help run:
+      histlog <command> --help
+      histlog help <command>
     """)
 
     :ok
