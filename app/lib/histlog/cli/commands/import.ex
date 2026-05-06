@@ -30,11 +30,14 @@ defmodule Histlog.CLI.Commands.Import do
       destination =
         Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-#{public_source}.ndjson")
 
+      report_path = destination <> ".report.json"
+
       with {:ok, content} <- File.read(file),
-           {:ok, events} <-
-             Histlog.Import.from_source(session_id, source, import_batch_id, content),
+           {:ok, events, report} <-
+             Histlog.Import.from_source_with_report(session_id, source, import_batch_id, content),
            output = Histlog.NDJSON.encode!(events),
-           :ok <- Storage.atomic_write(destination, output) do
+           :ok <- Storage.atomic_write(destination, output),
+           :ok <- Storage.atomic_write(report_path, JSON.encode!(report) <> "\n") do
         IO.puts(destination)
         :ok
       else

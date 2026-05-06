@@ -20,3 +20,12 @@ Supported sources:
 
 Imported records become synthetic event streams.
 They do not mutate canonical session logs.
+
+Each import also writes a diagnostics report next to the generated import stream:
+
+[source,sh]
+----
+~/.local/share/histlog/imports/2026-05-06-zsh_history.ndjson.report.json
+----
+
+The report records the source, batch id, record count, and non-fatal warnings.

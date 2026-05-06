@@ -760,6 +760,10 @@ defmodule Histlog.CLITest do
 
     destination = String.trim(output)
     assert File.exists?(destination)
+    assert File.exists?(destination <> ".report.json")
+
+    assert %{"records" => 3, "warnings" => []} =
+             (destination <> ".report.json") |> File.read!() |> JSON.decode!()
 
     events =
       destination
@@ -848,6 +852,26 @@ defmodule Histlog.CLITest do
 
     assert %{"shell" => "zsh", "checks" => checks} = JSON.decode!(output)
     assert Enum.any?(checks, &(&1["check"] == "shell" and &1["status"] == "ok"))
+  end
+
+  test "doctor supports plain and explicit json output modes" do
+    plain =
+      capture_io(fn ->
+        assert :ok = CLI.run(["doctor", "zsh", "--plain"])
+      end)
+
+    assert plain =~ "shell: zsh"
+    assert plain =~ "shell: ok"
+
+    json =
+      capture_io(fn ->
+        assert :ok = CLI.run(["doctor", "zsh", "--json"])
+      end)
+
+    assert %{"shell" => "zsh"} = JSON.decode!(json)
+
+    assert {:error, "choose only one doctor output format"} =
+             CLI.run(["doctor", "zsh", "--json", "--plain"])
   end
 
   test "command option parsing reports errors" do

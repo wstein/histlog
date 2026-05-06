@@ -17,6 +17,8 @@ The event log is the system's canonical truth. Treating NDJSON as the runtime bo
 
 Do not add global GenServers, ETS tables, or direct state handoffs that make one subsystem depend on another subsystem's memory. Persist events first, then let other components consume the files.
 
+Public CLI output does not have to mirror the boundary format. `histlog query` renders human formats, JSON arrays, YAML, plain commands, or shell history formats. `histlog export --format ndjson` is the explicit pipeline escape hatch for line-oriented rows.
+
 ## Links
 
 - [[NDJSON Log Format]] - Defines the physical line-oriented event format.

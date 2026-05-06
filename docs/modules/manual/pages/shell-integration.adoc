@@ -33,5 +33,13 @@ eval "$(histlog init zsh --durability balanced)"
 The generated shell code is a thin capture adapter.
 It calls the internal hook boundary and does not construct history records itself.
 
+`histlog doctor` prints JSON diagnostics by default and supports a plain text mode:
+
+[source,sh]
+----
+histlog doctor zsh
+histlog doctor zsh --plain
+----
+
 Bash integration uses the shell `DEBUG` trap.
 In v1 it installs histlog's trap directly and does not compose with an existing `DEBUG` trap; users with complex bash instrumentation should prefer zsh or fish integration, or review their trap setup before enabling histlog.

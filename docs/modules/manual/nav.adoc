@@ -6,3 +6,4 @@
 ** xref:manual:consolidate-and-verify.adoc[Consolidate And Verify]
 ** xref:manual:import.adoc[Import History]
 ** xref:manual:shell-compatibility.adoc[Shell Compatibility]
+** xref:manual:log-format.adoc[Log Format]

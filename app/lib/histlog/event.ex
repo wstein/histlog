@@ -5,6 +5,7 @@ defmodule Histlog.Event do
 
   alias Histlog.Redaction
   alias Histlog.Schema
+  alias Histlog.Event.Types
 
   @schema_version Histlog.schema_version()
 
@@ -67,6 +68,16 @@ defmodule Histlog.Event do
       exception when is_exception(exception) -> {:error, exception}
     end
   end
+
+  @doc """
+  Converts a canonical event map to an internal typed event struct.
+  """
+  def to_typed(event), do: Types.from_map(event)
+
+  @doc """
+  Converts an internal typed event struct back to a canonical event map.
+  """
+  def from_typed(event), do: Types.to_map(event)
 
   defp now do
     DateTime.utc_now()

@@ -80,6 +80,38 @@ defmodule Histlog.ImportTest do
     assert :ok = Schema.validate_sequence(events)
   end
 
+  test "returns import diagnostics reports" do
+    content = File.read!(Path.join(@fixtures, "zsh_history"))
+
+    assert {:ok, events, report} =
+             Import.from_source_with_report("import-session", "zsh_history", "batch-1", content)
+
+    assert length(events) == 5
+    assert report["records"] == 3
+    assert report["warnings"] == []
+    assert report["source"] == "zsh_history"
+  end
+
+  test "reports malformed native ndjson import rows without aborting" do
+    content =
+      "not-json\n" <>
+        JSON.encode!(%{
+          "schema_version" => 1,
+          "event" => "imported_execution",
+          "seq" => 1,
+          "timestamp" => "2026-05-06T16:00:00Z",
+          "command" => "mix test"
+        }) <>
+        "\n"
+
+    assert {:ok, events, report} =
+             Import.from_source_with_report("import-session", "ndjson", "batch-1", content)
+
+    assert Enum.count(events, &(&1["event"] == "imported_execution")) == 1
+    assert [%{"line" => 1, "reason" => reason}] = report["warnings"]
+    assert reason =~ "invalid"
+  end
+
   test "parses zsh multiline commands as one execution" do
     content = File.read!(Path.join(@fixtures, "zsh_multiline_history"))
 

@@ -22,4 +22,9 @@ Public output modes are:
 NDJSON remains an internal storage format and is not a query output mode.
 Use `histlog export --format ndjson` for pipelines that need line-oriented JSON.
 
+[source,sh]
+----
+histlog export --format ndjson --date 2026-05-06
+----
+
 Malformed query filters, such as invalid regular expressions or duration expressions, return an error instead of an empty result set.

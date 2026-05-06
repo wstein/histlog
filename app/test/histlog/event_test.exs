@@ -39,6 +39,23 @@ defmodule Histlog.EventTest do
     assert decoded == event
   end
 
+  test "converts canonical maps to typed internal events and back" do
+    event =
+      Event.new!("execution_observed", 1, %{
+        "exec_id" => 7,
+        "command_id" => 1,
+        "cwd_id" => 2,
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 42,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    assert {:ok, typed} = Event.to_typed(event)
+    assert %Histlog.Event.Types.ExecutionObserved{exec_id: 7, completeness: "complete"} = typed
+    assert Event.from_typed(typed) == event
+  end
+
   test "redacts common secret-looking command values before persistence" do
     event =
       Event.new!("command_defined", 1, %{

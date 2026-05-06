@@ -47,17 +47,27 @@ defmodule Histlog.Import do
   def parse("fish", content), do: parse_fish_history(content)
 
   def parse("ndjson", content) do
-    executions =
-      content
-      |> String.split("\n", trim: true)
-      |> Enum.map(&JSON.decode!/1)
-      |> Enum.filter(&(&1["event"] in ["execution_observed", "imported_execution"]))
-      |> Enum.map(&event_to_imported_execution/1)
-
+    {executions, _warnings} = parse_ndjson(content)
     {:ok, executions}
   end
 
   def parse(source, _content), do: {:error, {:unsupported_import_source, source}}
+
+  @doc """
+  Parses source history and returns executions with diagnostics.
+  """
+  def parse_with_report(source, content) do
+    case source do
+      "ndjson" ->
+        {executions, warnings} = parse_ndjson(content)
+        {:ok, %{executions: executions, warnings: warnings}}
+
+      source ->
+        with {:ok, executions} <- parse(source, content) do
+          {:ok, %{executions: executions, warnings: []}}
+        end
+    end
+  end
 
   @doc """
   Parses source history and wraps it in import batch events.
@@ -65,6 +75,27 @@ defmodule Histlog.Import do
   def from_source(session_id, source, import_batch_id, content) do
     with {:ok, executions} <- parse(source, content) do
       {:ok, batch(session_id, source, import_batch_id, executions)}
+    end
+  end
+
+  @doc """
+  Parses source history, wraps it in events, and returns an import diagnostics report.
+  """
+  def from_source_with_report(session_id, source, import_batch_id, content) do
+    with {:ok, %{executions: executions, warnings: warnings}} <-
+           parse_with_report(source, content) do
+      events = batch(session_id, source, import_batch_id, executions)
+
+      report = %{
+        "schema_version" => Histlog.schema_version(),
+        "source" => source,
+        "session_id" => session_id,
+        "import_batch_id" => import_batch_id,
+        "records" => length(executions),
+        "warnings" => warnings
+      }
+
+      {:ok, events, report}
     end
   end
 
@@ -233,6 +264,31 @@ defmodule Histlog.Import do
       "timestamp" => Map.get(event, "timestamp", Map.get(event, "started_at")),
       "exit_status" => Map.get(event, "exit_status")
     }
+  end
+
+  defp parse_ndjson(content) do
+    content
+    |> String.split("\n", trim: true)
+    |> Enum.with_index(1)
+    |> Enum.reduce({[], []}, fn {line, line_number}, {executions, warnings} ->
+      case JSON.decode(line) do
+        {:ok, %{"event" => event} = decoded}
+        when event in ["execution_observed", "imported_execution"] ->
+          {[event_to_imported_execution(decoded) | executions], warnings}
+
+        {:ok, _decoded} ->
+          {executions, warnings}
+
+        {:error, reason} ->
+          warning = %{
+            "line" => line_number,
+            "reason" => inspect(reason)
+          }
+
+          {executions, [warning | warnings]}
+      end
+    end)
+    |> then(fn {executions, warnings} -> {Enum.reverse(executions), Enum.reverse(warnings)} end)
   end
 
   defp imported_execution(command, timestamp, cwd \\ nil) do

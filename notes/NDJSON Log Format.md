@@ -19,9 +19,12 @@ Writers should emit one compact JSON object followed by a newline for each recor
 
 Validation happens at both event and session scope. Single events must have parseable timestamps and valid domain fields; complete session streams must have a `session_started` header, gapless sequence numbers, and catalog references that point to earlier definitions in the same file.
 
+The on-disk representation remains compact maps. Internal code may convert those maps to typed event structs when explicit shape helps implementation, but encoding and decoding still happen at the NDJSON boundary.
+
 ## Links
 
 - [[Session Logfile Per CLI Session]] - Defines where NDJSON records are written during active CLI sessions.
 - [[Daily Finished Session Consolidation]] - Defines the workflow that validates and consumes NDJSON session logs.
 - [[Rich Command Metadata Collection]] - Describes the structured fields encoded as NDJSON objects.
 - [[Minimal Overhead Constraint]] - Supports NDJSON because append-only line writes keep capture overhead small.
+- [[CLI Option Parsing]] - Keeps NDJSON out of query output and routes line-oriented output through export.
