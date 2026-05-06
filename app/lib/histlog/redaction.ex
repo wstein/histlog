@@ -5,13 +5,6 @@ defmodule Histlog.Redaction do
 
   @redacted "[REDACTED]"
 
-  @patterns [
-    ~r/AKIA[0-9A-Z]{16}/,
-    ~r/aws_secret_access_key\s*=\s*[A-Za-z0-9\/+=]{20,}/i,
-    ~r/(token|secret|password|passwd|api[_-]?key)=([^ \t\n;&]+)/i,
-    ~r/(Bearer\s+)[A-Za-z0-9._~+\/=-]{16,}/i
-  ]
-
   @doc """
   Redacts secret-looking values from nested maps and lists.
 
@@ -23,12 +16,7 @@ defmodule Histlog.Redaction do
   end
 
   defp redact_value(value) when is_binary(value) do
-    redacted =
-      Enum.reduce(@patterns, value, fn pattern, acc ->
-        Regex.replace(pattern, acc, fn match ->
-          redact_match(match)
-        end)
-      end)
+    redacted = redact_string(value)
 
     {redacted, redacted != value}
   end
@@ -52,17 +40,46 @@ defmodule Histlog.Redaction do
 
   defp redact_value(value), do: {value, false}
 
-  defp redact_match(match) do
-    cond do
-      String.contains?(match, "=") ->
-        [name | _rest] = String.split(match, "=", parts: 2)
-        name <> "=" <> @redacted
+  defp redact_string(value) do
+    value
+    |> replace(~r/AKIA[0-9A-Z]{16}/, @redacted)
+    |> replace(~r/(Bearer\s+)[A-Za-z0-9._~+\/=-]{16,}/i, "\\1" <> @redacted)
+    |> replace(
+      ~r/(aws_secret_access_key\s*=\s*)(['"]?)[A-Za-z0-9\/+=]{20,}\2/i,
+      "\\1\\2" <> @redacted <> "\\2"
+    )
+    |> replace(
+      ~r/(aws\s+configure\s+set\s+aws_secret_access_key\s+)(['"]?)[A-Za-z0-9\/+=]{20,}\2/i,
+      "\\1\\2" <> @redacted <> "\\2"
+    )
+    |> redact_named_assignments()
+    |> redact_separated_arguments()
+    |> redact_label_values()
+  end
 
-      String.starts_with?(match, "Bearer ") ->
-        "Bearer " <> @redacted
+  defp replace(value, regex, replacement), do: Regex.replace(regex, value, replacement)
 
-      true ->
-        @redacted
-    end
+  defp redact_named_assignments(value) do
+    Regex.replace(
+      ~r/\b(token|secret|password|passwd|api[_-]?key)(\s*=\s*)(['"]?)([^'"\s;&]{8,})\3/i,
+      value,
+      "\\1\\2\\3" <> @redacted <> "\\3"
+    )
+  end
+
+  defp redact_separated_arguments(value) do
+    Regex.replace(
+      ~r/\b(token|secret|password|passwd|api[_-]?key)(\s+)(['"]?)([^'"\s;&]{8,})\3/i,
+      value,
+      "\\1\\2\\3" <> @redacted <> "\\3"
+    )
+  end
+
+  defp redact_label_values(value) do
+    Regex.replace(
+      ~r/\b(token|secret|password|passwd|api[_-]?key)(\s*:\s*)(['"]?)([^'"\s;&]{8,})\3/i,
+      value,
+      "\\1\\2\\3" <> @redacted <> "\\3"
+    )
   end
 end

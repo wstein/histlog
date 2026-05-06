@@ -17,6 +17,8 @@ Shell commands and environment-derived strings may contain tokens, keys, credent
 
 Apply redaction in the session writer and import path before NDJSON encoding. Do not shell-interpolate untrusted values; use structured command invocation such as `System.cmd/3` when external commands are required.
 
+Redaction covers common inline assignments, quoted assignments, separated argument values such as `TOKEN "..."`, label-style values such as `password: ...`, bearer tokens, AWS access key IDs, and `aws configure set aws_secret_access_key ...`.
+
 ## Links
 
 - [[Rich Command Metadata Collection]] - Metadata capture must be bounded by security controls.

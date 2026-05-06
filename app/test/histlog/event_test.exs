@@ -50,6 +50,27 @@ defmodule Histlog.EventTest do
     assert event["command"] == "deploy token=[REDACTED]"
   end
 
+  test "redacts separated and quoted secret command values" do
+    cases = [
+      {"export TOKEN \"super-secret-token-value\"", "export TOKEN \"[REDACTED]\""},
+      {"API_KEY='super-secret-token-value' mix test", "API_KEY='[REDACTED]' mix test"},
+      {"printf 'password: super-secret-token-value'", "printf 'password: [REDACTED]'"},
+      {"aws configure set aws_secret_access_key abcdefghijklmnopqrstuvwxyz123456",
+       "aws configure set aws_secret_access_key [REDACTED]"}
+    ]
+
+    for {command, redacted} <- cases do
+      event =
+        Event.new!("command_defined", 1, %{
+          "command_id" => 1,
+          "command" => command
+        })
+
+      assert event["redacted"] == true
+      assert event["command"] == redacted
+    end
+  end
+
   test "rejects invalid event types" do
     assert {:error, {:unknown_event, "made_up"}} = Event.new("made_up", 1)
   end
