@@ -45,11 +45,6 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "HISTLOG_DURABILITY=\"${HISTLOG_DURABILITY:-safe}\""
   end
 
-  test "completions can be printed separately" do
-    assert {:ok, completions} = Init.completions("bash")
-    assert completions =~ "complete -F _histlog_completion histlog"
-  end
-
   test "future shells are explicit unsupported targets" do
     assert {:error, {:unsupported_shell, "nu"}} = Init.script("nu")
     assert {:error, {:unsupported_shell, "powershell"}} = Init.script("powershell")

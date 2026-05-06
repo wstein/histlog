@@ -11,7 +11,7 @@ The public CLI uses Elixir `OptionParser` with command-specific switch schemas.
 
 ## Why
 
-The CLI has separate surfaces for consolidation, verification, query, import, shell hooks, init generation, completions, and doctor output. Command-specific parsing keeps option behavior explicit without adding a third-party CLI framework.
+The CLI has separate surfaces for consolidation, verification, query, import, shell hooks, init generation, and doctor output. Command-specific parsing keeps option behavior explicit without adding a third-party CLI framework.
 
 ## How
 

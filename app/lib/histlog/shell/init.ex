@@ -36,11 +36,6 @@ defmodule Histlog.Shell.Init do
     end
   end
 
-  def completions("zsh"), do: {:ok, zsh_completions()}
-  def completions("bash"), do: {:ok, bash_completions()}
-  def completions("fish"), do: {:ok, fish_completions()}
-  def completions(shell), do: {:error, {:unsupported_shell, shell}}
-
   def doctor(shell, env \\ System.get_env()) do
     checks = [
       %{
@@ -256,7 +251,6 @@ defmodule Histlog.Shell.Init do
         'consolidate:consolidate ended sessions'
         'doctor:diagnose setup'
         'hook:internal shell hook boundary'
-        'completions:print shell completions'
       )
       _describe 'histlog command' commands
     }
@@ -269,7 +263,7 @@ defmodule Histlog.Shell.Init do
   defp bash_completions do
     """
     _histlog_completion() {
-      COMPREPLY=($(compgen -W "init query sessions paths tail import consolidate doctor hook completions" -- "${COMP_WORDS[COMP_CWORD]}"))
+      COMPREPLY=($(compgen -W "init query sessions paths tail import consolidate doctor hook" -- "${COMP_WORDS[COMP_CWORD]}"))
     }
     complete -F _histlog_completion histlog
     """
@@ -285,7 +279,6 @@ defmodule Histlog.Shell.Init do
     complete -c histlog -f -a "import" -d "Import history"
     complete -c histlog -f -a "consolidate" -d "Consolidate ended sessions"
     complete -c histlog -f -a "doctor" -d "Diagnose setup"
-    complete -c histlog -f -a "completions" -d "Print shell completions"
     """
   end
 

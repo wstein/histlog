@@ -26,7 +26,6 @@ defmodule Histlog.CLI do
   def run(["import" | argv]), do: Commands.Import.run(argv)
   def run(["hook" | argv]), do: Commands.Hook.run(argv)
   def run(["init" | argv]), do: Commands.Init.run(argv)
-  def run(["completions" | argv]), do: Commands.Completions.run(argv)
   def run(["doctor" | argv]), do: Commands.Doctor.run(argv)
   def run(["help" | argv]), do: Commands.Help.run(argv)
   def run(["--help" | _argv]), do: Commands.Help.run([])

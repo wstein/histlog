@@ -727,16 +727,6 @@ defmodule Histlog.CLITest do
     assert output =~ "alias hl='histlog'"
   end
 
-  test "completions command prints shell completion code" do
-    output =
-      capture_io(fn ->
-        assert :ok = CLI.run(["completions", "fish"])
-      end)
-
-    assert output =~ "complete -c histlog"
-    assert output =~ "Diagnose setup"
-  end
-
   test "doctor emits JSON diagnostics" do
     output =
       capture_io(fn ->

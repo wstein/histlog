@@ -25,7 +25,6 @@ defmodule Histlog.CLI.Commands.Help do
       tail        - Tail canonical event records
       import      - Import shell history files
       init        - Print shell integration snippets
-      completions - Print shell completion snippets
       doctor      - Diagnose setup
       hook        - Internal shell hook boundary
       help        - Show this help
