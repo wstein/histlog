@@ -44,6 +44,7 @@ Pass the shell explicitly when writing setup files.
 Use `--binary` when setup should pin an exact histlog executable instead of relying on PATH lookup. When `--binary` is supplied, the generated script assigns `HISTLOG_BIN` directly instead of honoring a pre-existing environment value.
 Durability modes are `safe`, `balanced`, and `fast`; `balanced` is the default.
 The automated smoke suite sources generated zsh, bash, and fish snippets in real shell subprocesses when those shells are available.
+Bash integration uses the shell `DEBUG` trap. In v1 it installs histlog's trap directly and does not compose with an existing `DEBUG` trap; users with complex bash instrumentation should prefer zsh or fish integration, or review their trap setup before enabling histlog.
 
 `consolidate` reads closed sessions for the selected day, writes daily materialized files, and emits the manifest as JSON.
 `consolidate --rebuild` ignores the existing checkpoint for that date and rewrites daily materializations from current closed sessions.

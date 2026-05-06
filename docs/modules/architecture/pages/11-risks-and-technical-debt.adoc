@@ -6,6 +6,7 @@ The current implementation is an MVP foundation with explicit remaining risks.
 == Open Risks
 
 * Generated zsh, bash, and fish hook scripts are implemented, but they still need manual testing in real interactive shells.
+* Bash hook integration uses the `DEBUG` trap and does not compose with a pre-existing `DEBUG` trap in v1. Users with existing bash instrumentation may need to choose zsh/fish or manage trap ordering manually.
 * Import parsers cover representative fixtures but not every shell-history edge case.
 * Redaction uses conservative pattern matching and should continue to grow from real-world samples.
 * Consolidation appends new sessions to existing materialized files; future compaction may need stronger rebuild controls.

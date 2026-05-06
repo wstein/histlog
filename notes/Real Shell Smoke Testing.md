@@ -19,6 +19,8 @@ Smoke tests should remain hermetic: use a temporary `HISTLOG_ROOT`, skip unavail
 
 Live sessions are queryable before consolidation. `histlog query` derives execution rows from active `sessions/live/<date>/*.ndjson` files without exposing raw canonical records as a public CLI format.
 
+Bash smoke tests cover histlog's generated `DEBUG` trap in a clean shell. They do not prove compatibility with an existing user `DEBUG` trap, because v1 installs histlog's trap directly instead of composing arbitrary pre-existing trap code.
+
 ## Links
 
 - [[Shell Init Prints Integration Code]] - Produces the scripts under test.
