@@ -1,50 +1,126 @@
 # histlog
 
-histlog is a log-structured, append-only shell history system implemented in Elixir.
-It records shell activity as per-session NDJSON event streams and materializes closed sessions into daily files for querying.
-It is a short-lived CLI/escript tool, not a daemon or long-running OTP service.
+histlog is an Elixir shell history tool.
 
-## Development
+It records each shell session into its own append-only log file, then materializes closed sessions into daily history views that are easy to query.
 
-Useful repository commands:
+histlog is:
+
+- shell history with command, cwd, duration, exit status, shell, host, and session context
+- file-backed and append-only
+- a short-lived CLI/escript, not a daemon
+- explicit about shell setup: it never silently edits rc files
+
+NDJSON is the internal storage format. The normal CLI is human-facing; use `histlog export --format ndjson` only when you want line-oriented data for another tool.
+
+## Install For Local Use
+
+From this repository:
 
 ```sh
-make format
-make test
-make lint
 make build
 make install
 ```
 
-The Elixir application lives under `app/`.
-`make build` compiles the app and rebuilds `app/histlog`.
-`make install` symlinks `${PREFIX:-$HOME/.local}/bin/histlog` to the repo-built `app/histlog`.
-That keeps local interactive shells on the latest `make build` output without introducing a daemon.
-
-## CLI
-
-Build the escript:
+`make install` links the built escript to:
 
 ```sh
-make build
-app/histlog consolidate --root /tmp/histlog --date 2026-05-06
-app/histlog query --root /tmp/histlog --date 2026-05-06 --command mix
-app/histlog query --root /tmp/histlog --date 2026-05-06 --command mix --json
-app/histlog paths --root /tmp/histlog --date 2026-05-06
-app/histlog sessions --root /tmp/histlog --date 2026-05-06 --details
-app/histlog import app/test/fixtures/import/zsh_history --root /tmp/histlog --date 2026-05-06 --source zsh_history
-eval "$(app/histlog init zsh)"
+~/.local/bin/histlog
 ```
 
-## Documentation
+Make sure `~/.local/bin` is on your `PATH`.
 
-The repository includes an Antora documentation site under `docs/`:
+## Enable Shell Capture
 
-- `onboarding`: first steps and contributor orientation
-- `manual`: operator workflows and command reference
-- `architecture`: arc42-based system design, including the v1 specification
+Add one of these to your shell config:
 
-## Notes
+```sh
+eval "$(histlog init zsh)"
+eval "$(histlog init bash)"
+```
 
-Durable project knowledge lives in `notes/`.
-Run `cx` note checks before architecture-heavy changes when the local tool is available.
+For fish:
+
+```fish
+histlog init fish | source
+```
+
+To pin the exact executable used by hooks:
+
+```sh
+eval "$(histlog init zsh --binary /absolute/path/to/histlog)"
+```
+
+Supported v1 shells are zsh, bash, and fish.
+
+## Use It
+
+Query your history:
+
+```sh
+histlog query
+histlog query mix
+histlog query --today --failed
+histlog query --command "git" --plain
+```
+
+Inspect sessions and paths:
+
+```sh
+histlog sessions
+histlog sessions --details
+histlog paths
+```
+
+Materialize and verify closed sessions:
+
+```sh
+histlog consolidate
+histlog verify
+```
+
+Import existing shell history:
+
+```sh
+histlog import ~/.zsh_history --source zsh_history
+histlog import ~/.bash_history --source bash_history
+```
+
+Export derived rows for pipelines:
+
+```sh
+histlog export --format ndjson
+```
+
+Diagnose shell setup:
+
+```sh
+histlog doctor zsh
+histlog doctor zsh --plain
+```
+
+## Where Data Lives
+
+By default:
+
+```text
+~/.local/share/histlog/
+```
+
+Important directories:
+
+```text
+sessions/live/      active shell sessions
+sessions/closed/    ended shell sessions
+daily/              materialized daily views
+imports/            imported shell history
+manifests/          verification metadata
+hook-state/         temporary shell adapter state
+```
+
+`hook-state/` is disposable adapter state. Session logs and daily materializations are the durable history.
+
+## More Docs
+
+The full manual and architecture docs live under `docs/`.
+Project notes live under `notes/`.
