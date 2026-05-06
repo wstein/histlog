@@ -50,6 +50,7 @@ The automated smoke suite sources generated zsh, bash, and fish snippets in real
 `verify` recomputes daily materialization record counts and checksums, then compares them to the manifest.
 `query` searches derived execution rows from daily materializations, imports, and currently live sessions.
 It prints a human-readable table by default and exposes public output modes such as `--json`, `--yaml`, `--plain`, and shell-specific `--format` values.
+Malformed query filters, such as invalid regular expressions or duration expressions, return an error instead of an empty result set.
 NDJSON remains an internal storage format and is not exposed as a query output mode.
 `paths` summarizes filesystem locations observed as working directories and path-like command arguments.
 `import` parses zsh, bash, fish, or native NDJSON history and stores synthetic import events under `imports/`.

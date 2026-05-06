@@ -84,6 +84,8 @@ defmodule Histlog.CLI.Commands.Query do
     with {:ok, opts} <- Options.normalize(opts),
          :ok <- reject_mutation(opts),
          :ok <- validate_format(output_format(opts)),
+         :ok <- validate_regex(opts),
+         :ok <- validate_duration(opts),
          {:ok, query_opts} <- query_options(opts),
          {:ok, rows} <- Query.executions(query_opts) do
       rows
@@ -219,6 +221,33 @@ defmodule Histlog.CLI.Commands.Query do
        do: :ok
 
   defp validate_format(format), do: {:error, "unsupported query format #{inspect(format)}"}
+
+  defp validate_regex(opts) do
+    case Keyword.get(opts, :regex) do
+      nil ->
+        :ok
+
+      pattern ->
+        case Regex.compile(pattern) do
+          {:ok, _regex} -> :ok
+          {:error, {reason, position}} -> {:error, "invalid regex at #{position}: #{reason}"}
+          {:error, reason} -> {:error, "invalid regex: #{inspect(reason)}"}
+        end
+    end
+  end
+
+  defp validate_duration(opts) do
+    case Keyword.get(opts, :duration) do
+      nil ->
+        :ok
+
+      value ->
+        case parse_duration_filter(value) do
+          {:ok, _filter} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
 
   defp table_lines(rows) do
     labels = session_labels(rows)
@@ -435,7 +464,11 @@ defmodule Histlog.CLI.Commands.Query do
         if Keyword.get(opts, flag, false), do: filter
       end)
 
-    shortcut || parse_duration_filter(Keyword.get(opts, :duration))
+    case {shortcut, parse_duration_filter(Keyword.get(opts, :duration))} do
+      {nil, {:ok, filter}} -> filter
+      {nil, nil} -> nil
+      {filter, _duration} -> filter
+    end
   end
 
   defp parse_duration_filter(nil), do: nil
@@ -448,7 +481,10 @@ defmodule Histlog.CLI.Commands.Query do
         other -> {:eq, other}
       end
 
-    {operator, duration_ms(value)}
+    case duration_ms(value) do
+      {:ok, ms} -> {:ok, {operator, ms}}
+      :error -> {:error, "invalid duration #{inspect(value)}"}
+    end
   end
 
   defp duration_ms(value) do
@@ -465,10 +501,10 @@ defmodule Histlog.CLI.Commands.Query do
         }
 
         {parsed, ""} = Float.parse(number)
-        round(parsed * Map.fetch!(multiplier, unit || ""))
+        {:ok, round(parsed * Map.fetch!(multiplier, unit || ""))}
 
       _ ->
-        -1
+        :error
     end
   end
 

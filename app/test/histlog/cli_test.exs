@@ -777,6 +777,12 @@ defmodule Histlog.CLITest do
     assert {:error, error} = CLI.run(["query", "--date", "not-a-date"])
     assert error =~ "invalid date"
 
+    assert {:error, error} = CLI.run(["query", "--regex", "["])
+    assert error =~ "invalid regex"
+
+    assert {:error, error} = CLI.run(["query", "--duration", "eventually"])
+    assert error =~ "invalid duration"
+
     assert {:error, error} = CLI.run(["init", "zsh", "bash"])
     assert error =~ "unexpected arguments"
   end
