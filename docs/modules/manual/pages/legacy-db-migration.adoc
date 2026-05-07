@@ -1,0 +1,47 @@
+= Legacy Database Migration
+:page-layout: default
+
+`scripts/migrate-legacy-histlog-db.exs` is a standalone maintenance script for importing a legacy histlog SQLite database into the current `histlog.db` projection schema.
+
+It is not a `histlog` CLI command.
+
+== Prerequisite
+
+Build the project first so the script can load the current SQLite schema modules:
+
+[source,sh]
+----
+make build
+----
+
+== In-Place Migration
+
+[source,sh]
+----
+elixir scripts/migrate-legacy-histlog-db.exs ~/.local/share/histlog/histlog.db
+----
+
+The script:
+
+* copies the original database to `histlog.db.backup-YYYYMMDDHHMMSS`
+* creates a fresh database with the current schema
+* imports legacy sessions, commands, paths, shells, and TTYs
+* replaces the original database with the migrated database
+
+== Safer Output Mode
+
+To leave the original database in place:
+
+[source,sh]
+----
+elixir scripts/migrate-legacy-histlog-db.exs ~/.local/share/histlog/histlog.db \
+  --output /tmp/histlog-migrated.db
+----
+
+== Notes
+
+Legacy commands with a session are imported as session projection rows with synthetic `legacy:<id>` session IDs.
+Legacy commands without a session are imported as rows in the `legacy-histlog-db-orphans` import batch.
+
+This script migrates database rows only.
+Canonical session NDJSON remains the preferred source for normal rebuilds.
