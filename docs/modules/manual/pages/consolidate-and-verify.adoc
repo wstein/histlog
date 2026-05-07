@@ -27,4 +27,5 @@ The next run can retry safely without duplicating already processed sessions.
 [source,sh]
 ----
 histlog verify --root /tmp/histlog --date 2026-05-06
+histlog verify --root /tmp/histlog --date 2026-05-06 --json
 ----

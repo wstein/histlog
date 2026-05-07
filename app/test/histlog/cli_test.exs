@@ -931,9 +931,20 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
     assert {:ok, _report} = Consolidator.consolidate(root: root, date: date)
 
-    output =
+    plain =
       capture_io(fn ->
         assert :ok = CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
+      end)
+
+    assert plain =~ "status: ok"
+    assert plain =~ "schema: ok"
+    assert plain =~ "tables: ok"
+    assert plain =~ "counts: ok"
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date), "--json"])
       end)
 
     assert %{
@@ -953,6 +964,15 @@ defmodule Histlog.CLITest do
       capture_io(fn ->
         assert {:error, "verification failed"} =
                  CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
+      end)
+
+    assert output =~ "status: failed"
+    assert output =~ "error: counts"
+
+    output =
+      capture_io(fn ->
+        assert {:error, "verification failed"} =
+                 CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date), "--json"])
       end)
 
     assert %{"ok" => false, "errors" => errors} = JSON.decode!(output)
