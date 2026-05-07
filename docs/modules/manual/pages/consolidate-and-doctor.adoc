@@ -23,7 +23,7 @@ If a run stops partway through, SQLite rolls back the incomplete transaction.
 The next run can retry safely without duplicating already processed sessions.
 
 `info` shows runtime information such as version, paths, and environment variables.
-`doctor` diagnoses that state, including schema and materialization counts, and prints recommendations when checks fail.
+`doctor` diagnoses that state, including schema checks, materialization counts, SQLite integrity, and orphan relationship checks. It prints recommendations when checks fail.
 
 [source,sh]
 ----

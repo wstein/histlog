@@ -7,6 +7,7 @@ defmodule Histlog.CLI.Commands.Help do
   def run(["--all"]), do: write_top_level()
   def run(["query"]), do: Commands.Query.run(["--help"])
   def run(["commands"]), do: Commands.Commands.run(["--help"])
+  def run(["statistics"]), do: Commands.Statistics.run(["--help"])
   def run(["paths"]), do: Commands.Paths.run(["--help"])
   def run(["sessions"]), do: Commands.Sessions.run(["--help"])
   def run(["export"]), do: Commands.Export.run(["--help"])
@@ -26,6 +27,7 @@ defmodule Histlog.CLI.Commands.Help do
     Available commands:
       query       - Flexible query of command history
       commands    - Summarize command usage
+      statistics  - Show history statistics
       sessions    - List and inspect recorded shell sessions
       paths       - Show tracked file/directory paths and usage counts
       export      - Export derived rows for pipelines

@@ -234,6 +234,13 @@ defmodule Histlog.CLITest do
     assert commands_help_output =~ "Usage: histlog commands [search] [options]"
     assert commands_help_output =~ "--sort-by FIELD"
 
+    statistics_help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["help", "statistics"])
+      end)
+
+    assert statistics_help_output =~ "Usage: histlog statistics [options]"
+
     sessions_help_output =
       capture_io(fn ->
         assert :ok = CLI.run(["help", "sessions"])
@@ -627,6 +634,88 @@ defmodule Histlog.CLITest do
 
     assert {:error, error} = CLI.run(["commands", "[", "--regex"])
     assert error =~ "invalid regex"
+  end
+
+  test "statistics command reports high-level history counts", %{root: root, date: date} do
+    cwd = Path.join(root, "repo")
+    File.mkdir_p!(cwd)
+    File.write!(Path.join(cwd, "mix.exs"), "")
+
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix test ./mix.exs", cwd, %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix format", cwd, %{
+        "timestamp" => "2026-05-06T20:01:00Z",
+        "duration_ms" => 20,
+        "exit_status" => 1,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:01:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    json =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "statistics",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
+      end)
+
+    assert %{
+             "total_commands" => 2,
+             "unique_commands" => 2,
+             "sessions" => 1,
+             "successful_commands" => 1,
+             "failed_commands" => 1,
+             "top_commands" => top_commands,
+             "top_paths" => top_paths
+           } = JSON.decode!(json)
+
+    assert Enum.any?(top_commands, &(&1["command"] == "mix test ./mix.exs"))
+    assert Enum.any?(top_paths, &(&1["path"] == Path.join(cwd, "mix.exs")))
+
+    plain =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "statistics",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert plain =~ "total_commands=2"
+    assert plain =~ "failed_commands=1"
   end
 
   test "sessions command lists recorded shell sessions with details", %{root: root, date: date} do
@@ -1091,6 +1180,8 @@ defmodule Histlog.CLITest do
     assert plain =~ "database: ok"
     assert plain =~ "schema: ok"
     assert plain =~ "materialization_counts: ok"
+    assert plain =~ "sqlite_integrity: ok"
+    assert plain =~ "orphan_checks: ok"
 
     output =
       capture_io(fn ->
@@ -1113,6 +1204,13 @@ defmodule Histlog.CLITest do
                  "database" => %{"ok" => true},
                  "schema" => %{"ok" => true},
                  "counts" => %{"ok" => true}
+               }
+             },
+             "database_maintenance" => %{
+               "ok" => true,
+               "checks" => %{
+                 "integrity" => %{"ok" => true},
+                 "orphans" => %{"ok" => true}
                }
              }
            } = JSON.decode!(output)
@@ -1351,6 +1449,8 @@ defmodule Histlog.CLITest do
     assert output =~ "database: ok"
     assert output =~ "schema: ok"
     assert output =~ "materialization_counts: ok"
+    assert output =~ "sqlite_integrity: ok"
+    assert output =~ "orphan_checks: ok"
   end
 
   test "info supports explicit plain and json output modes", %{root: root} do

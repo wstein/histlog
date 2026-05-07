@@ -2,6 +2,7 @@ defmodule Histlog.CLI.Commands.Health do
   @moduledoc false
 
   alias Histlog.Verifier
+  alias Histlog.Database.Maintenance
 
   def build(shell, opts) do
     shell
@@ -42,10 +43,14 @@ defmodule Histlog.CLI.Commands.Health do
     end)
 
     verification = report["database_verification"] || %{}
+    maintenance = report["database_maintenance"] || %{}
     checks = verification["checks"] || %{}
     schema = checks["schema"] || %{}
     counts = checks["counts"] || %{}
     tables = checks["tables"] || %{}
+    maintenance_checks = maintenance["checks"] || %{}
+    integrity = maintenance_checks["integrity"] || %{}
+    orphans = maintenance_checks["orphans"] || %{}
 
     IO.puts(
       "#{color_label("database_path")}: #{report |> get_in(["database", "path"]) |> inspect_nil()}"
@@ -80,6 +85,18 @@ defmodule Histlog.CLI.Commands.Health do
       end
     end
 
+    if integrity != %{} do
+      IO.puts("#{color_label("sqlite_integrity")}: #{color_status(check_status(integrity))}")
+    end
+
+    if orphans != %{} do
+      orphan_counts = orphans["counts"] || %{}
+
+      IO.puts(
+        "#{color_label("orphan_checks")}: #{color_status(check_status(orphans))} #{format_counts(orphan_counts)}"
+      )
+    end
+
     Enum.each(failing_checks, fn check ->
       IO.puts("#{color_label("recommendation")}: #{color(recommendation(check), "38;5;220")}")
     end)
@@ -95,12 +112,14 @@ defmodule Histlog.CLI.Commands.Health do
         {:error, reason} -> verifier_error_report(reason)
       end
 
-    checks = report["checks"] ++ database_checks(verify_result)
+    maintenance = maintenance_report(opts)
+    checks = report["checks"] ++ database_checks(verify_result, maintenance)
 
     report
     |> Map.put("checks", checks)
     |> Map.put("database", database_summary(verify_result))
     |> Map.put("database_verification", verify_result)
+    |> Map.put("database_maintenance", maintenance)
   end
 
   defp database_checks(report) do
@@ -118,8 +137,31 @@ defmodule Histlog.CLI.Commands.Health do
       %{
         "check" => "materialization_counts",
         "status" => check_status(checks["counts"])
+      },
+      %{
+        "check" => "sqlite_integrity",
+        "status" => "pending"
+      },
+      %{
+        "check" => "orphan_checks",
+        "status" => "pending"
       }
     ]
+  end
+
+  defp database_checks(report, maintenance) do
+    report
+    |> database_checks()
+    |> Enum.map(fn
+      %{"check" => "sqlite_integrity"} = check ->
+        %{check | "status" => check_status(get_in(maintenance, ["checks", "integrity"]))}
+
+      %{"check" => "orphan_checks"} = check ->
+        %{check | "status" => check_status(get_in(maintenance, ["checks", "orphans"]))}
+
+      check ->
+        check
+    end)
   end
 
   defp database_summary(report) do
@@ -139,6 +181,22 @@ defmodule Histlog.CLI.Commands.Health do
       "errors" => [inspect(reason)],
       "checks" => %{}
     }
+  end
+
+  defp maintenance_report(opts) do
+    case Maintenance.diagnose(opts) do
+      {:ok, report} -> report
+      {:error, report} when is_map(report) -> report
+    end
+  end
+
+  defp format_counts(counts) when counts == %{}, do: ""
+
+  defp format_counts(counts) do
+    counts
+    |> Enum.sort_by(fn {name, _count} -> name end)
+    |> Enum.map(fn {name, count} -> "#{name}=#{inspect(count)}" end)
+    |> Enum.join(" ")
   end
 
   defp database_status(%{"ok" => true}), do: "ok"
@@ -189,6 +247,12 @@ defmodule Histlog.CLI.Commands.Health do
 
   defp recommendation(%{"check" => "materialization_counts"}),
     do: "run `histlog consolidate --rebuild --date YYYY-MM-DD` to refresh database checkpoints"
+
+  defp recommendation(%{"check" => "sqlite_integrity"}),
+    do: "rebuild the derived projection after backing up suspicious database files"
+
+  defp recommendation(%{"check" => "orphan_checks"}),
+    do: "run `histlog consolidate --rebuild --date YYYY-MM-DD` to refresh database relationships"
 
   defp recommendation(check), do: "inspect #{check["check"]}"
 end

@@ -16,7 +16,7 @@ The Ruby implementation has already absorbed real user workflow pressure. Reusin
 
 ## How
 
-The Elixir CLI should follow the `histlog2` model for rich query output, command discovery, filesystem path summaries, and session listing. The blueprint is functional first, but the mature `histlog2` relational model is also a useful comparison point. Reuse good schema ideas, such as command text and path dimensions, without copying migrations, table names as a compatibility contract, or legacy identifiers into v1.
+The Elixir CLI should follow the `histlog2` model for rich query output, command discovery, lightweight statistics, filesystem path summaries, and session listing. The blueprint is functional first, but the mature `histlog2` relational model is also a useful comparison point. Reuse good schema ideas, such as command text and path dimensions, without copying migrations, table names as a compatibility contract, or legacy identifiers into v1.
 
 Every imported behavior must pass the intake gate: it must operate over `$HISTLOG_ROOT/histlog.db` plus live session rows without mutating canonical events. Import artifacts enter the query path only after materialization.
 

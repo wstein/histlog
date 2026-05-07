@@ -9,6 +9,7 @@ Use this manual for day-to-day operation:
 * xref:shell-integration.adoc[Shell integration]
 * xref:query.adoc[Query history]
 * xref:commands.adoc[Command discovery]
+* xref:statistics.adoc[Statistics]
 * xref:paths-and-sessions.adoc[Paths and sessions]
 * xref:consolidate-and-doctor.adoc[Consolidate, info, and doctor]
 * xref:import.adoc[Import history]
