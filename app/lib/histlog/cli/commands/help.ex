@@ -9,6 +9,11 @@ defmodule Histlog.CLI.Commands.Help do
   def run(["paths"]), do: Commands.Paths.run(["--help"])
   def run(["sessions"]), do: Commands.Sessions.run(["--help"])
   def run(["export"]), do: Commands.Export.run(["--help"])
+  def run(["consolidate"]), do: Commands.Consolidate.run(["--help"])
+  def run(["verify"]), do: Commands.Verify.run(["--help"])
+  def run(["import"]), do: Commands.Import.run(["--help"])
+  def run(["init"]), do: Commands.Init.run(["--help"])
+  def run(["doctor"]), do: Commands.Doctor.run(["--help"])
   def run(["help"]), do: write_top_level()
   def run([command]), do: {:error, "no command-specific help for #{inspect(command)}"}
   def run(args), do: {:error, "unexpected help arguments #{inspect(args)}"}

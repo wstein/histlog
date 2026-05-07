@@ -230,6 +230,28 @@ defmodule Histlog.CLITest do
 
     assert sessions_help_output =~ "Usage: histlog sessions [options]"
 
+    for {command, expected} <- [
+          {"consolidate", "Usage: histlog consolidate [options]"},
+          {"verify", "Usage: histlog verify [options]"},
+          {"import", "Usage: histlog import FILE [options]"},
+          {"init", "Usage: histlog init [zsh|bash|fish]"},
+          {"doctor", "Usage: histlog doctor [zsh|bash|fish]"}
+        ] do
+      help_output =
+        capture_io(fn ->
+          assert :ok = CLI.run(["help", command])
+        end)
+
+      assert help_output =~ expected
+
+      short_help_output =
+        capture_io(fn ->
+          assert :ok = CLI.run([command, "-h"])
+        end)
+
+      assert short_help_output == help_output
+    end
+
     assert {:error, "no command-specific help for \"missing\""} = CLI.run(["help", "missing"])
   end
 
