@@ -17,9 +17,12 @@ Per-session logs reduce write contention, make active sessions easier to reason 
 
 Name and locate session logfiles so a later process can distinguish active, finished, and already consolidated sessions. Do not mix multiple CLI sessions into one live logfile; use consolidation to merge or index finished session data into historical storage.
 
+Query-family commands must read active `sessions/live/**/*.ndjson` files in addition to consolidated SQLite rows, so commands from the current shell are visible before consolidation.
+
 ## Links
 
 - [[Elixir Implementation Language]] - Defines the runtime expected to manage session logfile behavior.
 - [[NDJSON Log Format]] - Defines the record format inside each session logfile.
 - [[Daily Finished Session Consolidation]] - Moves finished session logfiles into durable historical storage.
+- [[Query Source Union]] - Requires live session logs to participate in query results.
 - [[Rich Command Metadata Collection]] - Describes the records written into session logfiles.

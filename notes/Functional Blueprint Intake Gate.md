@@ -21,10 +21,13 @@ A behavior may enter v1 only when it can be implemented over one of these source
 - currently live session rows
 - import event streams
 
+For query-family behavior, SQLite and live session rows are not alternatives; both must be included.
+
 The behavior must not mutate canonical session events. If it requires in-place history changes, a daemon, or compatibility with the `histlog2` database schema, defer it outside v1.
 
 ## Links
 
 - [[Histlog2 Functional Blueprint]] - Describes the source of reusable product behavior.
 - [[SQLite Consolidation Schema]] - Defines the native database materialization target.
+- [[Query Source Union]] - Requires merged SQLite and live-session query behavior.
 - [[No Long Running Service]] - Keeps runtime work short-lived.

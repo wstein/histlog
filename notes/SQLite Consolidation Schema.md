@@ -19,6 +19,8 @@ It stores query-ready rows derived from closed session logs. It is a materialize
 
 SQLite gives the CLI fast query, session, path, and verification workflows without turning histlog into a long-running service. Because closed session logs remain the source input for consolidation, the database can be rebuilt when the schema changes.
 
+Query commands must not rely only on SQLite. They must also include live session NDJSON so current commands appear before consolidation runs.
+
 ## Schema Ownership
 
 The Elixir rewrite owns the schema. It may update tables, indexes, views, and metadata as needed for the current product behavior.
@@ -43,4 +45,5 @@ Use explicit schema versioning so `histlog consolidate --rebuild` can recreate t
 
 - [[Daily Finished Session Consolidation]] - Writes this database from closed sessions.
 - [[Manifest And Checkpointing]] - Tracks processed sessions and schema version.
+- [[Query Source Union]] - Requires queries to merge SQLite rows with live session NDJSON.
 - [[Histlog2 Functional Blueprint]] - Reuses product behavior without schema compatibility.
