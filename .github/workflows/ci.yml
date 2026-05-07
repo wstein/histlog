@@ -49,12 +49,17 @@ jobs:
       - name: Run CI
         run: make ci
 
-      - name: Smoke test escript
-        run: ./app/histlog --help
+      - name: Smoke test executable
+        run: |
+          ./app/histlog --help
+          ./app/histlog consolidate --root "$RUNNER_TEMP/histlog-smoke" --date 2026-05-07
 
-      - name: Upload escript artifact
+      - name: Upload executable artifacts
         uses: actions/upload-artifact@v4
         with:
           name: histlog-${{ matrix.os }}
-          path: app/histlog
+          path: |
+            app/histlog
+            app/histlog.escript
+            app/_build/dev/lib
           if-no-files-found: error

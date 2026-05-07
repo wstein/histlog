@@ -24,3 +24,4 @@ app-*.tar
 
 # Ignore generated escript binary.
 /histlog
+/histlog.escript

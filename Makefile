@@ -11,19 +11,20 @@
 #
 CLEAN_DIR ?= dist
 PREFIX ?= $(HOME)/.local
-HISTLOG_ESCRIPT := $(CURDIR)/app/histlog
+HISTLOG_BIN := $(CURDIR)/app/histlog
 
 .PHONY: all build install test coverage format format-check lint ci release clean notes help
 all: build
 
-build: ## Compile and build the histlog escript.
+build: ## Compile histlog and build local launcher plus escript.
 	cd app && mix compile --warnings-as-errors
 	cd app && mix escript.build
+	elixir scripts/write_launcher.exs
 
 install: build ## Symlink the histlog escript under PREFIX/bin.
 	mkdir -p "$(PREFIX)/bin"
 	rm -f "$(PREFIX)/bin/histlog"
-	ln -s "$(HISTLOG_ESCRIPT)" "$(PREFIX)/bin/histlog"
+	ln -s "$(HISTLOG_BIN)" "$(PREFIX)/bin/histlog"
 
 test: ## Run the Elixir test suite.
 	cd app && mix test
@@ -51,7 +52,7 @@ release: ## Run the interactive release wizard. Pass VERSION=vX.Y.Z to select ex
 
 clean: ## Remove generated output files.
 	rm -rf "$(CLEAN_DIR)"
-	rm -rf app/_build app/cover app/histlog
+	rm -rf app/_build app/cover app/histlog app/histlog.escript
 
 notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"

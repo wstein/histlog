@@ -14,7 +14,9 @@ mix escript.build
 ./histlog query --help
 ----
 
-From the repository root, `make build` compiles the application and rebuilds `app/histlog`.
+From the repository root, `make build` compiles the application, builds `app/histlog.escript`, and writes `app/histlog`.
+Because `histlog.db` uses the native `exqlite` NIF, `app/histlog` is the supported local launcher for database-backed commands.
+The escript is built as a CI artifact, but the launcher plus compiled BEAM/NIF files are required for SQLite-backed workflows.
 
 [source,sh]
 ----
@@ -22,7 +24,7 @@ make build
 make install
 ----
 
-`make install` symlinks `${PREFIX:-$HOME/.local}/bin/histlog` to the repo-built `app/histlog`.
+`make install` symlinks `${PREFIX:-$HOME/.local}/bin/histlog` to the repo-built `app/histlog` launcher.
 That local-development install keeps interactive shells on the latest rebuilt escript without a daemon.
 
 Quality gates:
