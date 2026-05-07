@@ -7,7 +7,17 @@ script = """
 #!/bin/sh
 set -eu
 
-APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+HISTLOG_LAUNCHER="$0"
+while [ -L "$HISTLOG_LAUNCHER" ]; do
+  HISTLOG_LAUNCHER_DIR=$(CDPATH= cd -- "$(dirname -- "$HISTLOG_LAUNCHER")" && pwd)
+  HISTLOG_LAUNCHER_TARGET=$(readlink "$HISTLOG_LAUNCHER")
+  case "$HISTLOG_LAUNCHER_TARGET" in
+    /*) HISTLOG_LAUNCHER="$HISTLOG_LAUNCHER_TARGET" ;;
+    *) HISTLOG_LAUNCHER="$HISTLOG_LAUNCHER_DIR/$HISTLOG_LAUNCHER_TARGET" ;;
+  esac
+done
+
+APP_DIR=$(CDPATH= cd -- "$(dirname -- "$HISTLOG_LAUNCHER")" && pwd)
 if [ -d "$APP_DIR/lib/histlog/ebin" ]; then
   HISTLOG_LIB_DIR="$APP_DIR/lib"
 else
