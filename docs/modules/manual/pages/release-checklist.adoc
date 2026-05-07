@@ -5,7 +5,8 @@ Use this checklist before tagging a public alpha.
 
 * `make ci` passes locally.
 * GitHub Actions passes on Ubuntu and macOS.
-* The CI build uploads the `histlog` escript artifact.
+* The CI build uploads executable artifacts.
+* The uploaded artifact includes the launcher, escript, and compiled BEAM/NIF files needed by SQLite commands.
 * `make coverage` runs and the coverage summary is reviewed.
 * `make release VERSION=vX.Y.Z` is run only from a clean `develop` branch.
 * `eval "$(histlog init zsh)"` is smoke-tested in an interactive zsh.
@@ -15,3 +16,22 @@ Use this checklist before tagging a public alpha.
 * `histlog consolidate`, `histlog query`, and `histlog verify` are tested against real local history.
 * Known shell-hook limitations are documented.
 * The release notes state that session and import NDJSON are canonical evidence, while `histlog.db` is a rebuildable query projection.
+
+== Alpha Candidate Results
+
+2026-05-07 local alpha-prep results:
+
+* `make ci`: passed, 83 tests, launcher and escript build completed.
+* `make coverage`: passed, 80 tests, 3 smoke-shell tests excluded, total line coverage 79.11%.
+* `make build`: passed after the executable was changed to a BEAM launcher plus `histlog.escript`.
+* `./app/histlog --help`: passed.
+* SQLite smoke through `./app/histlog consolidate` and `./app/histlog verify`: passed.
+* zsh generated hook functions around real commands: captured 3 commands, consolidated 1 session, verified successfully.
+* fish generated hook functions around real commands: captured 3 commands, consolidated 1 session, verified successfully.
+* real `~/.zsh_history` import into a temporary root: passed; import artifacts and report were written, verification passed, and imported rows were materialized.
+
+Known alpha limitations:
+
+* Non-TTY `zsh -i -c` starts a session but does not fire real `preexec`/`precmd` hooks for commands passed through `-c`; true interactive shell dogfooding still needs a manual terminal pass.
+* `consolidate` and `verify` accept `--date`; they do not currently accept `--today`.
+* A plain escript archive cannot load the `exqlite` NIF for database commands. Use `app/histlog`, the generated launcher, for local database-backed workflows.
