@@ -8,7 +8,12 @@ script = """
 set -eu
 
 APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-export ERL_LIBS="$APP_DIR/_build/dev/lib${ERL_LIBS:+:$ERL_LIBS}"
+if [ -d "$APP_DIR/lib" ]; then
+  HISTLOG_LIB_DIR="$APP_DIR/lib"
+else
+  HISTLOG_LIB_DIR="$APP_DIR/_build/dev/lib"
+fi
+export ERL_LIBS="$HISTLOG_LIB_DIR${ERL_LIBS:+:$ERL_LIBS}"
 exec elixir -e 'Histlog.CLI.main(System.argv())' -- "$@"
 """
 

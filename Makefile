@@ -13,7 +13,7 @@ CLEAN_DIR ?= dist
 PREFIX ?= $(HOME)/.local
 HISTLOG_BIN := $(CURDIR)/app/histlog
 
-.PHONY: all build install test coverage format format-check lint ci release clean notes help
+.PHONY: all build install test coverage format format-check lint ci package formula release clean notes help
 all: build
 
 build: ## Compile histlog and build local launcher plus escript.
@@ -43,6 +43,17 @@ lint: ## Run warning-as-error compilation as the repository lint gate.
 
 ci: format-check lint test build ## Run the local CI gate, including escript build.
 
+package: build ## Build release package tarball. Pass VERSION=X.Y.Z.
+	@test -n "$(VERSION)" || (echo "VERSION is required"; exit 1)
+	elixir scripts/package-release.exs "$(VERSION)"
+
+formula: package ## Generate Homebrew formula. Pass VERSION=X.Y.Z.
+	@tarball="$$(find dist -maxdepth 1 -name 'histlog-darwin-*-v$(VERSION).tar.gz' -print -quit)"; \
+	test -n "$$tarball" || (echo "No Darwin release tarball found in dist"; exit 1); \
+	elixir scripts/generate-homebrew-formula.exs "$(VERSION)" \
+		--tarball "$$tarball" \
+		--output "dist/histlog.rb"
+
 release: ## Run the interactive release wizard. Pass VERSION=vX.Y.Z to select explicitly.
 	@if [ -n "$(VERSION)" ]; then \
 		VERSION="$(VERSION)" elixir scripts/release.exs; \
@@ -58,4 +69,4 @@ notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
 
 help: ## Show available targets.
-	@printf "Available targets:\n  build install test coverage format format-check lint ci release clean notes\n"
+	@printf "Available targets:\n  build install test coverage format format-check lint ci package formula release clean notes\n"
