@@ -80,6 +80,20 @@ defmodule Histlog.ImportTest do
     assert :ok = Schema.validate_sequence(events)
   end
 
+  test "sanitizes invalid utf8 bytes before encoding import events" do
+    content = <<": 1770000000:0;echo ", 131, " bad\n">>
+
+    assert {:ok, events, report} =
+             Import.from_source_with_report("import-session", "zsh_history", "batch-1", content)
+
+    assert report["records"] == 1
+
+    assert [%{"event" => "imported_execution", "command" => "echo ? bad"}] =
+             Enum.filter(events, &(&1["event"] == "imported_execution"))
+
+    assert JSON.encode!(events)
+  end
+
   test "returns import diagnostics reports" do
     content = File.read!(Path.join(@fixtures, "zsh_history"))
 

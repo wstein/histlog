@@ -376,12 +376,27 @@ defmodule Histlog.Import do
 
   defp imported_execution(command, timestamp, cwd \\ nil) do
     %{
-      "command" => command,
-      "cwd" => cwd,
-      "timestamp" => timestamp,
+      "command" => utf8_safe(command),
+      "cwd" => utf8_safe(cwd),
+      "timestamp" => utf8_safe(timestamp),
       "exit_status" => nil
     }
   end
+
+  defp utf8_safe(nil), do: nil
+
+  defp utf8_safe(value) when is_binary(value) do
+    case :unicode.characters_to_binary(value, :utf8, :utf8) do
+      safe when is_binary(safe) -> safe
+      {:error, valid, rest} -> valid <> "?" <> utf8_safe(drop_invalid_byte(rest))
+      {:incomplete, valid, _rest} -> valid <> "?"
+    end
+  end
+
+  defp utf8_safe(value), do: value
+
+  defp drop_invalid_byte(<<_byte, rest::binary>>), do: rest
+  defp drop_invalid_byte(_), do: ""
 
   defp parse_epoch(value) do
     case Integer.parse(String.trim(value)) do
