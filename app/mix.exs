@@ -5,7 +5,7 @@ defmodule Histlog.MixProject do
     [
       app: :histlog,
       version: "0.1.0",
-      elixir: "~> 1.17",
+      elixir: "~> 1.18",
       escript: [main_module: Histlog.CLI],
       start_permanent: Mix.env() == :prod,
       test_coverage: [summary: [threshold: 0]],
