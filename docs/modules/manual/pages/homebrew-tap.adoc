@@ -1,0 +1,46 @@
+= Homebrew Tap Publishing
+:page-layout: default
+
+== User Install
+
+[source,sh]
+----
+brew install wstein/tap/histlog
+----
+
+== Repositories
+
+Source repository::
+`wstein/histlog`
+
+Tap repository::
+`wstein/homebrew-tap`
+
+Formula path::
+`Formula/histlog.rb`
+
+== Release Invariant
+
+The Homebrew formula points at the same GitHub release tarball uploaded by the release workflow.
+The formula SHA is computed from that tarball.
+
+== Why Not Plain Escript
+
+Plain escript archives cannot load the `exqlite` NIF reliably for SQLite-backed commands.
+The Homebrew package installs the supported launcher artifact plus the compiled BEAM/NIF library tree.
+
+== Required Secret
+
+Configure `HOMEBREW_TAP_PUSH_TOKEN` in the `homebrew` GitHub environment for `wstein/histlog`.
+The token needs permission to push commits to `wstein/homebrew-tap`.
+
+== Verification
+
+[source,sh]
+----
+brew update
+brew install wstein/tap/histlog
+histlog --help
+histlog consolidate --root /tmp/histlog-smoke --date 2026-05-07
+histlog verify --root /tmp/histlog-smoke --date 2026-05-07
+----

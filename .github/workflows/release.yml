@@ -1,0 +1,229 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      release_sha: ${{ steps.version.outputs.release_sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          release_sha="${GITHUB_SHA}"
+
+          if ! printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+].+)?$'; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+
+          mix_version="$(grep -E 'version: "' app/mix.exs | sed -E 's/.*version: "([^"]+)".*/\1/')"
+          if [ "$mix_version" != "$version" ]; then
+            echo "app/mix.exs version $mix_version does not match $tag" >&2
+            exit 1
+          fi
+
+          git fetch origin develop main --tags
+
+          if ! git branch -r --contains "$release_sha" | grep -q 'origin/develop'; then
+            echo "Release commit is not contained in origin/develop" >&2
+            exit 1
+          fi
+
+          ci_conclusion="$(
+            gh run list \
+              --workflow CI \
+              --branch develop \
+              --commit "$release_sha" \
+              --json conclusion,status \
+              --jq 'map(select(.status == "completed")) | .[0].conclusion // ""'
+          )"
+
+          if [ "$ci_conclusion" != "success" ]; then
+            echo "Develop CI is not green for $release_sha: ${ci_conclusion:-missing}" >&2
+            exit 1
+          fi
+
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "release_sha=$release_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  build-artifacts:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: gate
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.release_sha }}
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - name: Cache Mix dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/deps
+            app/_build
+          key: ${{ runner.os }}-mix-1.18.4-27.3-${{ hashFiles('app/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-1.18.4-27.3-
+
+      - name: Install dependencies
+        run: cd app && mix deps.get
+
+      - name: Build and package
+        run: |
+          make ci
+          make package VERSION="${{ needs.gate.outputs.version }}"
+
+      - name: Generate Homebrew formula
+        if: runner.os == 'macOS'
+        run: |
+          tarball="$(find dist -maxdepth 1 -name 'histlog-darwin-*.tar.gz' -print -quit)"
+          test -n "$tarball"
+          elixir scripts/generate-homebrew-formula.exs "${{ needs.gate.outputs.version }}" \
+            --tarball "$tarball" \
+            --output dist/histlog.rb
+          ruby -c dist/histlog.rb
+
+      - name: Upload release package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
+      - name: Upload Homebrew formula artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-formula
+          path: |
+            dist/histlog.rb
+          if-no-files-found: error
+
+  release-assets:
+    name: Release Assets
+    runs-on: ubuntu-latest
+    needs:
+      - gate
+      - build-artifacts
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ needs.gate.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ needs.gate.outputs.tag }}" \
+            --notes "Alpha release ${{ needs.gate.outputs.tag }}"
+          gh release upload "${{ needs.gate.outputs.tag }}" dist/* --repo "${{ github.repository }}" --clobber
+
+  homebrew:
+    name: Homebrew Tap
+    runs-on: ubuntu-latest
+    needs:
+      - gate
+      - build-artifacts
+      - release-assets
+    environment: homebrew
+
+    steps:
+      - name: Download formula artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: wstein/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_PUSH_TOKEN }}
+          path: homebrew-tap
+
+      - name: Commit formula
+        run: |
+          set -euo pipefail
+          mkdir -p homebrew-tap/Formula
+          cp dist/histlog.rb homebrew-tap/Formula/histlog.rb
+          cd homebrew-tap
+          ruby -c Formula/histlog.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/histlog.rb
+          if git diff --cached --quiet; then
+            echo "Formula unchanged"
+          else
+            git commit -m "histlog ${{ needs.gate.outputs.tag }}"
+            git push origin HEAD:main
+          fi
+
+  promote-main:
+    name: Promote Main
+    runs-on: ubuntu-latest
+    needs:
+      - gate
+      - homebrew
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward main
+        run: |
+          set -euo pipefail
+          git fetch origin main develop
+          git checkout -B main origin/main
+          git merge --ff-only "${{ needs.gate.outputs.release_sha }}"
+          git push origin main
