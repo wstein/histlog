@@ -3,27 +3,27 @@ id: 20260506222908
 aliases: ["manifest", "checkpointing"]
 tags: ["integrity", "consolidation"]
 ---
-Histlog consolidation should write a manifest for each day so materialization is idempotent and auditable.
+Histlog consolidation should record checkpoint metadata so database materialization is idempotent and auditable.
 
 ## What
 
-A daily manifest records the day, processed sessions, record counts, generated output paths, checksums, and quarantined sessions. It is the checkpoint that prevents reprocessing the same closed session during future consolidation runs.
+Consolidation metadata records processed sessions, record counts, schema version, materialization timestamps, and quarantined sessions. It is the checkpoint that prevents reprocessing the same closed session during future consolidation runs.
 
 ## Why
 
-Flat-file materialization shifts integrity work into the application. Manifests make this work explicit: operators and tests can see what was processed, what was skipped, and which output checksum represents the materialized day.
+Database materialization shifts integrity work into the application. Checkpoints make this work explicit: operators and tests can see what was processed, what was skipped, and which schema version produced the materialized database.
 
 ## How
 
-Write manifests after successful output materialization. Consolidators should read an existing manifest before processing, skip already processed session files, and produce deterministic manifest content for the same input set.
+Write checkpoint metadata in the same SQLite transaction that materializes closed sessions into `$HISTLOG_ROOT/histlog.db`. Consolidators should read existing checkpoint rows before processing and skip already processed session files.
 
-`histlog verify --date YYYY-MM-DD` recomputes record counts and checksums from the daily materialized files and compares them to the manifest. Verification is read-only; rebuild support is a separate operational workflow.
+`histlog verify` recomputes expected record counts and schema facts from the database and compares them to the checkpoint. Verification is read-only; rebuild support is a separate operational workflow.
 
-`histlog consolidate --rebuild --date YYYY-MM-DD` starts from an empty manifest for that date, ignores prior processed-session checkpoints, and rewrites daily materializations from closed session files.
+`histlog consolidate --rebuild` recreates the materialized database from closed session files. It does not need to preserve compatibility with `histlog2` tables or migrations.
 
 ## Links
 
-- [[Daily Finished Session Consolidation]] - Produces daily manifests as part of materialization.
-- [[Daily Rebuild Verification]] - Defines read-only verification of materialized daily files.
-- [[NDJSON Boundary Contract]] - Keeps checkpointing at the file boundary.
+- [[Daily Finished Session Consolidation]] - Produces checkpoint metadata as part of materialization.
+- [[Daily Rebuild Verification]] - Defines read-only verification of materialized database state.
+- [[SQLite Consolidation Schema]] - Defines the checkpoint tables and schema version ownership.
 - [[Minimal Overhead Constraint]] - Allows checkpoint work outside the interactive shell path.

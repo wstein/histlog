@@ -1,26 +1,27 @@
 ---
 id: 20260506233320
-aliases: ["histlog verify", "daily verification"]
-tags: ["integrity", "operations", "consolidation"]
+aliases: ["histlog verify", "consolidation verification"]
+tags: ["integrity", "operations", "consolidation", "sqlite"]
 ---
-Daily verification checks whether materialized files still match the manifest checkpoint.
+Verification checks whether the consolidated database still matches the consolidation checkpoint.
 
 ## What
 
-`histlog verify --date YYYY-MM-DD` reads the daily manifest, recomputes record counts and SHA-256 checksums for `daily/YYYY-MM-DD.ndjson` and `daily/YYYY-MM-DD.exec.ndjson`, and reports mismatches.
+`histlog verify` should validate `$HISTLOG_ROOT/histlog.db` against consolidation metadata. Verification should report missing tables, schema mismatches, record-count drift, and processed-session inconsistencies.
 
 ## Why
 
-Consolidation is idempotent only if the manifest and materialized files agree. Users may edit, sync, or corrupt files outside histlog, so operators need a read-only way to detect drift before trusting query results.
+Consolidation is trustworthy only if the materialized database and the processed-session checkpoint agree. Users may edit, sync, or corrupt files outside histlog, so operators need a read-only way to detect drift before trusting query results.
 
 ## How
 
-Verification does not repair files. It returns a JSON report with per-file checks and an overall `ok` boolean. `histlog consolidate --rebuild --date YYYY-MM-DD` can then regenerate daily materializations from current closed sessions.
+Verification does not repair the database. It returns a report with an overall `ok` boolean and concrete errors. `histlog consolidate --rebuild` can then regenerate the database from current closed sessions.
 
-Consolidation writes a pending transaction before committing daily materialized files. A later run must recover that pending transaction before scanning new sessions, so a crash between output writes and manifest writes does not cause duplicate appends.
+Consolidation should use a transaction when updating `histlog.db`. A later run must recover or retry safely so a crash during database materialization does not cause duplicate rows or a partially trusted checkpoint.
 
 ## Links
 
 - [[Manifest And Checkpointing]] - Defines the manifest fields verified here.
-- [[Daily Finished Session Consolidation]] - Produces the materialized files.
+- [[Daily Finished Session Consolidation]] - Produces the materialized database.
+- [[SQLite Consolidation Schema]] - Defines the tables verification should inspect.
 - [[Corruption Quarantine]] - Handles malformed session inputs before materialization.
