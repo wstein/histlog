@@ -176,6 +176,8 @@ jobs:
       - build-artifacts
       - release-assets
     environment: homebrew
+    env:
+      HOMEBREW_TAP_PUSH_TOKEN: ${{ secrets.HOMEBREW_TAP_PUSH_TOKEN }}
 
     steps:
       - name: Download formula artifact
@@ -184,11 +186,20 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Check Homebrew tap token
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_PUSH_TOKEN}" ]; then
+            echo "HOMEBREW_TAP_PUSH_TOKEN is required in the homebrew environment." >&2
+            echo "Create a token that can push to wstein/homebrew-tap and add it as an environment secret." >&2
+            exit 1
+          fi
+
       - name: Checkout Homebrew tap
         uses: actions/checkout@v6
         with:
           repository: wstein/homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_PUSH_TOKEN }}
+          token: ${{ env.HOMEBREW_TAP_PUSH_TOKEN }}
           path: homebrew-tap
 
       - name: Commit formula
