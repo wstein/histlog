@@ -111,18 +111,29 @@ defmodule Histlog.Hook do
     session_id = Keyword.fetch!(opts, :session)
 
     with {:ok, content} <- File.read(state_path(root, session_id)),
-         {:ok, state} <- JSON.decode(content),
+         {:ok, state} <- decode_hook_state(content),
          {:ok, writer} <- writer_from_state(state) do
       {:ok, writer, state["pending"]}
     else
-      {:error, %JSON.DecodeError{} = error} ->
-        {:error, {:invalid_hook_state, Exception.message(error)}}
-
-      {:error, {_reason, _line, _byte} = error} ->
-        {:error, {:invalid_hook_state, inspect(error)}}
-
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp decode_hook_state(content) do
+    case JSON.decode(content) do
+      {:ok, state} -> {:ok, state}
+      {:error, reason} -> {:error, {:invalid_hook_state, format_decode_error(reason)}}
+    end
+  end
+
+  defp format_decode_error(reason) when is_binary(reason), do: reason
+
+  defp format_decode_error(reason) do
+    if is_exception(reason) do
+      Exception.message(reason)
+    else
+      inspect(reason)
     end
   end
 
