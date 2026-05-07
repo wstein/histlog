@@ -6,6 +6,7 @@ on:
       - "v*"
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -45,7 +46,7 @@ jobs:
             exit 1
           fi
 
-          git fetch origin develop main --tags
+          git fetch origin develop main
 
           if ! git branch -r --contains "$release_sha" | grep -q 'origin/develop'; then
             echo "Release commit is not contained in origin/develop" >&2
