@@ -7,6 +7,7 @@ Use this checklist before tagging a public alpha.
 * GitHub Actions passes on Ubuntu and macOS.
 * The CI build uploads the `histlog` escript artifact.
 * `make coverage` runs and the coverage summary is reviewed.
+* `make release VERSION=vX.Y.Z` is run only from a clean `develop` branch.
 * `eval "$(histlog init zsh)"` is smoke-tested in an interactive zsh.
 * `eval "$(histlog init bash)"` is smoke-tested in an interactive bash.
 * `histlog init fish \| source` is smoke-tested in an interactive fish.

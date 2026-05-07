@@ -13,7 +13,7 @@ CLEAN_DIR ?= dist
 PREFIX ?= $(HOME)/.local
 HISTLOG_ESCRIPT := $(CURDIR)/app/histlog
 
-.PHONY: all build install test coverage format format-check lint ci clean notes help
+.PHONY: all build install test coverage format format-check lint ci release clean notes help
 all: build
 
 build: ## Compile and build the histlog escript.
@@ -42,6 +42,13 @@ lint: ## Run warning-as-error compilation as the repository lint gate.
 
 ci: format-check lint test build ## Run the local CI gate, including escript build.
 
+release: ## Run the interactive release wizard. Pass VERSION=vX.Y.Z to select explicitly.
+	@if [ -n "$(VERSION)" ]; then \
+		VERSION="$(VERSION)" elixir scripts/release.exs; \
+	else \
+		elixir scripts/release.exs; \
+	fi
+
 clean: ## Remove generated output files.
 	rm -rf "$(CLEAN_DIR)"
 	rm -rf app/_build app/cover app/histlog
@@ -50,4 +57,4 @@ notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
 
 help: ## Show available targets.
-	@printf "Available targets:\n  build install test coverage format format-check lint ci clean notes\n"
+	@printf "Available targets:\n  build install test coverage format format-check lint ci release clean notes\n"
