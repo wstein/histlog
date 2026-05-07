@@ -14,7 +14,13 @@ defmodule Histlog.Database.Schema do
   def version, do: @version
 
   def ensure(conn) do
-    with :ok <- reset_incompatible_schema(conn),
+    with {:ok, _report} <- ensure_with_report(conn) do
+      :ok
+    end
+  end
+
+  def ensure_with_report(conn) do
+    with {:ok, schema_reset?} <- reset_incompatible_schema(conn),
          :ok <- Database.execute(conn, ddl()),
          :ok <-
            Database.exec(
@@ -26,7 +32,7 @@ defmodule Histlog.Database.Schema do
              """,
              [Integer.to_string(@version)]
            ) do
-      :ok
+      {:ok, %{"schema_reset" => schema_reset?}}
     end
   end
 
@@ -39,14 +45,14 @@ defmodule Histlog.Database.Schema do
 
     case schema_version(conn) do
       {:ok, nil} -> maybe_drop_legacy_projection(conn)
-      {:ok, ^expected_version} -> :ok
+      {:ok, ^expected_version} -> {:ok, false}
       {:ok, _old_version} -> drop_materialization(conn)
       {:error, _reason} -> maybe_drop_legacy_projection(conn)
     end
   end
 
   defp maybe_drop_legacy_projection(conn) do
-    if legacy_projection?(conn), do: drop_materialization(conn), else: :ok
+    if legacy_projection?(conn), do: drop_materialization(conn), else: {:ok, false}
   end
 
   defp legacy_projection?(conn) do
@@ -66,20 +72,23 @@ defmodule Histlog.Database.Schema do
   end
 
   defp drop_materialization(conn) do
-    Database.execute(conn, """
-    DROP VIEW IF EXISTS history_view;
-    DROP VIEW IF EXISTS sessions_view;
-    DROP TABLE IF EXISTS commands;
-    DROP TABLE IF EXISTS cmd_texts;
-    DROP TABLE IF EXISTS imports;
-    DROP TABLE IF EXISTS sessions;
-    DROP TABLE IF EXISTS paths;
-    DROP TABLE IF EXISTS ttys;
-    DROP TABLE IF EXISTS shells;
-    DROP TABLE IF EXISTS hosts;
-    DROP TABLE IF EXISTS processed_sessions;
-    DROP TABLE IF EXISTS schema_metadata;
-    """)
+    with :ok <-
+           Database.execute(conn, """
+           DROP VIEW IF EXISTS history_view;
+           DROP VIEW IF EXISTS sessions_view;
+           DROP TABLE IF EXISTS commands;
+           DROP TABLE IF EXISTS cmd_texts;
+           DROP TABLE IF EXISTS imports;
+           DROP TABLE IF EXISTS sessions;
+           DROP TABLE IF EXISTS paths;
+           DROP TABLE IF EXISTS ttys;
+           DROP TABLE IF EXISTS shells;
+           DROP TABLE IF EXISTS hosts;
+           DROP TABLE IF EXISTS processed_sessions;
+           DROP TABLE IF EXISTS schema_metadata;
+           """) do
+      {:ok, true}
+    end
   end
 
   def tables, do: @tables

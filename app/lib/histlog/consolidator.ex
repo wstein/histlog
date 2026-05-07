@@ -22,15 +22,15 @@ defmodule Histlog.Consolidator do
     Storage.ensure_layout(root, date)
 
     Database.with_connection(root, fn conn ->
-      with :ok <- Schema.ensure(conn) do
+      with {:ok, schema_report} <- Schema.ensure_with_report(conn) do
         Database.transaction(conn, fn ->
-          consolidate_in_transaction(conn, root, date, rebuild?)
+          consolidate_in_transaction(conn, root, date, rebuild?, schema_report)
         end)
       end
     end)
   end
 
-  defp consolidate_in_transaction(conn, root, date, rebuild?) do
+  defp consolidate_in_transaction(conn, root, date, rebuild?, schema_report) do
     with :ok <- maybe_clear_date(conn, date, rebuild?) do
       session_paths = session_paths(root, date)
 
@@ -53,7 +53,7 @@ defmodule Histlog.Consolidator do
       processed_at = DateTime.utc_now() |> DateTime.to_iso8601()
 
       with :ok <- insert_sessions(conn, date, valid, processed_at) do
-        {:ok, report(conn, root, date, valid, quarantined, rebuild?)}
+        {:ok, report(conn, root, date, valid, quarantined, rebuild?, schema_report)}
       end
     end
   end
@@ -252,7 +252,7 @@ defmodule Histlog.Consolidator do
     Projection.insert_session_command(conn, session_row_id, Date.to_iso8601(date), row)
   end
 
-  defp report(conn, root, date, processed, quarantined, rebuild?) do
+  defp report(conn, root, date, processed, quarantined, rebuild?, schema_report) do
     date_string = Date.to_iso8601(date)
 
     {:ok, records_written} =
@@ -275,6 +275,7 @@ defmodule Histlog.Consolidator do
       "records_written" => records_written,
       "exec_records_written" => exec_records_written,
       "rebuilt" => rebuild?,
+      "schema_reset" => schema_report["schema_reset"],
       "quarantined_sessions" => quarantined
     }
   end

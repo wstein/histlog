@@ -112,6 +112,36 @@ defmodule Histlog.DatabaseSchemaTest do
                           [cmd_text_id]
                         )
 
+               assert {:error, _reason} =
+                        Database.exec(
+                          conn,
+                          """
+                          INSERT INTO commands (
+                            date, cmd_text_id, timestamp, completeness, source
+                          )
+                          VALUES ('2026-05-06', ?, '2026-05-06T20:00:00Z', 'partial', 'import')
+                          """,
+                          [cmd_text_id]
+                        )
+
+               :ok
+             end)
+  end
+
+  test "reports incompatible projection resets", %{root: root} do
+    assert :ok =
+             Database.with_connection(root, fn conn ->
+               assert {:ok, %{"schema_reset" => false}} = Schema.ensure_with_report(conn)
+
+               :ok =
+                 Database.exec(
+                   conn,
+                   "UPDATE schema_metadata SET value = 'old' WHERE key = 'schema_version'"
+                 )
+
+               assert {:ok, %{"schema_reset" => true}} = Schema.ensure_with_report(conn)
+               assert {:ok, "5"} = Schema.schema_version(conn)
+
                :ok
              end)
   end
@@ -149,6 +179,9 @@ defmodule Histlog.DatabaseSchemaTest do
 
                assert {:error, {:invalid_projection_target, "commands", "source"}} =
                         Projection.upsert_named(conn, "commands", "source", "session")
+
+               assert {:error, :missing_command} = Projection.upsert_command_text(conn, nil)
+               assert {:error, :missing_command} = Projection.upsert_command_text(conn, "")
 
                :ok
              end)

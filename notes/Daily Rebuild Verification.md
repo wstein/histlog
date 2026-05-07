@@ -18,6 +18,7 @@ Consolidation is trustworthy only if the materialized database and the processed
 Verification does not repair the database. It returns a report with an overall `ok` boolean and concrete errors. `histlog consolidate --rebuild` can then regenerate the database from current closed sessions.
 
 Consolidation should use a transaction when updating `histlog.db`. A later run must recover or retry safely so a crash during database materialization does not cause duplicate rows or a partially trusted checkpoint.
+If the derived database schema is incompatible and gets reset, the consolidation report must expose that reset so operators are not surprised by a rebuild.
 
 ## Links
 

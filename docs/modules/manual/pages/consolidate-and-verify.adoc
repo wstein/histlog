@@ -10,6 +10,7 @@ histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
 ----
 
 `consolidate --rebuild` deletes database rows and checkpoints for that date, then rematerializes them from current closed sessions.
+If the local database projection schema is incompatible, `consolidate` may drop and recreate the derived projection from canonical NDJSON. Its JSON report includes `schema_reset: true` when that happens.
 
 Materialization commits inside a SQLite transaction:
 

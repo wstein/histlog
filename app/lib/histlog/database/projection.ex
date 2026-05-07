@@ -32,6 +32,9 @@ defmodule Histlog.Database.Projection do
     end
   end
 
+  def upsert_command_text(_conn, command) when command in [nil, ""],
+    do: {:error, :missing_command}
+
   def upsert_command_text(conn, command),
     do: upsert_named(conn, "cmd_texts", "command", command)
 

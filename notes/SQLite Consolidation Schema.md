@@ -48,11 +48,12 @@ Base tables are internal projection storage. Query code should prefer `history_v
 
 Processed-session skip logic must compare date, session file, source checksum, and schema version. A closed session file with the same name but different content must be reprocessed.
 
-The command projection should keep basic integrity constraints, including non-negative durations and an allowed `completeness` enum.
+The command projection should keep basic integrity constraints, including non-negative durations, an allowed `completeness` enum, and source-specific identity checks for `session` and `import` rows.
+Missing or empty command text is invalid projection input; do not silently insert empty strings into `cmd_texts`.
 Stored command sources are `session` and `import`; live commands are derived from active session NDJSON at query time and are not written to SQLite.
 Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
 
-Use explicit schema versioning. During this early rewrite, incompatible projection schemas are dropped and rebuilt from canonical NDJSON rather than migrated in place.
+Use explicit schema versioning. During this early rewrite, incompatible projection schemas are dropped and rebuilt from canonical NDJSON rather than migrated in place. Consolidation reports this as `schema_reset: true`.
 
 ## Links
 

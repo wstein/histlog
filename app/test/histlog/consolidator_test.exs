@@ -31,6 +31,7 @@ defmodule Histlog.ConsolidatorTest do
     assert report["records_written"] == 5
     assert report["exec_records_written"] == 1
     assert report["database_path"] == Storage.database_path(root)
+    assert report["schema_reset"] == false
     assert File.exists?(Storage.database_path(root))
     assert database_count(root, "commands") == 1
     assert database_count(root, "processed_sessions") == 1
@@ -98,6 +99,27 @@ defmodule Histlog.ConsolidatorTest do
     assert rebuilt["records_written"] == 5
     assert rebuilt["rebuilt"] == true
     assert database_count(root, "commands") == 1
+  end
+
+  test "reports schema reset and rebuilds from canonical sessions", %{root: root, date: date} do
+    writer = closed_session!(root, date, "session-1", "pwd", "/repo", 0)
+
+    Database.with_connection(root, fn conn ->
+      :ok = Schema.ensure(conn)
+
+      :ok =
+        Database.exec(
+          conn,
+          "UPDATE schema_metadata SET value = 'old' WHERE key = 'schema_version'"
+        )
+    end)
+
+    assert {:ok, report} = Consolidator.consolidate(root: root, date: date)
+    assert report["schema_reset"] == true
+    assert report["sessions_processed"] == [Path.basename(writer.closed_path)]
+
+    assert {:ok, rows} = Query.executions(root: root, date: date)
+    assert [%{"command" => "pwd"}] = rows
   end
 
   test "quarantines malformed sessions and continues", %{root: root, date: date} do
