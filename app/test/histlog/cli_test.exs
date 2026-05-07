@@ -233,7 +233,6 @@ defmodule Histlog.CLITest do
 
     for {command, expected} <- [
           {"consolidate", "Usage: histlog consolidate [options]"},
-          {"verify", "Usage: histlog verify [options]"},
           {"import", "Usage: histlog import FILE [options]"},
           {"init", "Usage: histlog init [zsh|bash|fish]"},
           {"doctor", "Usage: histlog doctor [zsh|bash|fish]"}
@@ -907,7 +906,7 @@ defmodule Histlog.CLITest do
            |> Enum.sort() == ["cat ./closed.txt", "cat ./live.txt", "cat #{import_file}"]
   end
 
-  test "verify command reports materialization integrity", %{root: root, date: date} do
+  test "doctor reports database materialization integrity", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -933,26 +932,35 @@ defmodule Histlog.CLITest do
 
     plain =
       capture_io(fn ->
-        assert :ok = CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
+        assert :ok = CLI.run(["doctor", "zsh", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
-    assert plain =~ "status: ok"
+    assert plain =~ "database: ok"
     assert plain =~ "schema: ok"
-    assert plain =~ "tables: ok"
-    assert plain =~ "counts: ok"
+    assert plain =~ "materialization_counts: ok"
 
     output =
       capture_io(fn ->
         assert :ok =
-                 CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date), "--json"])
+                 CLI.run([
+                   "doctor",
+                   "zsh",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
       end)
 
     assert %{
-             "ok" => true,
-             "checks" => %{
-               "database" => %{"ok" => true},
-               "schema" => %{"ok" => true},
-               "counts" => %{"ok" => true}
+             "database_verification" => %{
+               "ok" => true,
+               "checks" => %{
+                 "database" => %{"ok" => true},
+                 "schema" => %{"ok" => true},
+                 "counts" => %{"ok" => true}
+               }
              }
            } = JSON.decode!(output)
 
@@ -962,20 +970,85 @@ defmodule Histlog.CLITest do
 
     output =
       capture_io(fn ->
-        assert {:error, "verification failed"} =
-                 CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
+        assert :ok = CLI.run(["doctor", "zsh", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
-    assert output =~ "status: failed"
-    assert output =~ "error: counts"
+    assert output =~ "materialization_counts: failed"
+    assert output =~ "database_error: counts"
 
     output =
       capture_io(fn ->
-        assert {:error, "verification failed"} =
-                 CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date), "--json"])
+        assert :ok =
+                 CLI.run([
+                   "doctor",
+                   "zsh",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
       end)
 
-    assert %{"ok" => false, "errors" => errors} = JSON.decode!(output)
+    assert %{
+             "database_verification" => %{
+               "ok" => false,
+               "errors" => errors,
+               "checks" => %{
+                 "counts" => %{"ok" => false}
+               }
+             }
+           } = JSON.decode!(output)
+
+    assert Enum.any?(errors, &String.contains?(&1, "counts"))
+  end
+
+  test "verify command is migrated to doctor" do
+    assert {:error, {:unknown_command, "verify"}} = CLI.run(["verify"])
+    assert {:error, "no command-specific help for \"verify\""} = CLI.run(["help", "verify"])
+  end
+
+  test "verifier module still reports materialization integrity", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "pwd", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+    assert {:ok, _report} = Consolidator.consolidate(root: root, date: date)
+
+    assert {:ok,
+            %{
+              "ok" => true,
+              "checks" => %{
+                "database" => %{"ok" => true},
+                "schema" => %{"ok" => true},
+                "counts" => %{"ok" => true}
+              }
+            }} = Histlog.Verifier.verify(root: root, date: date)
+
+    Database.with_connection(root, fn conn ->
+      Database.exec(conn, "DELETE FROM commands WHERE date = ?", [Date.to_iso8601(date)])
+    end)
+
+    assert {:error, %{"ok" => false, "errors" => errors}} =
+             Histlog.Verifier.verify(root: root, date: date)
+
     assert Enum.any?(errors, &String.contains?(&1, "counts"))
   end
 

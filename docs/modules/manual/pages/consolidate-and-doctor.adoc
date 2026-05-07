@@ -1,4 +1,4 @@
-= Consolidate And Verify
+= Consolidate And Doctor
 :page-layout: default
 
 `consolidate` reads closed sessions for the selected day, writes query rows to `$HISTLOG_ROOT/histlog.db`, and emits a JSON report.
@@ -22,10 +22,12 @@ Materialization commits inside a SQLite transaction:
 If a run stops partway through, SQLite rolls back the incomplete transaction.
 The next run can retry safely without duplicating already processed sessions.
 
-`verify` checks the database schema and compares processed-session checkpoints with materialized command rows.
+`doctor` checks shell setup and summarizes database health, including schema and materialization counts.
 
 [source,sh]
 ----
-histlog verify --root /tmp/histlog --date 2026-05-06
-histlog verify --root /tmp/histlog --date 2026-05-06 --json
+histlog doctor zsh --root /tmp/histlog --date 2026-05-06
+histlog doctor zsh --root /tmp/histlog --date 2026-05-06 --json
 ----
+
+Use `--json` when scripts need the full database verification details.

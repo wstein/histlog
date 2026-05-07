@@ -43,7 +43,7 @@ histlog doctor zsh --json
 ----
 
 Doctor checks shell integration state and summarizes the local database health.
-Use `histlog verify --json` for the full database verification report.
+Use `histlog doctor --json` for the full database verification report.
 
 Bash integration uses the shell `DEBUG` trap.
 In v1 it installs histlog's trap directly and does not compose with an existing `DEBUG` trap; users with complex bash instrumentation should prefer zsh or fish integration, or review their trap setup before enabling histlog.

@@ -60,6 +60,7 @@ defmodule Histlog.CLI.Commands.Doctor do
     report
     |> Map.put("checks", checks)
     |> Map.put("database", database_summary(verify_result))
+    |> Map.put("database_verification", verify_result)
   end
 
   defp database_checks(report) do
@@ -122,6 +123,13 @@ defmodule Histlog.CLI.Commands.Doctor do
 
     Enum.each(report["checks"], fn check ->
       IO.puts("#{check["check"]}: #{check["status"]}")
+    end)
+
+    report
+    |> get_in(["database", "errors"])
+    |> List.wrap()
+    |> Enum.each(fn error ->
+      IO.puts("database_error: #{error}")
     end)
 
     :ok

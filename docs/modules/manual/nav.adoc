@@ -3,7 +3,7 @@
 ** xref:manual:shell-integration.adoc[Shell Integration]
 ** xref:manual:query.adoc[Query History]
 ** xref:manual:paths-and-sessions.adoc[Paths And Sessions]
-** xref:manual:consolidate-and-verify.adoc[Consolidate And Verify]
+** xref:manual:consolidate-and-doctor.adoc[Consolidate And Doctor]
 ** xref:manual:import.adoc[Import History]
 ** xref:manual:shell-compatibility.adoc[Shell Compatibility]
 ** xref:manual:log-format.adoc[Log Format]

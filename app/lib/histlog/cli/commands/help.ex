@@ -10,7 +10,6 @@ defmodule Histlog.CLI.Commands.Help do
   def run(["sessions"]), do: Commands.Sessions.run(["--help"])
   def run(["export"]), do: Commands.Export.run(["--help"])
   def run(["consolidate"]), do: Commands.Consolidate.run(["--help"])
-  def run(["verify"]), do: Commands.Verify.run(["--help"])
   def run(["import"]), do: Commands.Import.run(["--help"])
   def run(["init"]), do: Commands.Init.run(["--help"])
   def run(["doctor"]), do: Commands.Doctor.run(["--help"])
@@ -28,7 +27,6 @@ defmodule Histlog.CLI.Commands.Help do
       paths       - Show tracked file/directory paths and usage counts
       export      - Export derived rows for pipelines
       consolidate - Materialize closed session logs
-      verify      - Verify database materialization checks
       import      - Import shell history files
       init        - Print shell integration snippets
       doctor      - Diagnose setup
