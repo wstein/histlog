@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -87,7 +87,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.gate.outputs.release_sha }}
 
@@ -98,7 +98,7 @@ jobs:
           elixir-version: "1.18.4"
 
       - name: Cache Mix dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             app/deps
@@ -126,7 +126,7 @@ jobs:
           ruby -c dist/histlog.rb
 
       - name: Upload release package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ runner.os }}
           path: |
@@ -136,7 +136,7 @@ jobs:
 
       - name: Upload Homebrew formula artifact
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: homebrew-formula
           path: |
@@ -152,7 +152,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -179,13 +179,13 @@ jobs:
 
     steps:
       - name: Download formula artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
 
       - name: Checkout Homebrew tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: wstein/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_PUSH_TOKEN }}
@@ -217,7 +217,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
