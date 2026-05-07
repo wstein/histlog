@@ -8,6 +8,7 @@ defmodule Histlog.MixProject do
       elixir: "~> 1.17",
       escript: [main_module: Histlog.CLI],
       start_permanent: Mix.env() == :prod,
+      test_coverage: [summary: [threshold: 0]],
       deps: deps()
     ]
   end

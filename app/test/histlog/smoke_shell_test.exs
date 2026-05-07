@@ -1,6 +1,8 @@
 defmodule Histlog.SmokeShellTest do
   use ExUnit.Case, async: false
 
+  @moduletag :smoke_shell
+
   alias Histlog.Schema
   alias Histlog.Storage
 

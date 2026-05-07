@@ -7,3 +7,4 @@
 ** xref:manual:import.adoc[Import History]
 ** xref:manual:shell-compatibility.adoc[Shell Compatibility]
 ** xref:manual:log-format.adoc[Log Format]
+** xref:manual:release-checklist.adoc[Release Checklist]

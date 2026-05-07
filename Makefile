@@ -13,7 +13,7 @@ CLEAN_DIR ?= dist
 PREFIX ?= $(HOME)/.local
 HISTLOG_ESCRIPT := $(CURDIR)/app/histlog
 
-.PHONY: all build install test format format-check lint ci clean notes help
+.PHONY: all build install test coverage format format-check lint ci clean notes help
 all: build
 
 build: ## Compile and build the histlog escript.
@@ -27,6 +27,9 @@ install: build ## Symlink the histlog escript under PREFIX/bin.
 
 test: ## Run the Elixir test suite.
 	cd app && mix test
+
+coverage: ## Run the Elixir test suite with the built-in coverage summary.
+	cd app && mix test --cover --exclude smoke_shell
 
 format: ## Format Elixir source and tests.
 	cd app && mix format
@@ -47,4 +50,4 @@ notes: ## Print the notes directory path.
 	@printf "Notes directory: notes\n"
 
 help: ## Show available targets.
-	@printf "Available targets:\n  build install test format format-check lint ci clean notes\n"
+	@printf "Available targets:\n  build install test coverage format format-check lint ci clean notes\n"

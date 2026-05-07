@@ -1,0 +1,14 @@
+= Release Checklist
+:page-layout: default
+
+Use this checklist before tagging a public alpha.
+
+* `make ci` passes locally.
+* `make coverage` runs and the coverage summary is reviewed.
+* `eval "$(histlog init zsh)"` is smoke-tested in an interactive zsh.
+* `eval "$(histlog init bash)"` is smoke-tested in an interactive bash.
+* `histlog init fish \| source` is smoke-tested in an interactive fish.
+* `histlog import` is tested with representative zsh, bash, fish, or native history.
+* `histlog consolidate`, `histlog query`, and `histlog verify` are tested against real local history.
+* Known shell-hook limitations are documented.
+* The release notes state that session and import NDJSON are canonical evidence, while `histlog.db` is a rebuildable query projection.
