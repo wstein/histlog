@@ -64,6 +64,17 @@ defmodule Histlog.Consolidator do
     date = Date.to_iso8601(date)
 
     with :ok <-
+           Database.exec(
+             conn,
+             """
+             DELETE FROM command_paths
+             WHERE command_id IN (
+               SELECT id FROM commands WHERE date = ? AND source = 'session'
+             )
+             """,
+             [date]
+           ),
+         :ok <-
            Database.exec(conn, "DELETE FROM commands WHERE date = ? AND source = 'session'", [
              date
            ]),
@@ -229,6 +240,20 @@ defmodule Histlog.Consolidator do
 
   defp delete_session_rows(conn, session_uid) do
     with :ok <-
+           Database.exec(
+             conn,
+             """
+             DELETE FROM command_paths
+             WHERE command_id IN (
+               SELECT commands.id
+               FROM commands
+               JOIN sessions ON commands.session_id = sessions.id
+               WHERE sessions.session_uid = ?
+             )
+             """,
+             [session_uid]
+           ),
+         :ok <-
            Database.exec(
              conn,
              "DELETE FROM commands WHERE session_id = (SELECT id FROM sessions WHERE session_uid = ?)",

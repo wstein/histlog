@@ -27,8 +27,21 @@ Later records rely on the file boundary and sequence number.
 ----
 
 Derived query rows are materialized views, not canonical truth.
-Inside `histlog.db`, command text, paths, shells, sessions, imports, and command occurrences are stored in separate relational tables.
+Inside `histlog.db`, command text, paths, command argument path facts, shells, sessions, imports, and command occurrences are stored in separate relational tables.
 Use `history_view` as the preferred database read surface for command history.
+
+== Derived Command Paths
+
+[source,sql]
+----
+SELECT cp.command_id, cp.arg_position, cp.original_arg, cp.resolved_path, p.type
+FROM command_paths cp
+JOIN paths p ON cp.path_id = p.id;
+----
+
+Command path rows are derived analysis facts.
+They are rebuilt from command text and cwd during consolidation or import materialization.
+They are not canonical history.
 
 == Partial Execution
 

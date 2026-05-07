@@ -41,6 +41,7 @@ The v1 schema supports:
 - import batches with report/provenance metadata
 - command text interning in `cmd_texts`
 - command projection rows in `commands`
+- command argument path facts in `command_paths`
 - query views that join normalized tables back into user-facing rows
 - indexes for date, timestamp, command text, cwd, exit status, source, and import batches
 
@@ -52,6 +53,8 @@ The command projection should keep basic integrity constraints, including non-ne
 Missing or empty command text is invalid projection input; do not silently insert empty strings into `cmd_texts`.
 Stored command sources are `session` and `import`; live commands are derived from active session NDJSON at query time and are not written to SQLite.
 Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
+
+`command_paths` stores derived command argument path facts keyed to materialized command rows. These rows are not canonical history; they are rebuildable analysis products derived from command text and cwd during consolidation or import materialization.
 
 Use explicit schema versioning. During this early rewrite, incompatible projection schemas are dropped and rebuilt from canonical NDJSON rather than migrated in place. Consolidation reports this as `schema_reset: true`.
 

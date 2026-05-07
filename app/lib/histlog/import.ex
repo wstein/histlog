@@ -135,6 +135,17 @@ defmodule Histlog.Import do
 
   defp delete_import_batch(conn, import_batch_id) do
     with :ok <-
+           Database.exec(
+             conn,
+             """
+             DELETE FROM command_paths
+             WHERE command_id IN (
+               SELECT id FROM commands WHERE import_batch_id = ?
+             )
+             """,
+             [import_batch_id]
+           ),
+         :ok <-
            Database.exec(conn, "DELETE FROM commands WHERE import_batch_id = ?", [
              import_batch_id
            ]),

@@ -147,6 +147,7 @@ The database contains:
 * session summary rows
 * import batch provenance
 * normalized command projection rows
+* command argument path facts
 * `history_view` and `sessions_view` as preferred read surfaces
 
 The protocol is:
@@ -156,7 +157,7 @@ The protocol is:
 3. validate each session's NDJSON and sequence numbers
 4. quarantine malformed sessions and continue processing other sessions
 5. derive command observations
-6. insert normalized sessions, command text, paths, command rows, and checkpoints inside one SQLite transaction
+6. insert normalized sessions, command text, paths, command rows, command argument path facts, and checkpoints inside one SQLite transaction
 7. commit all database changes together
 
 If a run stops partway through, SQLite rolls back the incomplete transaction.

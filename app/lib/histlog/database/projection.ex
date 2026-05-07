@@ -4,6 +4,7 @@ defmodule Histlog.Database.Projection do
   """
 
   alias Histlog.Database
+  alias Histlog.PathAnalyzer
 
   @named_targets MapSet.new([
                    {"hosts", "name"},
@@ -114,79 +115,138 @@ defmodule Histlog.Database.Projection do
 
   def insert_session_command(conn, session_row_id, date_string, row) do
     with {:ok, cmd_text_id} <- upsert_command_text(conn, row["command"]),
-         {:ok, cwd_id} <- upsert_path(conn, row["cwd"]) do
-      Database.exec(
-        conn,
-        """
-        INSERT INTO commands (
-          session_id, exec_id, import_batch_id, import_row_index, date,
-          cmd_text_id, cwd_id, timestamp, duration_ms, exit_status,
-          completeness, source, is_private, is_assisted
-        )
-        VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, 'session', ?, ?)
-        ON CONFLICT(session_id, exec_id) DO UPDATE SET
-          date = excluded.date,
-          cmd_text_id = excluded.cmd_text_id,
-          cwd_id = excluded.cwd_id,
-          timestamp = excluded.timestamp,
-          duration_ms = excluded.duration_ms,
-          exit_status = excluded.exit_status,
-          completeness = excluded.completeness,
-          source = excluded.source,
-          is_private = excluded.is_private,
-          is_assisted = excluded.is_assisted
-        """,
-        [
-          session_row_id,
-          row["exec_id"],
-          date_string,
-          cmd_text_id,
-          cwd_id,
-          row["timestamp"],
-          row["duration_ms"],
-          row["exit_status"],
-          row["completeness"] || "unknown",
-          private?(row["command"]),
-          assisted?(row)
-        ]
-      )
+         {:ok, cwd_id} <- upsert_path(conn, row["cwd"]),
+         :ok <-
+           Database.exec(
+             conn,
+             """
+             INSERT INTO commands (
+               session_id, exec_id, import_batch_id, import_row_index, date,
+               cmd_text_id, cwd_id, timestamp, duration_ms, exit_status,
+               completeness, source, is_private, is_assisted
+             )
+             VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, 'session', ?, ?)
+             ON CONFLICT(session_id, exec_id) DO UPDATE SET
+               date = excluded.date,
+               cmd_text_id = excluded.cmd_text_id,
+               cwd_id = excluded.cwd_id,
+               timestamp = excluded.timestamp,
+               duration_ms = excluded.duration_ms,
+               exit_status = excluded.exit_status,
+               completeness = excluded.completeness,
+               source = excluded.source,
+               is_private = excluded.is_private,
+               is_assisted = excluded.is_assisted
+             """,
+             [
+               session_row_id,
+               row["exec_id"],
+               date_string,
+               cmd_text_id,
+               cwd_id,
+               row["timestamp"],
+               row["duration_ms"],
+               row["exit_status"],
+               row["completeness"] || "unknown",
+               private?(row["command"]),
+               assisted?(row)
+             ]
+           ),
+         {:ok, command_id} <-
+           Database.query_value(
+             conn,
+             "SELECT id AS value FROM commands WHERE session_id = ? AND exec_id = ?",
+             [session_row_id, row["exec_id"]]
+           ),
+         :ok <- replace_command_paths(conn, command_id, row["command"], row["cwd"]) do
+      :ok
     end
   end
 
   def insert_import_command(conn, date_string, event, report, index) do
     with {:ok, cmd_text_id} <- upsert_command_text(conn, event["command"]),
          {:ok, cwd_id} <- upsert_path(conn, event["cwd"]),
-         {:ok, shell_id} <- upsert_named(conn, "shells", "name", import_shell(report["source"])) do
+         {:ok, shell_id} <- upsert_named(conn, "shells", "name", import_shell(report["source"])),
+         :ok <-
+           Database.exec(
+             conn,
+             """
+             INSERT INTO commands (
+               session_id, exec_id, import_batch_id, import_row_index, date,
+               cmd_text_id, cwd_id, timestamp, duration_ms, exit_status,
+               completeness, source, is_private, is_assisted, import_shell_id
+             )
+             VALUES (NULL, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, 'partial', 'import', ?, 0, ?)
+             ON CONFLICT(import_batch_id, import_row_index) DO UPDATE SET
+               date = excluded.date,
+               cmd_text_id = excluded.cmd_text_id,
+               cwd_id = excluded.cwd_id,
+               timestamp = excluded.timestamp,
+               exit_status = excluded.exit_status,
+               completeness = excluded.completeness,
+               source = excluded.source,
+               is_private = excluded.is_private,
+               import_shell_id = excluded.import_shell_id
+             """,
+             [
+               report["import_batch_id"],
+               index,
+               date_string,
+               cmd_text_id,
+               cwd_id,
+               event["timestamp"],
+               event["exit_status"],
+               private?(event["command"]),
+               shell_id
+             ]
+           ),
+         {:ok, command_id} <-
+           Database.query_value(
+             conn,
+             "SELECT id AS value FROM commands WHERE import_batch_id = ? AND import_row_index = ?",
+             [report["import_batch_id"], index]
+           ),
+         :ok <- replace_command_paths(conn, command_id, event["command"], event["cwd"]) do
+      :ok
+    end
+  end
+
+  defp replace_command_paths(conn, command_id, command, cwd) do
+    with :ok <-
+           Database.exec(conn, "DELETE FROM command_paths WHERE command_id = ?", [command_id]) do
+      command
+      |> PathAnalyzer.command_paths(cwd)
+      |> Enum.reduce_while(:ok, fn path, :ok ->
+        case insert_command_path(conn, command_id, path) do
+          :ok -> {:cont, :ok}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+    end
+  end
+
+  defp insert_command_path(conn, command_id, path) do
+    with {:ok, path_id} <- upsert_path(conn, path["resolved_path"]) do
       Database.exec(
         conn,
         """
-        INSERT INTO commands (
-          session_id, exec_id, import_batch_id, import_row_index, date,
-          cmd_text_id, cwd_id, timestamp, duration_ms, exit_status,
-          completeness, source, is_private, is_assisted, import_shell_id
+        INSERT INTO command_paths (
+          command_id, path_id, arg_position, original_arg, resolved_path, path_exists, source
         )
-        VALUES (NULL, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, 'partial', 'import', ?, 0, ?)
-        ON CONFLICT(import_batch_id, import_row_index) DO UPDATE SET
-          date = excluded.date,
-          cmd_text_id = excluded.cmd_text_id,
-          cwd_id = excluded.cwd_id,
-          timestamp = excluded.timestamp,
-          exit_status = excluded.exit_status,
-          completeness = excluded.completeness,
-          source = excluded.source,
-          is_private = excluded.is_private,
-          import_shell_id = excluded.import_shell_id
+        VALUES (?, ?, ?, ?, ?, ?, 'argument')
+        ON CONFLICT(command_id, arg_position, original_arg) DO UPDATE SET
+          path_id = excluded.path_id,
+          resolved_path = excluded.resolved_path,
+          path_exists = excluded.path_exists,
+          source = excluded.source
         """,
         [
-          report["import_batch_id"],
-          index,
-          date_string,
-          cmd_text_id,
-          cwd_id,
-          event["timestamp"],
-          event["exit_status"],
-          private?(event["command"]),
-          shell_id
+          command_id,
+          path_id,
+          path["arg_position"],
+          path["original_arg"],
+          path["resolved_path"],
+          if(path["exists"], do: 1, else: 0)
         ]
       )
     end

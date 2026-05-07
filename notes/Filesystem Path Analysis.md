@@ -15,7 +15,9 @@ Shell commands often derive meaning from location. The same command can have ver
 
 ## How
 
-Path analysis should normalize and classify paths without assuming that every string is a filesystem reference. `histlog paths` summarizes observed working directories as execution counts and path-like command arguments as argument counts. Later implementation should distinguish observed paths, inferred paths, missing paths, and repository-relative paths so analysis remains explainable.
+Path analysis should normalize and classify paths without assuming that every string is a filesystem reference. `histlog paths` summarizes observed working directories as execution counts and materialized command argument paths as argument counts.
+
+Closed sessions and imports derive command argument path facts during SQLite materialization. Live session rows derive the same shape at query time until the session closes. Path analysis records the original argument, resolved path, argument position, existence flag, and coarse path type so later query behavior can explain whether a path was observed directly, inferred from a relative argument, or missing at materialization time.
 
 ## Links
 

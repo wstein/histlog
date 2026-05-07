@@ -495,6 +495,23 @@ defmodule Histlog.CLITest do
       end)
 
     assert filtered_output == relative_file <> "\n"
+
+    query_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--path",
+                   relative_dir,
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert query_output == "ls .. lib\n"
   end
 
   test "sessions command lists recorded shell sessions with details", %{root: root, date: date} do

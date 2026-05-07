@@ -22,7 +22,7 @@ defmodule Histlog.DatabaseSchemaTest do
              Database.with_connection(root, fn conn ->
                :ok = Schema.ensure(conn)
 
-               assert {:ok, "5"} = Schema.schema_version(conn)
+               assert {:ok, "6"} = Schema.schema_version(conn)
 
                assert {:ok, tables} =
                         Database.query_maps(
@@ -38,7 +38,7 @@ defmodule Histlog.DatabaseSchemaTest do
                table_names = Enum.map(tables, & &1.name)
 
                for table <-
-                     ~w(cmd_texts commands hosts imports paths processed_sessions schema_metadata sessions shells ttys) do
+                     ~w(cmd_texts command_paths commands hosts imports paths processed_sessions schema_metadata sessions shells ttys) do
                  assert table in table_names
                end
 
@@ -84,6 +84,8 @@ defmodule Histlog.DatabaseSchemaTest do
                assert "idx_commands_date_timestamp" in index_names
                assert "idx_commands_source_date" in index_names
                assert "idx_commands_import_source" in index_names
+               assert "idx_command_paths_command_id" in index_names
+               assert "idx_command_paths_path_id" in index_names
                assert "idx_sessions_date_started_at" in index_names
 
                assert {:ok, cmd_text_id} = Projection.upsert_command_text(conn, "bad row")
@@ -140,7 +142,7 @@ defmodule Histlog.DatabaseSchemaTest do
                  )
 
                assert {:ok, %{"schema_reset" => true}} = Schema.ensure_with_report(conn)
-               assert {:ok, "5"} = Schema.schema_version(conn)
+               assert {:ok, "6"} = Schema.schema_version(conn)
 
                :ok
              end)
@@ -213,7 +215,7 @@ defmodule Histlog.DatabaseSchemaTest do
                assert :ok =
                         Projection.insert_session_command(conn, session_id, "2026-05-06", %{
                           "exec_id" => 1,
-                          "command" => "pwd",
+                          "command" => "cat ./mix.exs missing",
                           "cwd" => "/repo",
                           "timestamp" => "2026-05-06T20:00:01Z",
                           "duration_ms" => 10,
@@ -224,7 +226,7 @@ defmodule Histlog.DatabaseSchemaTest do
                assert :ok =
                         Projection.insert_session_command(conn, session_id, "2026-05-06", %{
                           "exec_id" => 1,
-                          "command" => "whoami",
+                          "command" => "cat ./mix.exs #{Path.join(root, "other.txt")}",
                           "cwd" => "/repo",
                           "timestamp" => "2026-05-06T20:00:02Z",
                           "duration_ms" => 12,
@@ -238,10 +240,18 @@ defmodule Histlog.DatabaseSchemaTest do
                           "SELECT COUNT(*) AS value FROM commands WHERE source = 'session'"
                         )
 
-               assert {:ok, [%{command: "whoami", exit_status: 1}]} =
+               assert {:ok, [%{command: command, exit_status: 1}]} =
                         Database.query_maps(
                           conn,
                           "SELECT command, exit_status FROM history_view WHERE source = 'session'"
+                        )
+
+               assert command =~ "cat ./mix.exs"
+
+               assert {:ok, 2} =
+                        Database.query_value(
+                          conn,
+                          "SELECT COUNT(*) AS value FROM command_paths"
                         )
 
                assert :ok =

@@ -16,7 +16,7 @@ Materialization commits inside a SQLite transaction:
 
 * validate closed session NDJSON
 * quarantine malformed session files
-* insert normalized sessions, command text, paths, command rows, and processed-session checkpoints
+* insert normalized sessions, command text, paths, command rows, command argument path facts, and processed-session checkpoints
 * commit all database changes together
 
 If a run stops partway through, SQLite rolls back the incomplete transaction.

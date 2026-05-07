@@ -82,7 +82,7 @@ defmodule Histlog.Query.Filter do
   end
 
   defp match_private?(row, opts) do
-    private? = String.starts_with?(row["command"] || "", " ")
+    private? = row["is_private"] in [1, true] || String.starts_with?(row["command"] || "", " ")
 
     cond do
       Keyword.get(opts, :private, false) -> private?
@@ -102,7 +102,7 @@ defmodule Histlog.Query.Filter do
   end
 
   defp match_assisted?(row, opts) do
-    assisted? = row["assisted"] == true
+    assisted? = row["is_assisted"] in [1, true] || row["assisted"] == true
 
     cond do
       Keyword.get(opts, :assisted, false) -> assisted?
@@ -119,11 +119,13 @@ defmodule Histlog.Query.Filter do
 
   defp match_paths?(row, opts) do
     command = row["command"] || ""
-    has_path? = Regex.match?(~r/(^|\s)(\.{1,2}(\/|\s|$)|\/|~)/, command)
+    paths = row["paths"] || []
+    has_path? = paths != [] || Regex.match?(~r/(^|\s)(\.{1,2}(\/|\s|$)|\/|~)/, command)
 
     cond do
       path = Keyword.get(opts, :path) ->
-        String.contains?(command, path) || String.contains?(row["cwd"] || "", path)
+        path_matches?(paths, path) ||
+          String.contains?(command, path) || String.contains?(row["cwd"] || "", path)
 
       Keyword.get(opts, :has_paths, false) ->
         has_path?
@@ -131,6 +133,17 @@ defmodule Histlog.Query.Filter do
       true ->
         true
     end
+  end
+
+  defp path_matches?(paths, path) do
+    Enum.any?(paths, fn path_row ->
+      Enum.any?(["path", "resolved_path", "original_arg"], fn key ->
+        path_row
+        |> Map.get(key)
+        |> to_string()
+        |> String.contains?(path)
+      end)
+    end)
   end
 
   defp fuzzy_match?(text, pattern) do

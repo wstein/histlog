@@ -8,8 +8,8 @@ defmodule Histlog.Database.Schema do
 
   alias Histlog.Database
 
-  @version 5
-  @tables ~w(schema_metadata processed_sessions hosts shells ttys paths sessions imports cmd_texts commands)
+  @version 6
+  @tables ~w(schema_metadata processed_sessions hosts shells ttys paths sessions imports cmd_texts commands command_paths)
 
   def version, do: @version
 
@@ -76,6 +76,7 @@ defmodule Histlog.Database.Schema do
            Database.execute(conn, """
            DROP VIEW IF EXISTS history_view;
            DROP VIEW IF EXISTS sessions_view;
+           DROP TABLE IF EXISTS command_paths;
            DROP TABLE IF EXISTS commands;
            DROP TABLE IF EXISTS cmd_texts;
            DROP TABLE IF EXISTS imports;
@@ -220,6 +221,21 @@ defmodule Histlog.Database.Schema do
       )
     );
 
+    CREATE TABLE IF NOT EXISTS command_paths (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      command_id INTEGER NOT NULL,
+      path_id INTEGER NOT NULL,
+      arg_position INTEGER NOT NULL CHECK (arg_position >= 0),
+      original_arg TEXT NOT NULL,
+      resolved_path TEXT NOT NULL,
+      path_exists INTEGER NOT NULL DEFAULT 0 CHECK (path_exists IN (0, 1)),
+      source TEXT NOT NULL DEFAULT 'argument' CHECK (source IN ('argument')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (command_id) REFERENCES commands(id) ON DELETE CASCADE,
+      FOREIGN KEY (path_id) REFERENCES paths(id),
+      UNIQUE(command_id, arg_position, original_arg)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_processed_sessions_date
       ON processed_sessions(date);
     CREATE INDEX IF NOT EXISTS idx_hosts_name
@@ -262,6 +278,10 @@ defmodule Histlog.Database.Schema do
       ON commands(date, timestamp);
     CREATE INDEX IF NOT EXISTS idx_commands_import_source
       ON commands(source, import_batch_id);
+    CREATE INDEX IF NOT EXISTS idx_command_paths_command_id
+      ON command_paths(command_id);
+    CREATE INDEX IF NOT EXISTS idx_command_paths_path_id
+      ON command_paths(path_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_date_started_at
       ON sessions(date, started_at);
 

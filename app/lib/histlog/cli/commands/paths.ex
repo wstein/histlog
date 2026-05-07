@@ -42,7 +42,7 @@ defmodule Histlog.CLI.Commands.Paths do
 
   defp path_rows(rows) do
     exec_counts = Enum.frequencies(Enum.flat_map(rows, &cwd_path/1))
-    arg_counts = Enum.frequencies(Enum.flat_map(rows, &argument_paths/1))
+    arg_counts = Enum.frequencies(Enum.flat_map(rows, &materialized_argument_paths/1))
 
     [Map.keys(exec_counts), Map.keys(arg_counts)]
     |> List.flatten()
@@ -67,6 +67,17 @@ defmodule Histlog.CLI.Commands.Paths do
   end
 
   defp argument_paths(_row), do: []
+
+  defp materialized_argument_paths(%{"paths" => paths}) when is_list(paths) and paths != [] do
+    Enum.flat_map(paths, fn path ->
+      case path["path"] || path["resolved_path"] do
+        value when is_binary(value) and value != "" -> [value]
+        _other -> []
+      end
+    end)
+  end
+
+  defp materialized_argument_paths(row), do: argument_paths(row)
 
   defp command_tokens(command) do
     ~r/(?:'[^']*'|"[^"]*"|\S+)/

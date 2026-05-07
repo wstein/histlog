@@ -2,7 +2,8 @@
 :page-layout: default
 
 `paths` summarizes filesystem locations observed as working directories and path-like command arguments.
-Argument paths are recognized by expanding command arguments that point to valid local filesystem paths.
+For closed sessions and imports, argument paths come from materialized `command_paths` facts in `histlog.db`.
+For live sessions, histlog derives the same shape from active session NDJSON until the session is consolidated.
 
 [source,sh]
 ----
