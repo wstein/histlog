@@ -205,6 +205,7 @@ defmodule Histlog.CLITest do
 
     assert help_output =~ "Usage: histlog <command> [options]"
     assert help_output =~ "query       - Flexible query"
+    assert help_output =~ "commands    - Summarize command usage"
     assert help_output =~ "info        - Show runtime paths and environment"
     assert help_output =~ "histlog help <command>"
     refute help_output =~ "hook"
@@ -224,6 +225,14 @@ defmodule Histlog.CLITest do
     assert query_help_output =~ "Usage: histlog query [search] [options]"
     assert query_help_output =~ "--duration DURATION"
     refute query_help_output =~ "histlog commands:"
+
+    commands_help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["help", "commands"])
+      end)
+
+    assert commands_help_output =~ "Usage: histlog commands [search] [options]"
+    assert commands_help_output =~ "--sort-by FIELD"
 
     sessions_help_output =
       capture_io(fn ->
@@ -512,6 +521,112 @@ defmodule Histlog.CLITest do
       end)
 
     assert query_output == "ls .. lib\n"
+  end
+
+  test "commands command summarizes command usage", %{root: root, date: date} do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix test", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "git status", "/repo", %{
+        "timestamp" => "2026-05-06T20:01:00Z",
+        "duration_ms" => 20,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix test", "/repo/app", %{
+        "timestamp" => "2026-05-06T20:02:00Z",
+        "duration_ms" => 30,
+        "exit_status" => 1,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:02:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "commands",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
+      end)
+
+    rows = JSON.decode!(output)
+
+    assert Enum.any?(
+             rows,
+             &match?(
+               %{"command" => "mix test", "count" => 2, "successes" => 1, "failures" => 1},
+               &1
+             )
+           )
+
+    plain_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "commands",
+                   "mix",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert plain_output == "mix test\n"
+
+    table_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "commands",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--sort-by",
+                   "count",
+                   "--limit",
+                   "1"
+                 ])
+      end)
+
+    assert strip_ansi(table_output) =~ "Count Last Used"
+    assert strip_ansi(table_output) =~ "mix test"
+    refute strip_ansi(table_output) =~ "git status"
+
+    assert {:error, error} = CLI.run(["commands", "[", "--regex"])
+    assert error =~ "invalid regex"
   end
 
   test "sessions command lists recorded shell sessions with details", %{root: root, date: date} do
@@ -869,6 +984,24 @@ defmodule Histlog.CLITest do
     assert query_output =~ "cat ./closed.txt\n"
     assert query_output =~ "cat ./live.txt\n"
     assert query_output =~ "cat #{import_file}\n"
+
+    commands_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "commands",
+                   "cat",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert commands_output =~ "cat ./closed.txt\n"
+    assert commands_output =~ "cat ./live.txt\n"
+    assert commands_output =~ "cat #{import_file}\n"
 
     paths_output =
       capture_io(fn ->

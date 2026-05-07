@@ -25,6 +25,8 @@ Public filters must fail loudly when the user supplies malformed syntax. Invalid
 
 `histlog query` exposes human-facing formats and filters. NDJSON is a storage and subsystem boundary, not a public query output format; use `--json`, `--yaml`, `--plain`, or shell-specific `--format` values for CLI output. Use `histlog export --format ndjson` when a pipeline needs line-oriented JSON rows.
 
+`histlog commands` is a public query-family command for command discovery. It accepts a positional search term and command-specific switches such as `--regex`, `--fuzzy`, `--session`, `--dir`, `--sort-by`, `--context`, `--plain`, and `--json`.
+
 All query-family commands must apply parsing, filtering, sorting, and rendering after merging consolidated SQLite rows with live session NDJSON rows. Command-specific option parsing should not accidentally limit results to only one source.
 
 ## Links
@@ -35,3 +37,4 @@ All query-family commands must apply parsing, filtering, sorting, and rendering 
 - [[Checkpointing]] - Uses CLI commands for consolidation and doctor diagnostics.
 - [[Functional Blueprint Intake Gate]] - Limits histlog2 behavior intake to file-backed v1 operations.
 - [[Query Source Union]] - Defines the shared query source contract.
+- [[Command Discovery]] - Defines command usage summaries over query rows.

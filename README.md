@@ -97,6 +97,7 @@ histlog query --limit 20
 ## Explore Your Work
 
 ```sh
+histlog commands
 histlog sessions
 histlog paths
 histlog info

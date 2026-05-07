@@ -1,0 +1,36 @@
+= Command Discovery
+:page-layout: default
+
+`commands` summarizes command text across consolidated SQLite rows and currently live sessions.
+It is useful when you want to see what you actually run most often, find an old command by partial text, or generate a clean command list.
+
+[source,sh]
+----
+histlog commands
+histlog commands mix
+histlog commands --sort-by count --limit 20
+histlog commands --context
+histlog commands --plain
+histlog commands --json
+----
+
+Search behavior:
+
+* positional text performs case-insensitive substring matching
+* `--regex` treats the positional text as a regular expression
+* `--fuzzy` performs ordered character matching
+
+Scope options:
+
+* `--date YYYY-MM-DD` limits the summary to one day
+* `--session ID` limits the summary to one session
+* `--dir PATH` limits the summary to one working directory
+
+Sorting options:
+
+* `--sort-by recent` shows recently used commands first
+* `--sort-by count` shows most frequent commands first
+* `--sort-by alpha` sorts by command text
+* `--sort-by context` favors commands spread across sessions and directories
+
+`commands` is a query-family command. It reads the `histlog.db` projection plus currently live session files; imported history appears after `histlog import` materializes it into the database.

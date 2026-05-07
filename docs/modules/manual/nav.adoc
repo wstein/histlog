@@ -2,6 +2,7 @@
 ** xref:manual:install.adoc[Install And Build]
 ** xref:manual:shell-integration.adoc[Shell Integration]
 ** xref:manual:query.adoc[Query History]
+** xref:manual:commands.adoc[Command Discovery]
 ** xref:manual:paths-and-sessions.adoc[Paths And Sessions]
 ** xref:manual:consolidate-and-doctor.adoc[Consolidate, Info, Doctor]
 ** xref:manual:import.adoc[Import History]

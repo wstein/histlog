@@ -19,6 +19,7 @@ defmodule Histlog.CLI do
 
   def run(["consolidate" | argv]), do: Commands.Consolidate.run(argv)
   def run(["query" | argv]), do: Commands.Query.run(argv)
+  def run(["commands" | argv]), do: Commands.Commands.run(argv)
   def run(["paths" | argv]), do: Commands.Paths.run(argv)
   def run(["sessions" | argv]), do: Commands.Sessions.run(argv)
   def run(["export" | argv]), do: Commands.Export.run(argv)

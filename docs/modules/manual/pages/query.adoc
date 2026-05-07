@@ -28,3 +28,5 @@ histlog export --format ndjson --date 2026-05-06
 ----
 
 Malformed query filters, such as invalid regular expressions or duration expressions, return an error instead of an empty result set.
+
+Use xref:commands.adoc[`histlog commands`] when you want command usage summaries instead of individual execution rows.

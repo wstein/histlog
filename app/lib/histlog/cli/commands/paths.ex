@@ -3,6 +3,7 @@ defmodule Histlog.CLI.Commands.Paths do
 
   alias Histlog.CLI.Options
   alias Histlog.Query
+  alias Histlog.Query.Paths
 
   @switches Options.common_switches() ++
               [
@@ -29,7 +30,7 @@ defmodule Histlog.CLI.Commands.Paths do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])) do
       rows
-      |> path_rows()
+      |> Paths.rows()
       |> filter_rows(search)
       |> Enum.sort_by(fn row -> row.path end)
       |> limit_rows(Keyword.get(opts, :limit))
@@ -39,65 +40,6 @@ defmodule Histlog.CLI.Commands.Paths do
 
   defp filter_rows(rows, ""), do: rows
   defp filter_rows(rows, search), do: Enum.filter(rows, &String.contains?(&1.path, search))
-
-  defp path_rows(rows) do
-    exec_counts = Enum.frequencies(Enum.flat_map(rows, &cwd_path/1))
-    arg_counts = Enum.frequencies(Enum.flat_map(rows, &materialized_argument_paths/1))
-
-    [Map.keys(exec_counts), Map.keys(arg_counts)]
-    |> List.flatten()
-    |> Enum.uniq()
-    |> Enum.map(fn path ->
-      %{
-        exec: Map.get(exec_counts, path, 0),
-        args: Map.get(arg_counts, path, 0),
-        path: path
-      }
-    end)
-  end
-
-  defp cwd_path(%{"cwd" => cwd}) when is_binary(cwd) and cwd != "", do: [normalize_path(cwd, cwd)]
-  defp cwd_path(_row), do: []
-
-  defp argument_paths(%{"command" => command, "cwd" => cwd}) when is_binary(command) do
-    command
-    |> command_tokens()
-    |> Enum.drop(1)
-    |> Enum.flat_map(&existing_path(&1, cwd))
-  end
-
-  defp argument_paths(_row), do: []
-
-  defp materialized_argument_paths(%{"paths" => paths}) when is_list(paths) and paths != [] do
-    Enum.flat_map(paths, fn path ->
-      case path["path"] || path["resolved_path"] do
-        value when is_binary(value) and value != "" -> [value]
-        _other -> []
-      end
-    end)
-  end
-
-  defp materialized_argument_paths(row), do: argument_paths(row)
-
-  defp command_tokens(command) do
-    ~r/(?:'[^']*'|"[^"]*"|\S+)/
-    |> Regex.scan(command)
-    |> Enum.map(fn [token] -> token |> String.trim("'\"") |> String.trim() end)
-    |> Enum.reject(&(&1 == ""))
-  end
-
-  defp existing_path(token, cwd) do
-    path = normalize_path(token, cwd)
-
-    if path_argument?(token) && File.exists?(path), do: [path], else: []
-  end
-
-  defp path_argument?(token),
-    do: !String.starts_with?(token, "-") && !String.contains?(token, "://")
-
-  defp normalize_path("~" <> rest, _cwd), do: Path.expand("~" <> rest)
-  defp normalize_path(path, cwd) when is_binary(cwd) and cwd != "", do: Path.expand(path, cwd)
-  defp normalize_path(path, _cwd), do: Path.expand(path)
 
   defp limit_rows(rows, nil), do: rows
   defp limit_rows(rows, limit), do: Enum.take(rows, limit)
