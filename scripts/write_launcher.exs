@@ -8,7 +8,7 @@ script = """
 set -eu
 
 APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ -d "$APP_DIR/lib" ]; then
+if [ -d "$APP_DIR/lib/histlog/ebin" ]; then
   HISTLOG_LIB_DIR="$APP_DIR/lib"
 else
   HISTLOG_LIB_DIR="$APP_DIR/_build/dev/lib"
