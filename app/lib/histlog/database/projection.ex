@@ -5,18 +5,35 @@ defmodule Histlog.Database.Projection do
 
   alias Histlog.Database
 
-  def upsert_named(_conn, _table, _column, nil), do: {:ok, nil}
-  def upsert_named(_conn, _table, _column, ""), do: {:ok, nil}
+  @named_targets MapSet.new([
+                   {"hosts", "name"},
+                   {"shells", "name"},
+                   {"ttys", "device"},
+                   {"cmd_texts", "command"}
+                 ])
 
   def upsert_named(conn, table, column, value) do
-    with :ok <-
-           Database.exec(conn, "INSERT OR IGNORE INTO #{table} (#{column}) VALUES (?)", [value]) do
-      Database.query_value(conn, "SELECT id AS value FROM #{table} WHERE #{column} = ?", [value])
+    cond do
+      value in [nil, ""] ->
+        {:ok, nil}
+
+      not MapSet.member?(@named_targets, {table, column}) ->
+        {:error, {:invalid_projection_target, table, column}}
+
+      true ->
+        with :ok <-
+               Database.exec(conn, "INSERT OR IGNORE INTO #{table} (#{column}) VALUES (?)", [
+                 value
+               ]) do
+          Database.query_value(conn, "SELECT id AS value FROM #{table} WHERE #{column} = ?", [
+            value
+          ])
+        end
     end
   end
 
   def upsert_command_text(conn, command),
-    do: upsert_named(conn, "cmd_texts", "command", command || "")
+    do: upsert_named(conn, "cmd_texts", "command", command)
 
   def upsert_path(_conn, nil), do: {:ok, nil}
   def upsert_path(_conn, ""), do: {:ok, nil}

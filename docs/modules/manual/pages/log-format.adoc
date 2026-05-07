@@ -28,6 +28,7 @@ Later records rely on the file boundary and sequence number.
 
 Derived query rows are materialized views, not canonical truth.
 Inside `histlog.db`, command text, paths, shells, sessions, imports, and command occurrences are stored in separate relational tables.
+Use `history_view` as the preferred database read surface for command history.
 
 == Partial Execution
 
@@ -49,6 +50,7 @@ WHERE date = '2026-05-06';
 
 `histlog.db` stores a normalized command projection plus processed-session checkpoints.
 Closed session NDJSON remains the canonical source; the database is rebuilt from those files when needed.
+Use `sessions_view` as the preferred database read surface for session summaries.
 
 == Redacted Command
 

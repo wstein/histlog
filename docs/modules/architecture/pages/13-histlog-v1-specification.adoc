@@ -147,6 +147,7 @@ The database contains:
 * session summary rows
 * import batch provenance
 * normalized command projection rows
+* `history_view` and `sessions_view` as preferred read surfaces
 
 The protocol is:
 
@@ -160,6 +161,7 @@ The protocol is:
 
 If a run stops partway through, SQLite rolls back the incomplete transaction.
 The next run can retry safely and skip rows already checkpointed.
+If the local projection schema is incompatible during the early rewrite, it may be dropped and rebuilt from canonical NDJSON instead of migrated in place.
 
 Consolidation is idempotent.
 It must never mutate the canonical meaning of source events.
@@ -172,6 +174,7 @@ Each session file must have strictly increasing sequence numbers beginning at `1
 Malformed sessions are quarantined at the session-file level so one corrupt file cannot block the whole day.
 Query-oriented commands read `histlog.db` and live session NDJSON.
 Import streams are materialized into `histlog.db` during import and are not a permanent query source.
+SQLite stores only `session` and `import` command sources; live rows are query-time projections from active session NDJSON.
 Malformed live rows are skipped with an operator-visible warning so valid history remains accessible even when a file was edited or partially synced.
 Malformed import rows are reported during import before those records enter the database projection.
 

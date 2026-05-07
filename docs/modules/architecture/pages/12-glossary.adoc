@@ -21,5 +21,11 @@ A SQLite row that records which closed session file has been materialized, with 
 histlog.db::
 The local SQLite database that stores derived query rows. It is rebuilt from canonical closed session files when needed.
 
+history_view::
+The preferred SQLite read surface for command history. It joins normalized projection tables into user-facing query rows.
+
+sessions_view::
+The preferred SQLite read surface for session summaries.
+
 Quarantine::
 The storage area for malformed session files that should not block other sessions.

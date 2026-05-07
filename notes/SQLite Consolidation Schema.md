@@ -44,12 +44,15 @@ The v1 schema supports:
 - query views that join normalized tables back into user-facing rows
 - indexes for date, timestamp, command text, cwd, exit status, source, and import batches
 
+Base tables are internal projection storage. Query code should prefer `history_view` for command history and `sessions_view` for session summaries unless a targeted maintenance task needs base-table access.
+
 Processed-session skip logic must compare date, session file, source checksum, and schema version. A closed session file with the same name but different content must be reprocessed.
 
 The command projection should keep basic integrity constraints, including non-negative durations and an allowed `completeness` enum.
+Stored command sources are `session` and `import`; live commands are derived from active session NDJSON at query time and are not written to SQLite.
 Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
 
-Use explicit schema versioning so `histlog consolidate --rebuild` can recreate the database when the schema changes.
+Use explicit schema versioning. During this early rewrite, incompatible projection schemas are dropped and rebuilt from canonical NDJSON rather than migrated in place.
 
 ## Links
 

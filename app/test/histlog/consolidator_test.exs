@@ -158,12 +158,29 @@ defmodule Histlog.ConsolidatorTest do
         Database.exec(
           conn,
           """
-          INSERT INTO commands (
-            date, cmd_text_id, timestamp, duration_ms, exit_status, completeness, source
-          )
-          VALUES (?, ?, '2026-05-06T20:00:00Z', 1, 0, 'complete', 'session')
+          INSERT INTO sessions (session_uid, session_file, date)
+          VALUES ('fake-session', 'fake-session.ndjson', ?)
+          ON CONFLICT(session_uid) DO UPDATE SET date = excluded.date
           """,
-          [Date.to_iso8601(date), cmd_text_id]
+          [Date.to_iso8601(date)]
+        )
+
+      {:ok, session_id} =
+        Database.query_value(conn, "SELECT id AS value FROM sessions WHERE session_uid = ?", [
+          "fake-session"
+        ])
+
+      :ok =
+        Database.exec(
+          conn,
+          """
+          INSERT INTO commands (
+            session_id, exec_id, date, cmd_text_id, timestamp, duration_ms, exit_status,
+            completeness, source
+          )
+          VALUES (?, 99, ?, ?, '2026-05-06T20:00:00Z', 1, 0, 'complete', 'session')
+          """,
+          [session_id, Date.to_iso8601(date), cmd_text_id]
         )
     end)
   end

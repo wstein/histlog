@@ -8,7 +8,7 @@ defmodule Histlog.Database.Schema do
 
   alias Histlog.Database
 
-  @version 4
+  @version 5
   @tables ~w(schema_metadata processed_sessions hosts shells ttys paths sessions imports cmd_texts commands)
 
   def version, do: @version
@@ -180,7 +180,7 @@ defmodule Histlog.Database.Schema do
       duration_ms INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0),
       exit_status INTEGER,
       completeness TEXT CHECK (completeness IN ('complete', 'partial', 'unknown')),
-      source TEXT NOT NULL CHECK (source IN ('session', 'import', 'live')),
+      source TEXT NOT NULL CHECK (source IN ('session', 'import')),
       is_private INTEGER NOT NULL DEFAULT 0 CHECK (is_private IN (0, 1)),
       is_assisted INTEGER NOT NULL DEFAULT 0 CHECK (is_assisted IN (0, 1)),
       import_shell_id INTEGER,
@@ -191,7 +191,24 @@ defmodule Histlog.Database.Schema do
       FOREIGN KEY (cwd_id) REFERENCES paths(id),
       FOREIGN KEY (import_shell_id) REFERENCES shells(id),
       UNIQUE(session_id, exec_id),
-      UNIQUE(import_batch_id, import_row_index)
+      UNIQUE(import_batch_id, import_row_index),
+      CHECK (
+        (
+          source = 'session'
+          AND session_id IS NOT NULL
+          AND exec_id IS NOT NULL
+          AND import_batch_id IS NULL
+          AND import_row_index IS NULL
+        )
+        OR
+        (
+          source = 'import'
+          AND session_id IS NULL
+          AND exec_id IS NULL
+          AND import_batch_id IS NOT NULL
+          AND import_row_index IS NOT NULL
+        )
+      )
     );
 
     CREATE INDEX IF NOT EXISTS idx_processed_sessions_date
@@ -230,6 +247,14 @@ defmodule Histlog.Database.Schema do
       ON commands(import_batch_id);
     CREATE INDEX IF NOT EXISTS idx_commands_source
       ON commands(source);
+    CREATE INDEX IF NOT EXISTS idx_commands_source_date
+      ON commands(source, date);
+    CREATE INDEX IF NOT EXISTS idx_commands_date_timestamp
+      ON commands(date, timestamp);
+    CREATE INDEX IF NOT EXISTS idx_commands_import_source
+      ON commands(source, import_batch_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_date_started_at
+      ON sessions(date, started_at);
 
     CREATE VIEW IF NOT EXISTS history_view AS
       SELECT
