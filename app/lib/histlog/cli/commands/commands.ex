@@ -119,9 +119,9 @@ defmodule Histlog.CLI.Commands.Commands do
           " " <>
           color(format_timestamp(row.last_seen), "38;5;14") <>
           " " <>
-          color(row.successes |> Integer.to_string() |> String.pad_leading(4), "38;5;84") <>
+          color_count(row.successes, "38;5;84") <>
           " " <>
-          color(row.failures |> Integer.to_string() |> String.pad_leading(4), "38;5;203") <>
+          color_count(row.failures, "38;5;203") <>
           " " <>
           row.command <>
           "\n"
@@ -150,6 +150,11 @@ defmodule Histlog.CLI.Commands.Commands do
   end
 
   defp pad(value, count), do: value |> Integer.to_string() |> String.pad_leading(count, "0")
+
+  defp color_count(0, _code), do: color("   0", "38;5;8")
+
+  defp color_count(value, code),
+    do: color(value |> Integer.to_string() |> String.pad_leading(4), code)
 
   defp color(text, code), do: "\e[#{code}m#{text}\e[0m"
 

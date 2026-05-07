@@ -718,6 +718,23 @@ defmodule Histlog.CLITest do
     assert strip_ansi(table_output) =~ "mix test"
     refute strip_ansi(table_output) =~ "git status"
 
+    zero_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "commands",
+                   "git status",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date)
+                 ])
+      end)
+
+    assert zero_output =~ "\e[38;5;84m   1\e[0m"
+    assert zero_output =~ "\e[38;5;8m   0\e[0m"
+    refute zero_output =~ "\e[38;5;203m   0\e[0m"
+
     assert {:error, error} = CLI.run(["commands", "[", "--regex"])
     assert error =~ "invalid regex"
   end
