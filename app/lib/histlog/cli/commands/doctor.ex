@@ -22,7 +22,7 @@ defmodule Histlog.CLI.Commands.Doctor do
              {:ok, shell} <- resolve_shell(shell) do
           shell
           |> Histlog.Shell.Init.doctor()
-          |> write(Keyword.get(opts, :plain, false))
+          |> write(output_format(opts))
         end
       end
     else
@@ -39,7 +39,11 @@ defmodule Histlog.CLI.Commands.Doctor do
     end
   end
 
-  defp write(report, false) do
+  defp output_format(opts) do
+    if Keyword.get(opts, :json, false), do: :json, else: :plain
+  end
+
+  defp write(report, :json) do
     report
     |> JSON.encode!()
     |> IO.puts()
@@ -47,7 +51,7 @@ defmodule Histlog.CLI.Commands.Doctor do
     :ok
   end
 
-  defp write(report, true) do
+  defp write(report, :plain) do
     IO.puts("shell: #{report["shell"]}")
 
     Enum.each(report["checks"], fn check ->
@@ -64,7 +68,8 @@ defmodule Histlog.CLI.Commands.Doctor do
     """
     Usage: histlog doctor [zsh|bash|fish] [--json|--plain]
 
-    Diagnose shell integration state. JSON is the default output.
+    Diagnose shell integration state. Plain text is the default output.
+    Use --json for machine-readable diagnostics.
     """
   end
 end

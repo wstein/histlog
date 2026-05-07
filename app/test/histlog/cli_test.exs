@@ -1086,17 +1086,17 @@ defmodule Histlog.CLITest do
     assert output =~ "alias hl='histlog'"
   end
 
-  test "doctor emits JSON diagnostics" do
+  test "doctor emits plain diagnostics by default" do
     output =
       capture_io(fn ->
         assert :ok = CLI.run(["doctor", "zsh"])
       end)
 
-    assert %{"shell" => "zsh", "checks" => checks} = JSON.decode!(output)
-    assert Enum.any?(checks, &(&1["check"] == "shell" and &1["status"] == "ok"))
+    assert output =~ "shell: zsh"
+    assert output =~ "shell: ok"
   end
 
-  test "doctor supports plain and explicit json output modes" do
+  test "doctor supports explicit plain and json output modes" do
     plain =
       capture_io(fn ->
         assert :ok = CLI.run(["doctor", "zsh", "--plain"])
@@ -1110,7 +1110,8 @@ defmodule Histlog.CLITest do
         assert :ok = CLI.run(["doctor", "zsh", "--json"])
       end)
 
-    assert %{"shell" => "zsh"} = JSON.decode!(json)
+    assert %{"shell" => "zsh", "checks" => checks} = JSON.decode!(json)
+    assert Enum.any?(checks, &(&1["check"] == "shell" and &1["status"] == "ok"))
 
     assert {:error, "choose only one doctor output format"} =
              CLI.run(["doctor", "zsh", "--json", "--plain"])
