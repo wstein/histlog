@@ -1106,32 +1106,60 @@ defmodule Histlog.CLITest do
     assert output =~ "alias hl='histlog'"
   end
 
-  test "doctor emits plain diagnostics by default" do
+  test "doctor emits plain diagnostics by default", %{root: root, date: date} do
+    File.mkdir_p!(root)
+    Database.with_connection(root, fn conn -> Schema.ensure(conn) end)
+
     output =
       capture_io(fn ->
-        assert :ok = CLI.run(["doctor", "zsh"])
+        assert :ok =
+                 CLI.run(["doctor", "zsh", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
     assert output =~ "shell: zsh"
     assert output =~ "shell: ok"
+    assert output =~ "database: ok"
+    assert output =~ "schema: ok"
+    assert output =~ "materialization_counts: ok"
   end
 
-  test "doctor supports explicit plain and json output modes" do
+  test "doctor supports explicit plain and json output modes", %{root: root, date: date} do
     plain =
       capture_io(fn ->
-        assert :ok = CLI.run(["doctor", "zsh", "--plain"])
+        assert :ok =
+                 CLI.run([
+                   "doctor",
+                   "zsh",
+                   "--plain",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date)
+                 ])
       end)
 
     assert plain =~ "shell: zsh"
     assert plain =~ "shell: ok"
+    assert plain =~ "database: missing"
 
     json =
       capture_io(fn ->
-        assert :ok = CLI.run(["doctor", "zsh", "--json"])
+        assert :ok =
+                 CLI.run([
+                   "doctor",
+                   "zsh",
+                   "--json",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date)
+                 ])
       end)
 
-    assert %{"shell" => "zsh", "checks" => checks} = JSON.decode!(json)
+    assert %{"shell" => "zsh", "checks" => checks, "database" => database} = JSON.decode!(json)
     assert Enum.any?(checks, &(&1["check"] == "shell" and &1["status"] == "ok"))
+    assert Enum.any?(checks, &(&1["check"] == "database" and &1["status"] == "missing"))
+    assert database["ok"] == false
 
     assert {:error, "choose only one doctor output format"} =
              CLI.run(["doctor", "zsh", "--json", "--plain"])
