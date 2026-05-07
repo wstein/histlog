@@ -4,6 +4,8 @@
 Use this checklist before tagging a public alpha.
 
 * `make ci` passes locally.
+* GitHub Actions passes on Ubuntu and macOS.
+* The CI build uploads the `histlog` escript artifact.
 * `make coverage` runs and the coverage summary is reviewed.
 * `eval "$(histlog init zsh)"` is smoke-tested in an interactive zsh.
 * `eval "$(histlog init bash)"` is smoke-tested in an interactive bash.

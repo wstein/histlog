@@ -40,7 +40,7 @@ format-check: ## Check Elixir formatting without modifying files.
 lint: ## Run warning-as-error compilation as the repository lint gate.
 	cd app && mix compile --warnings-as-errors
 
-ci: format-check lint test ## Run the local CI gate.
+ci: format-check lint test build ## Run the local CI gate, including escript build.
 
 clean: ## Remove generated output files.
 	rm -rf "$(CLEAN_DIR)"
