@@ -2,7 +2,7 @@
 
 histlog is a log-structured, append-only shell history system implemented in Elixir.
 It stores canonical shell activity as compact per-session NDJSON event streams and materializes closed sessions into `histlog.db` for querying.
-The application is packaged as a short-lived escript CLI, not a daemon or long-running OTP service.
+The application is packaged as a short-lived launcher plus escript bundle, not a daemon or long-running OTP service.
 
 ## Development
 
@@ -23,7 +23,8 @@ The Mix project exposes an escript entrypoint:
 mix escript.build
 ./histlog consolidate --root /tmp/histlog --date 2026-05-06
 ./histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
-./histlog verify --root /tmp/histlog --date 2026-05-06
+./histlog info --root /tmp/histlog
+./histlog doctor zsh --root /tmp/histlog --date 2026-05-06
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix --json
 ./histlog paths --root /tmp/histlog --date 2026-05-06

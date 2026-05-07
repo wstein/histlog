@@ -22,10 +22,12 @@ Materialization commits inside a SQLite transaction:
 If a run stops partway through, SQLite rolls back the incomplete transaction.
 The next run can retry safely without duplicating already processed sessions.
 
-`doctor` checks shell setup and summarizes database health, including schema and materialization counts.
+`info` shows runtime information such as version, paths, and environment variables.
+`doctor` diagnoses that state, including schema and materialization counts, and prints recommendations when checks fail.
 
 [source,sh]
 ----
+histlog info zsh --root /tmp/histlog
 histlog doctor zsh --root /tmp/histlog --date 2026-05-06
 histlog doctor zsh --root /tmp/histlog --date 2026-05-06 --json
 ----

@@ -1,7 +1,7 @@
 = Runtime View
 :page-layout: default
 
-The important runtime flows are append-only session capture, consolidation, import, verification, and query.
+The important runtime flows are append-only session capture, consolidation, import, info/doctor diagnostics, and query.
 Each flow runs as a short-lived CLI invocation; histlog does not run a daemon or resident OTP service.
 
 == Session Capture
@@ -24,9 +24,12 @@ The canonical boundary remains the session NDJSON file:
 `Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, and writes normalized session, command, command-text, path, and processed-session checkpoint rows to `$HISTLOG_ROOT/histlog.db` inside one SQLite transaction.
 It is invoked explicitly by `histlog consolidate` or by an external scheduler that runs the CLI.
 
-== Verification
+== Info And Doctor
 
-`Histlog.Verifier` opens `histlog.db`, checks the schema version and required tables, and compares processed-session checkpoint counts with materialized command rows.
+`histlog info` reports passive runtime inventory such as version, paths, and environment values.
+It does not inspect database health.
+`histlog doctor` diagnoses shell integration and database health, then adds details and recommendations.
+Both use `Histlog.Verifier`, which opens `histlog.db`, checks the schema version and required tables, and compares processed-session checkpoint counts with materialized command rows.
 
 == Import
 

@@ -42,5 +42,6 @@ brew update
 brew install wstein/tap/histlog
 histlog --help
 histlog consolidate --root /tmp/histlog-smoke --date 2026-05-07
+histlog info zsh --root /tmp/histlog-smoke
 histlog doctor zsh --root /tmp/histlog-smoke --date 2026-05-07
 ----

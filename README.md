@@ -99,7 +99,8 @@ histlog query --limit 20
 ```sh
 histlog sessions
 histlog paths
-histlog doctor zsh --plain
+histlog info
+histlog doctor
 ```
 
 ## Import Existing History

@@ -11,7 +11,7 @@ The public CLI uses Elixir `OptionParser` with command-specific switch schemas.
 
 ## Why
 
-The CLI has separate surfaces for consolidation, verification, query, import, shell hooks, init generation, and doctor output. Command-specific parsing keeps option behavior explicit without adding a third-party CLI framework.
+The CLI has separate surfaces for consolidation, info, doctor diagnostics, query, import, shell hooks, and init generation. Command-specific parsing keeps option behavior explicit without adding a third-party CLI framework.
 
 ## How
 
@@ -32,6 +32,6 @@ All query-family commands must apply parsing, filtering, sorting, and rendering 
 - [[Shell Hook CLI Boundary]] - Defines the internal hook command surface.
 - [[Shell Init Prints Integration Code]] - Generates setup code through the public CLI.
 - [[Durability Mode]] - Defines the durability option passed through generated hooks.
-- [[Checkpointing]] - Uses CLI commands for consolidation and verification.
+- [[Checkpointing]] - Uses CLI commands for consolidation and doctor diagnostics.
 - [[Functional Blueprint Intake Gate]] - Limits histlog2 behavior intake to file-backed v1 operations.
 - [[Query Source Union]] - Defines the shared query source contract.

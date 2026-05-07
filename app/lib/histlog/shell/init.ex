@@ -9,9 +9,12 @@ defmodule Histlog.Shell.Init do
   def supported_shells, do: @supported_shells
   def future_shells, do: @future_shells
 
-  def detect(env \\ System.get_env()) do
+  def detect(env \\ System.get_env(), parent_shell_fun \\ &parent_process_shell/0) do
     cond do
       shell = normalize_shell(env["HISTLOG_SHELL"]) ->
+        {:ok, shell}
+
+      shell = normalize_shell(parent_shell_fun.()) ->
         {:ok, shell}
 
       shell = normalize_shell(env["SHELL"]) ->
@@ -76,6 +79,20 @@ defmodule Histlog.Shell.Init do
     end
   end
 
+  defp parent_process_shell do
+    with pid when is_binary(pid) <- System.pid(),
+         {ppid, 0} <- System.cmd("ps", ["-p", pid, "-o", "ppid="], stderr_to_stdout: true),
+         ppid <- String.trim(ppid),
+         true <- ppid != "",
+         {command, 0} <- System.cmd("ps", ["-p", ppid, "-o", "comm="], stderr_to_stdout: true) do
+      command
+      |> String.trim()
+      |> Path.basename()
+    else
+      _ -> nil
+    end
+  end
+
   defp validate_binary(_binary, false), do: :ok
 
   defp validate_binary(binary, true) do
@@ -94,6 +111,7 @@ defmodule Histlog.Shell.Init do
     fi
 
     export HISTLOG_ACTIVE=1
+    export HISTLOG_SHELL="zsh"
     export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
     #{posix_binary_assignment(binary, pinned_binary?)}
     export HISTLOG_DURABILITY="${HISTLOG_DURABILITY:-#{shell_param_default(durability)}}"
@@ -146,6 +164,7 @@ defmodule Histlog.Shell.Init do
     fi
 
     export HISTLOG_ACTIVE=1
+    export HISTLOG_SHELL="bash"
     export HISTLOG_ROOT="${HISTLOG_ROOT:-$HOME/.local/share/histlog}"
     #{posix_binary_assignment(binary, pinned_binary?)}
     export HISTLOG_DURABILITY="${HISTLOG_DURABILITY:-#{shell_param_default(durability)}}"
@@ -206,6 +225,7 @@ defmodule Histlog.Shell.Init do
     end
 
     set -gx HISTLOG_ACTIVE 1
+    set -gx HISTLOG_SHELL fish
     if not set -q HISTLOG_ROOT
         set -gx HISTLOG_ROOT "$HOME/.local/share/histlog"
     end
@@ -260,6 +280,7 @@ defmodule Histlog.Shell.Init do
         'export:export history rows'
         'import:import history'
         'consolidate:consolidate ended sessions'
+        'info:show runtime information'
         'doctor:diagnose setup'
       )
       _describe 'histlog command' commands
@@ -273,7 +294,7 @@ defmodule Histlog.Shell.Init do
   defp bash_completions do
     """
     _histlog_completion() {
-      COMPREPLY=($(compgen -W "init query sessions paths export import consolidate doctor" -- "${COMP_WORDS[COMP_CWORD]}"))
+      COMPREPLY=($(compgen -W "init query sessions paths export import consolidate info doctor" -- "${COMP_WORDS[COMP_CWORD]}"))
     }
     complete -F _histlog_completion histlog
     """
@@ -288,6 +309,7 @@ defmodule Histlog.Shell.Init do
     complete -c histlog -f -a "export" -d "Export history rows"
     complete -c histlog -f -a "import" -d "Import history"
     complete -c histlog -f -a "consolidate" -d "Consolidate ended sessions"
+    complete -c histlog -f -a "info" -d "Show runtime information"
     complete -c histlog -f -a "doctor" -d "Diagnose setup"
     """
   end

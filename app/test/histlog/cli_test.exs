@@ -205,6 +205,7 @@ defmodule Histlog.CLITest do
 
     assert help_output =~ "Usage: histlog <command> [options]"
     assert help_output =~ "query       - Flexible query"
+    assert help_output =~ "info        - Show runtime paths and environment"
     assert help_output =~ "histlog help <command>"
     refute help_output =~ "hook"
 
@@ -235,6 +236,7 @@ defmodule Histlog.CLITest do
           {"consolidate", "Usage: histlog consolidate [options]"},
           {"import", "Usage: histlog import FILE [options]"},
           {"init", "Usage: histlog init [zsh|bash|fish]"},
+          {"info", "Usage: histlog info [shell]"},
           {"doctor", "Usage: histlog doctor [zsh|bash|fish]"}
         ] do
       help_output =
@@ -935,6 +937,7 @@ defmodule Histlog.CLITest do
         assert :ok = CLI.run(["doctor", "zsh", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
+    plain = strip_ansi(plain)
     assert plain =~ "database: ok"
     assert plain =~ "schema: ok"
     assert plain =~ "materialization_counts: ok"
@@ -973,8 +976,10 @@ defmodule Histlog.CLITest do
         assert :ok = CLI.run(["doctor", "zsh", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
+    output = strip_ansi(output)
+    assert output =~ "diagnosis: attention"
     assert output =~ "materialization_counts: failed"
-    assert output =~ "database_error: counts"
+    assert output =~ "recommendation: run `histlog consolidate --rebuild --date YYYY-MM-DD`"
 
     output =
       capture_io(fn ->
@@ -1189,33 +1194,65 @@ defmodule Histlog.CLITest do
                  CLI.run(["doctor", "zsh", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
-    assert output =~ "shell: zsh"
+    output = strip_ansi(output)
+    assert output =~ "detected_shell: zsh"
+    assert output =~ "diagnosis: attention"
     assert output =~ "shell: ok"
     assert output =~ "database: ok"
     assert output =~ "schema: ok"
     assert output =~ "materialization_counts: ok"
   end
 
-  test "doctor supports explicit plain and json output modes", %{root: root, date: date} do
+  test "info supports explicit plain and json output modes", %{root: root} do
     plain =
       capture_io(fn ->
         assert :ok =
                  CLI.run([
-                   "doctor",
+                   "info",
                    "zsh",
                    "--plain",
                    "--root",
-                   root,
-                   "--date",
-                   Date.to_iso8601(date)
+                   root
                  ])
       end)
 
-    assert plain =~ "shell: zsh"
-    assert plain =~ "shell: ok"
-    assert plain =~ "database: missing"
+    plain = strip_ansi(plain)
+    assert plain =~ "version:"
+    assert plain =~ "data_root: #{root}"
+    assert plain =~ "database: #{Path.join(root, "histlog.db")}"
+    assert plain =~ "shell_argument: zsh"
+    assert plain =~ "supported_shells: zsh, bash, fish"
+    refute plain =~ "database: ok"
+    refute plain =~ "schema:"
+    refute plain =~ "diagnosis:"
 
     json =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "info",
+                   "zsh",
+                   "--json",
+                   "--root",
+                   root
+                 ])
+      end)
+
+    assert %{
+             "version" => _version,
+             "paths" => %{"data_root" => ^root},
+             "shell" => %{"argument" => "zsh", "supported" => ["zsh", "bash", "fish"]},
+             "env" => env
+           } = JSON.decode!(json)
+
+    assert Map.has_key?(env, "HISTLOG_ROOT")
+
+    assert {:error, "choose only one info output format"} =
+             CLI.run(["info", "zsh", "--json", "--plain"])
+  end
+
+  test "doctor supports explicit json output mode", %{root: root, date: date} do
+    output =
       capture_io(fn ->
         assert :ok =
                  CLI.run([
@@ -1229,10 +1266,7 @@ defmodule Histlog.CLITest do
                  ])
       end)
 
-    assert %{"shell" => "zsh", "checks" => checks, "database" => database} = JSON.decode!(json)
-    assert Enum.any?(checks, &(&1["check"] == "shell" and &1["status"] == "ok"))
-    assert Enum.any?(checks, &(&1["check"] == "database" and &1["status"] == "missing"))
-    assert database["ok"] == false
+    assert %{"database_verification" => %{"ok" => false}} = JSON.decode!(output)
 
     assert {:error, "choose only one doctor output format"} =
              CLI.run(["doctor", "zsh", "--json", "--plain"])

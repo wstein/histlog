@@ -17,7 +17,7 @@ It stores a query-ready relational projection derived from closed session logs a
 
 ## Why
 
-SQLite gives the CLI fast query, session, path, and verification workflows without turning histlog into a long-running service. Because closed session logs remain the source input for consolidation, the database can be rebuilt when the schema changes.
+SQLite gives the CLI fast query, session, path, and doctor workflows without turning histlog into a long-running service. `histlog info` reports runtime inventory without reading or validating the database. Because closed session logs remain the source input for consolidation, the database can be rebuilt when the schema changes.
 
 Query commands must not rely only on SQLite. They must also include live session NDJSON so current commands appear before consolidation runs.
 

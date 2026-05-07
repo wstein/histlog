@@ -12,6 +12,7 @@ defmodule Histlog.CLI.Commands.Help do
   def run(["consolidate"]), do: Commands.Consolidate.run(["--help"])
   def run(["import"]), do: Commands.Import.run(["--help"])
   def run(["init"]), do: Commands.Init.run(["--help"])
+  def run(["info"]), do: Commands.Info.run(["--help"])
   def run(["doctor"]), do: Commands.Doctor.run(["--help"])
   def run(["help"]), do: write_top_level()
   def run([command]), do: {:error, "no command-specific help for #{inspect(command)}"}
@@ -29,6 +30,7 @@ defmodule Histlog.CLI.Commands.Help do
       consolidate - Materialize closed session logs
       import      - Import shell history files
       init        - Print shell integration snippets
+      info        - Show runtime paths and environment
       doctor      - Diagnose setup
       help        - Show this help
 

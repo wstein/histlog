@@ -7,14 +7,19 @@ defmodule Histlog.ShellInitTest do
     assert {:ok, "fish"} = Init.detect(%{"HISTLOG_SHELL" => "fish", "SHELL" => "/bin/zsh"})
   end
 
+  test "detects shell from parent process before SHELL" do
+    assert {:ok, "fish"} = Init.detect(%{"SHELL" => "/bin/zsh"}, fn -> "fish" end)
+  end
+
   test "detects shell from SHELL path" do
-    assert {:ok, "zsh"} = Init.detect(%{"SHELL" => "/bin/zsh"})
+    assert {:ok, "zsh"} = Init.detect(%{"SHELL" => "/bin/zsh"}, fn -> nil end)
   end
 
   test "zsh init prints hooks, completions, and no aliases by default" do
     assert {:ok, script} = Init.script("zsh")
     assert script =~ "add-zsh-hook preexec _histlog_preexec"
     assert script =~ "_histlog_now_ms"
+    assert script =~ "export HISTLOG_SHELL=\"zsh\""
     assert script =~ "\"$HISTLOG_BIN\" hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
     assert script =~ "--durability \"$HISTLOG_DURABILITY\""
     assert script =~ "compdef _histlog histlog"
@@ -24,6 +29,7 @@ defmodule Histlog.ShellInitTest do
   test "bash init filters recursive hook capture" do
     assert {:ok, script} = Init.script("bash")
     assert script =~ "trap '_histlog_preexec' DEBUG"
+    assert script =~ "export HISTLOG_SHELL=\"bash\""
     assert script =~ "local cmd=\"${1:-$BASH_COMMAND}\""
     assert script =~ "histlog\\ hook*"
   end
@@ -32,6 +38,7 @@ defmodule Histlog.ShellInitTest do
     assert {:ok, script} = Init.script("fish", aliases: true)
     assert script =~ "function __histlog_preexec --on-event fish_preexec"
     assert script =~ "function __histlog_postexec --on-event fish_postexec"
+    assert script =~ "set -gx HISTLOG_SHELL fish"
     assert script =~ "alias hl='histlog'"
   end
 

@@ -12,7 +12,7 @@ histlog init fish | source
 ----
 
 Pass the shell explicitly when writing setup files.
-`histlog init` auto-detects the shell from `HISTLOG_SHELL`, then `SHELL`, and then reports an error when detection fails.
+`histlog init` auto-detects the shell from `HISTLOG_SHELL`, then the parent process name, then `SHELL`, and then reports an error when detection fails.
 
 Pin an exact executable with an absolute path:
 
@@ -33,15 +33,20 @@ eval "$(histlog init zsh --durability balanced)"
 The generated shell code is a thin capture adapter.
 It calls the internal hook boundary and does not construct history records itself.
 
-`histlog doctor` prints plain diagnostics by default and supports JSON for scripts:
+`histlog info` prints runtime information such as version, paths, and environment variables.
+`histlog doctor` diagnoses that state and prints recommendations when something needs attention.
+Both support JSON for scripts.
 
 [source,sh]
 ----
+histlog info
+histlog info --json
 histlog doctor zsh
 histlog doctor zsh --date 2026-05-07
 histlog doctor zsh --json
 ----
 
+Info does not diagnose or read the database.
 Doctor checks shell integration state and summarizes the local database health.
 Use `histlog doctor --json` for the full database verification report.
 

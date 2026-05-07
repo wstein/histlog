@@ -89,7 +89,7 @@ Runtime code must not rely on shared memory, global mutable state, or in-process
 Elixir modules may call shared parsing and validation libraries, but persisted NDJSON files are the integration contract.
 
 histlog MUST NOT introduce a daemon or long-running OTP service.
-Every capture, query, import, verification, and consolidation workflow runs as a short-lived CLI command.
+Every capture, query, import, info, doctor, and consolidation workflow runs as a short-lived CLI command.
 
 == Write Path
 

@@ -9,7 +9,7 @@ Use this manual for day-to-day operation:
 * xref:shell-integration.adoc[Shell integration]
 * xref:query.adoc[Query history]
 * xref:paths-and-sessions.adoc[Paths and sessions]
-* xref:consolidate-and-doctor.adoc[Consolidate and doctor]
+* xref:consolidate-and-doctor.adoc[Consolidate, info, and doctor]
 * xref:import.adoc[Import history]
 * xref:shell-compatibility.adoc[Shell compatibility]
 
