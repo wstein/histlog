@@ -71,7 +71,7 @@ defmodule Histlog.LegacyDbMigrationScriptTest do
     try do
       ddl =
         @repo_root
-        |> Path.join("tmp/histlog2.sql")
+        |> Path.join("app/test/fixtures/legacy/histlog2.sql")
         |> File.read!()
         |> String.replace("CREATE TABLE sqlite_sequence(name,seq);\n", "")
 
