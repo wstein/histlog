@@ -143,14 +143,14 @@ It consumes closed session files and writes `histlog.db`.
 The database contains:
 
 * schema metadata and schema version
-* processed-session checkpoints
+* processed-session checkpoints keyed by date and session filename
 * session summary rows
 * derived execution rows
 
 The protocol is:
 
 1. scan closed sessions for a day
-2. skip sessions already present in the processed-session checkpoint
+2. skip sessions already present in the processed-session checkpoint with matching date, source checksum, and schema version
 3. validate each session's NDJSON and sequence numbers
 4. quarantine malformed sessions and continue processing other sessions
 5. derive execution rows

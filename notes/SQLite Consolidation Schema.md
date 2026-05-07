@@ -34,10 +34,14 @@ SQLite access uses `exqlite` directly through a small `Histlog.Database` wrapper
 The v1 schema supports:
 
 - schema metadata and version
-- processed session checkpoint rows
+- processed session checkpoint rows keyed by `(date, session_file)`
 - sessions
 - derived executions
 - indexes for date, timestamp, command, cwd, and exit status
+
+Processed-session skip logic must compare date, session file, source checksum, and schema version. A closed session file with the same name but different content must be reprocessed.
+
+The execution projection should keep basic integrity constraints, including non-negative durations and an allowed `completeness` enum.
 
 Use explicit schema versioning so `histlog consolidate --rebuild` can recreate the database when the schema changes.
 

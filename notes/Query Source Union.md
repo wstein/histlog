@@ -25,10 +25,12 @@ Use a query source union:
 
 1. read consolidated rows from `histlog.db`
 2. derive live execution rows from active session NDJSON
-3. merge rows into one normalized execution shape
-4. apply filters, sorting, formatting, path summaries, and session summaries after the merge
+3. read import execution rows where relevant
+4. merge rows into one normalized execution shape
+5. apply filters, sorting, formatting, path summaries, and session summaries after the merge
 
 If a row appears in both sources, prefer the consolidated SQLite row and avoid duplicate display.
+If SQLite cannot be read because of schema mismatch or corruption, query code should warn and continue with live/import rows. Silent loss of consolidated history is not acceptable.
 
 ## Links
 

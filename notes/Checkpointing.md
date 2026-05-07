@@ -15,7 +15,7 @@ Database materialization shifts integrity work into the application. Checkpoints
 
 ## How
 
-Write checkpoint metadata in the same SQLite transaction that materializes closed sessions into `$HISTLOG_ROOT/histlog.db`. Consolidators should read existing checkpoint rows before processing and skip already processed session files.
+Write checkpoint metadata in the same SQLite transaction that materializes closed sessions into `$HISTLOG_ROOT/histlog.db`. Consolidators should read existing checkpoint rows before processing and skip only when date, session file, source checksum, and schema version all match.
 
 `histlog verify` recomputes expected record counts and schema facts from the database and compares them to the checkpoint. Verification is read-only; rebuild support is a separate operational workflow.
 

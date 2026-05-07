@@ -3,6 +3,9 @@
 
 The Elixir app exposes an escript entrypoint.
 
+histlog uses `exqlite` for the local `histlog.db` query materialization.
+Most development installs use precompiled SQLite artifacts through `exqlite`, but some platforms may need normal native build tools available for Mix dependencies.
+
 [source,sh]
 ----
 cd app

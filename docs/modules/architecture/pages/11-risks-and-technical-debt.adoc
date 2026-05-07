@@ -9,4 +9,5 @@ The current implementation is an MVP foundation with explicit remaining risks.
 * Bash hook integration uses the `DEBUG` trap and does not compose with a pre-existing `DEBUG` trap in v1. Users with existing bash instrumentation may need to choose zsh/fish or manage trap ordering manually.
 * Import parsers cover representative fixtures but not every shell-history edge case.
 * Redaction uses conservative pattern matching and should continue to grow from real-world samples.
-* Consolidation appends new sessions to existing materialized files; future compaction may need stronger rebuild controls.
+* SQLite schema evolution and rebuild behavior need continued hardening as the projection grows.
+* `exqlite` adds a native dependency path; clean installs should be tested across supported operating systems.
