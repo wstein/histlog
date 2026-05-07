@@ -7,7 +7,7 @@ defmodule Histlog.Verifier do
   alias Histlog.Database.Schema
   alias Histlog.Storage
 
-  @tables ~w(schema_metadata processed_sessions sessions executions)
+  @tables Histlog.Database.Schema.tables()
 
   @doc """
   Verifies database schema and consolidation checkpoints for a date.
@@ -101,8 +101,8 @@ defmodule Histlog.Verifier do
       "ok" => false,
       "processed_sessions" => nil,
       "sessions" => nil,
-      "processed_execution_rows" => nil,
-      "executions" => nil
+      "processed_command_rows" => nil,
+      "commands" => nil
     }
   end
 
@@ -114,23 +114,24 @@ defmodule Histlog.Verifier do
 
     {:ok, sessions} = count(conn, "SELECT COUNT(*) FROM sessions WHERE date = ?", [date])
 
-    {:ok, processed_execution_rows} =
+    {:ok, processed_command_rows} =
       count(
         conn,
-        "SELECT COALESCE(SUM(executions_count), 0) FROM processed_sessions WHERE date = ?",
+        "SELECT COALESCE(SUM(commands_count), 0) FROM processed_sessions WHERE date = ?",
         [
           date
         ]
       )
 
-    {:ok, executions} = count(conn, "SELECT COUNT(*) FROM executions WHERE date = ?", [date])
+    {:ok, commands} =
+      count(conn, "SELECT COUNT(*) FROM commands WHERE date = ? AND source = 'session'", [date])
 
     %{
-      "ok" => processed_sessions == sessions and processed_execution_rows == executions,
+      "ok" => processed_sessions == sessions and processed_command_rows == commands,
       "processed_sessions" => processed_sessions,
       "sessions" => sessions,
-      "processed_execution_rows" => processed_execution_rows,
-      "executions" => executions
+      "processed_command_rows" => processed_command_rows,
+      "commands" => commands
     }
   end
 
@@ -158,7 +159,7 @@ defmodule Histlog.Verifier do
   defp add_count_errors(errors, counts) do
     errors ++
       [
-        "counts: processed_sessions=#{inspect(counts["processed_sessions"])} sessions=#{inspect(counts["sessions"])} processed_execution_rows=#{inspect(counts["processed_execution_rows"])} executions=#{inspect(counts["executions"])}"
+        "counts: processed_sessions=#{inspect(counts["processed_sessions"])} sessions=#{inspect(counts["sessions"])} processed_command_rows=#{inspect(counts["processed_command_rows"])} commands=#{inspect(counts["commands"])}"
       ]
   end
 

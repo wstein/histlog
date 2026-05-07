@@ -92,7 +92,7 @@ defmodule Histlog.Query.Filter do
   end
 
   defp match_imported?(row, opts) do
-    imported? = row["source"] == "imported" || is_nil(row["session_id"])
+    imported? = row["source"] in ["import", "imported"] || is_nil(row["session_id"])
 
     cond do
       Keyword.get(opts, :imported, false) -> imported?

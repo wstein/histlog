@@ -40,7 +40,7 @@ defmodule Histlog.CLI.Commands.Export do
     """
     Usage: histlog export [--format ndjson] [--root PATH] [--date YYYY-MM-DD]
 
-    Export derived execution rows as NDJSON for pipelines and migrations.
+    Export derived query rows as NDJSON for pipelines and migrations.
     NDJSON is intentionally available through export, not query.
     """
   end

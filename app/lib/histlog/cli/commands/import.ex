@@ -52,7 +52,8 @@ defmodule Histlog.CLI.Commands.Import do
            Histlog.Import.from_source_with_report(session_id, source, import_batch_id, content),
          output = Histlog.NDJSON.encode!(events),
          :ok <- Storage.atomic_write(destination, output),
-         :ok <- Storage.atomic_write(report_path, JSON.encode!(report) <> "\n") do
+         :ok <- Storage.atomic_write(report_path, JSON.encode!(report) <> "\n"),
+         {:ok, _materialized} <- Histlog.Import.materialize(root, date, file, events, report) do
       IO.puts(destination)
       :ok
     else

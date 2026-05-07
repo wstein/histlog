@@ -1,6 +1,6 @@
 defmodule Histlog.Query do
   @moduledoc """
-  Streaming file-based query helpers for derived execution rows.
+  Query helpers for materialized command rows plus live session rows.
   """
 
   alias Histlog.Consolidator
@@ -9,7 +9,7 @@ defmodule Histlog.Query do
   alias Histlog.Storage
 
   @doc """
-  Returns derived execution rows for a date matching simple filters.
+  Returns query rows for a date matching simple filters.
   """
   def executions(opts \\ []) do
     root = Storage.root(opts)
@@ -28,7 +28,6 @@ defmodule Histlog.Query do
     root
     |> sqlite_execution_rows(nil)
     |> Kernel.++(live_execution_rows(root, nil))
-    |> Kernel.++(imported_execution_rows(root, nil))
     |> dedupe_rows()
   end
 
@@ -36,7 +35,6 @@ defmodule Histlog.Query do
     root
     |> sqlite_execution_rows(date)
     |> Kernel.++(live_execution_rows(root, date))
-    |> Kernel.++(imported_execution_rows(root, date))
     |> dedupe_rows()
   end
 
@@ -56,10 +54,11 @@ defmodule Histlog.Query do
                conn,
                """
                SELECT
-                 'execution' AS event, session_id, exec_id, command, cwd, timestamp,
-                 duration_ms, exit_status, completeness, shell, host, tty, source
-               FROM executions
-               ORDER BY timestamp ASC, id ASC
+                 'execution' AS event, session_id, exec_id, import_batch_id,
+                 import_row_index, date, command, cwd, timestamp, duration_ms,
+                 exit_status, completeness, shell, host, tty, source
+               FROM history_view
+               ORDER BY timestamp ASC, command_id ASC
                """
              ) do
         {:ok, Enum.map(rows, &stringify_keys/1)}
@@ -80,11 +79,12 @@ defmodule Histlog.Query do
                conn,
                """
                SELECT
-                 'execution' AS event, session_id, exec_id, command, cwd, timestamp,
-                 duration_ms, exit_status, completeness, shell, host, tty, source
-               FROM executions
+                 'execution' AS event, session_id, exec_id, import_batch_id,
+                 import_row_index, date, command, cwd, timestamp, duration_ms,
+                 exit_status, completeness, shell, host, tty, source
+               FROM history_view
                WHERE date = ?
-               ORDER BY timestamp ASC, id ASC
+               ORDER BY timestamp ASC, command_id ASC
                """,
                [Date.to_iso8601(date)]
              ) do
@@ -101,34 +101,6 @@ defmodule Histlog.Query do
   defp normalize_sqlite_rows(path, {:error, reason}) do
     IO.puts(:stderr, "histlog: skipped sqlite materialization #{path}: #{inspect(reason)}")
     []
-  end
-
-  defp imported_execution_rows(root, nil) do
-    root
-    |> Storage.imports_dir()
-    |> Path.join("*.ndjson")
-    |> Path.wildcard()
-    |> Enum.sort()
-    |> read_import_files()
-  end
-
-  defp imported_execution_rows(root, date) do
-    root
-    |> Storage.imports_dir()
-    |> Path.join("#{Date.to_iso8601(date)}-*.ndjson")
-    |> Path.wildcard()
-    |> Enum.sort()
-    |> read_import_files()
-  end
-
-  defp read_import_files(paths) do
-    paths
-    |> Enum.flat_map(fn path ->
-      path
-      |> read_ndjson_file()
-      |> Enum.filter(&(&1["event"] == "imported_execution"))
-      |> Enum.map(&imported_execution_row/1)
-    end)
   end
 
   defp live_execution_rows(root, nil) do
@@ -158,20 +130,6 @@ defmodule Histlog.Query do
     events
     |> Consolidator.derive_execution_rows()
     |> Enum.map(&Map.put(&1, "source", "live"))
-  end
-
-  defp imported_execution_row(event) do
-    %{
-      "event" => "execution",
-      "session_id" => nil,
-      "command" => event["command"],
-      "cwd" => event["cwd"],
-      "timestamp" => event["timestamp"],
-      "duration_ms" => event["duration_ms"],
-      "exit_status" => event["exit_status"],
-      "completeness" => "imported",
-      "source" => "imported"
-    }
   end
 
   defp read_ndjson_file(path) do

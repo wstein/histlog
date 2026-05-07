@@ -5,6 +5,7 @@ defmodule Histlog.Consolidator do
 
   alias Histlog.Checksum
   alias Histlog.Database
+  alias Histlog.Database.Projection
   alias Histlog.Database.Schema
   alias Histlog.NDJSON
   alias Histlog.Schema, as: EventSchema
@@ -62,7 +63,10 @@ defmodule Histlog.Consolidator do
   defp maybe_clear_date(conn, date, true) do
     date = Date.to_iso8601(date)
 
-    with :ok <- Database.exec(conn, "DELETE FROM executions WHERE date = ?", [date]),
+    with :ok <-
+           Database.exec(conn, "DELETE FROM commands WHERE date = ? AND source = 'session'", [
+             date
+           ]),
          :ok <- Database.exec(conn, "DELETE FROM sessions WHERE date = ?", [date]),
          :ok <- Database.exec(conn, "DELETE FROM processed_sessions WHERE date = ?", [date]) do
       :ok
@@ -118,6 +122,9 @@ defmodule Histlog.Consolidator do
        %{
          path: path,
          basename: Path.basename(path),
+         session: session_started(events),
+         ended: session_ended(events),
+         first_cwd: first_cwd(events),
          events: events,
          source_checksum: checksum,
          execution_rows: derive_execution_rows(events)
@@ -153,67 +160,32 @@ defmodule Histlog.Consolidator do
   end
 
   defp insert_session(conn, date, materialized, processed_at) do
-    session = session_started(materialized.events)
-    ended = session_ended(materialized.events)
     date_string = Date.to_iso8601(date)
-    session_id = session["session_id"]
 
     with :ok <- delete_stale_session_materialization(conn, date_string, materialized.basename),
-         :ok <-
-           Database.exec(
-             conn,
-             """
-             INSERT INTO sessions (
-               session_id, session_file, date, host, shell, tty, process_id,
-               parent_process_id, started_at, ended_at
-             )
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(session_id) DO UPDATE SET
-               session_file = excluded.session_file,
-               date = excluded.date,
-               host = excluded.host,
-               shell = excluded.shell,
-               tty = excluded.tty,
-               process_id = excluded.process_id,
-               parent_process_id = excluded.parent_process_id,
-               started_at = excluded.started_at,
-               ended_at = excluded.ended_at
-             """,
-             [
-               session_id,
-               materialized.basename,
-               date_string,
-               session["host"],
-               session["shell"],
-               session["tty"],
-               session["process_id"],
-               session["parent_process_id"],
-               session["timestamp"],
-               ended["timestamp"]
-             ]
-           ),
-         :ok <- insert_execution_rows(conn, date, materialized.execution_rows),
+         {:ok, session_row_id} <- Projection.insert_session(conn, materialized, date_string),
+         :ok <- insert_execution_rows(conn, session_row_id, date, materialized.execution_rows),
          :ok <-
            Database.exec(
              conn,
              """
              INSERT INTO processed_sessions (
-               date, session_file, session_id, processed_at, schema_version,
-               events_count, executions_count, source_checksum
+               date, session_file, session_uid, processed_at, schema_version,
+               events_count, commands_count, source_checksum
              )
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(date, session_file) DO UPDATE SET
-               session_id = excluded.session_id,
+               session_uid = excluded.session_uid,
                processed_at = excluded.processed_at,
                schema_version = excluded.schema_version,
                events_count = excluded.events_count,
-               executions_count = excluded.executions_count,
+               commands_count = excluded.commands_count,
                source_checksum = excluded.source_checksum
              """,
              [
                date_string,
                materialized.basename,
-               session_id,
+               materialized.session["session_id"],
                processed_at,
                Schema.version(),
                length(materialized.events),
@@ -230,7 +202,7 @@ defmodule Histlog.Consolidator do
            Database.query_maps(
              conn,
              """
-             SELECT session_id
+             SELECT session_uid
              FROM processed_sessions
              WHERE date = ? AND session_file = ?
              """,
@@ -238,7 +210,7 @@ defmodule Histlog.Consolidator do
            ),
          :ok <-
            Enum.reduce_while(rows, :ok, fn row, :ok ->
-             case delete_session_rows(conn, row.session_id) do
+             case delete_session_rows(conn, row.session_uid) do
                :ok -> {:cont, :ok}
                {:error, reason} -> {:halt, {:error, reason}}
              end
@@ -255,59 +227,29 @@ defmodule Histlog.Consolidator do
 
   defp delete_session_rows(_conn, nil), do: :ok
 
-  defp delete_session_rows(conn, session_id) do
-    with :ok <- Database.exec(conn, "DELETE FROM executions WHERE session_id = ?", [session_id]),
-         :ok <- Database.exec(conn, "DELETE FROM sessions WHERE session_id = ?", [session_id]) do
+  defp delete_session_rows(conn, session_uid) do
+    with :ok <-
+           Database.exec(
+             conn,
+             "DELETE FROM commands WHERE session_id = (SELECT id FROM sessions WHERE session_uid = ?)",
+             [session_uid]
+           ),
+         :ok <- Database.exec(conn, "DELETE FROM sessions WHERE session_uid = ?", [session_uid]) do
       :ok
     end
   end
 
-  defp insert_execution_rows(conn, date, rows) do
+  defp insert_execution_rows(conn, session_row_id, date, rows) do
     Enum.reduce_while(rows, :ok, fn row, :ok ->
-      case insert_execution_row(conn, date, row) do
+      case insert_execution_row(conn, session_row_id, date, row) do
         :ok -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
   end
 
-  defp insert_execution_row(conn, date, row) do
-    Database.exec(
-      conn,
-      """
-      INSERT INTO executions (
-        session_id, exec_id, date, command, cwd, timestamp, duration_ms,
-        exit_status, completeness, shell, host, tty, source
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sqlite')
-      ON CONFLICT(session_id, exec_id) DO UPDATE SET
-        date = excluded.date,
-        command = excluded.command,
-        cwd = excluded.cwd,
-        timestamp = excluded.timestamp,
-        duration_ms = excluded.duration_ms,
-        exit_status = excluded.exit_status,
-        completeness = excluded.completeness,
-        shell = excluded.shell,
-        host = excluded.host,
-        tty = excluded.tty,
-        source = excluded.source
-      """,
-      [
-        row["session_id"],
-        row["exec_id"],
-        Date.to_iso8601(date),
-        row["command"],
-        row["cwd"],
-        row["timestamp"],
-        row["duration_ms"],
-        row["exit_status"],
-        row["completeness"],
-        row["shell"],
-        row["host"],
-        row["tty"]
-      ]
-    )
+  defp insert_execution_row(conn, session_row_id, date, row) do
+    Projection.insert_session_command(conn, session_row_id, Date.to_iso8601(date), row)
   end
 
   defp report(conn, root, date, processed, quarantined, rebuild?) do
@@ -321,7 +263,9 @@ defmodule Histlog.Consolidator do
       )
 
     {:ok, exec_records_written} =
-      count_value(conn, "SELECT COUNT(*) FROM executions WHERE date = ?", [date_string])
+      count_value(conn, "SELECT COUNT(*) FROM commands WHERE date = ? AND source = 'session'", [
+        date_string
+      ])
 
     %{
       "schema_version" => Schema.version(),
@@ -371,6 +315,17 @@ defmodule Histlog.Consolidator do
 
   defp session_ended(events) do
     Enum.find(events, %{}, &(&1["event"] == "session_ended"))
+  end
+
+  defp first_cwd(events) do
+    folders = catalog(events, "folder_defined", "folder_id", "folder")
+
+    events
+    |> Enum.find(&(&1["event"] == "execution_observed"))
+    |> then(fn
+      nil -> nil
+      event -> Map.get(folders, event["cwd_id"])
+    end)
   end
 
   defp catalog(events, event_type, id_field, value_field) do

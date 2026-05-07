@@ -32,7 +32,7 @@ defmodule Histlog.ConsolidatorTest do
     assert report["exec_records_written"] == 1
     assert report["database_path"] == Storage.database_path(root)
     assert File.exists?(Storage.database_path(root))
-    assert database_count(root, "executions") == 1
+    assert database_count(root, "commands") == 1
     assert database_count(root, "processed_sessions") == 1
 
     assert {:ok, rows} = Query.executions(root: root, date: date, filters: %{command: "git"})
@@ -49,7 +49,22 @@ defmodule Histlog.ConsolidatorTest do
     assert second["sessions_processed"] == []
     assert second["records_written"] == 5
     assert second["exec_records_written"] == 1
-    assert database_count(root, "executions") == 1
+    assert database_count(root, "commands") == 1
+  end
+
+  test "normalizes repeated command text and paths", %{root: root, date: date} do
+    closed_session!(root, date, "session-1", "mix test", "/repo", 0)
+    closed_session!(root, date, "session-2", "mix test", "/repo", 0)
+
+    assert {:ok, _report} = Consolidator.consolidate(root: root, date: date)
+
+    assert database_count(root, "commands") == 2
+    assert database_count(root, "cmd_texts") == 1
+    assert database_count(root, "paths") == 1
+    assert database_count(root, "sessions") == 2
+
+    assert {:ok, rows} = Query.executions(root: root, date: date, filters: %{command: "mix"})
+    assert Enum.map(rows, & &1["command"]) == ["mix test", "mix test"]
   end
 
   test "reprocesses a closed session when its checksum changes", %{root: root, date: date} do
@@ -67,7 +82,7 @@ defmodule Histlog.ConsolidatorTest do
 
     assert {:ok, rows} = Query.executions(root: root, date: date)
     assert [%{"command" => "whoami"}] = rows
-    assert database_count(root, "executions") == 1
+    assert database_count(root, "commands") == 1
   end
 
   test "rebuild rewrites database rows from closed sessions", %{root: root, date: date} do
@@ -75,14 +90,14 @@ defmodule Histlog.ConsolidatorTest do
 
     assert {:ok, first} = Consolidator.consolidate(root: root, date: date)
     insert_fake_execution!(root, date)
-    assert database_count(root, "executions") == 2
+    assert database_count(root, "commands") == 2
 
     assert {:ok, rebuilt} = Consolidator.consolidate(root: root, date: date, rebuild: true)
 
     assert rebuilt["sessions_processed"] == first["sessions_processed"]
     assert rebuilt["records_written"] == 5
     assert rebuilt["rebuilt"] == true
-    assert database_count(root, "executions") == 1
+    assert database_count(root, "commands") == 1
   end
 
   test "quarantines malformed sessions and continues", %{root: root, date: date} do
@@ -131,15 +146,25 @@ defmodule Histlog.ConsolidatorTest do
       Database.exec(
         conn,
         """
-        INSERT INTO executions (
-          session_id, exec_id, date, command, cwd, timestamp, duration_ms,
-          exit_status, completeness, shell, host, tty, source
-        )
-        VALUES ('fake-session', 999, ?, 'fake', '/tmp', '2026-05-06T20:00:00Z',
-          1, 0, 'complete', 'zsh', 'machine', NULL, 'sqlite')
-        """,
-        [Date.to_iso8601(date)]
+        INSERT INTO cmd_texts (command) VALUES ('fake')
+        ON CONFLICT(command) DO NOTHING
+        """
       )
+
+      {:ok, cmd_text_id} =
+        Database.query_value(conn, "SELECT id AS value FROM cmd_texts WHERE command = 'fake'")
+
+      :ok =
+        Database.exec(
+          conn,
+          """
+          INSERT INTO commands (
+            date, cmd_text_id, timestamp, duration_ms, exit_status, completeness, source
+          )
+          VALUES (?, ?, '2026-05-06T20:00:00Z', 1, 0, 'complete', 'session')
+          """,
+          [Date.to_iso8601(date), cmd_text_id]
+        )
     end)
   end
 

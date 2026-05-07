@@ -3,7 +3,11 @@ defmodule Histlog.Import do
   Import helpers that model external history as synthetic histlog events.
   """
 
+  alias Histlog.Database
+  alias Histlog.Database.Projection
+  alias Histlog.Database.Schema
   alias Histlog.Event
+  alias Histlog.Storage
 
   @doc """
   Builds an import batch event stream from simple execution maps.
@@ -97,6 +101,85 @@ defmodule Histlog.Import do
 
       {:ok, events, report}
     end
+  end
+
+  @doc """
+  Materializes an import event stream into the SQLite query projection.
+  """
+  def materialize(root, date, source_path, events, report) do
+    Storage.ensure_layout(root, date)
+
+    Database.with_connection(root, fn conn ->
+      with :ok <- Schema.ensure(conn) do
+        Database.transaction(conn, fn ->
+          materialize_in_transaction(conn, root, date, source_path, events, report)
+        end)
+      end
+    end)
+  end
+
+  defp materialize_in_transaction(conn, root, date, source_path, events, report) do
+    import_batch_id = report["import_batch_id"]
+
+    with :ok <- delete_import_batch(conn, import_batch_id),
+         :ok <- insert_import_batch(conn, source_path, report),
+         :ok <- insert_imported_execution_rows(conn, date, events, report) do
+      {:ok,
+       %{
+         "database_path" => Storage.database_path(root),
+         "import_batch_id" => import_batch_id,
+         "records_materialized" => report["records"]
+       }}
+    end
+  end
+
+  defp delete_import_batch(conn, import_batch_id) do
+    with :ok <-
+           Database.exec(conn, "DELETE FROM commands WHERE import_batch_id = ?", [
+             import_batch_id
+           ]),
+         :ok <-
+           Database.exec(conn, "DELETE FROM imports WHERE import_batch_id = ?", [import_batch_id]) do
+      :ok
+    end
+  end
+
+  defp insert_import_batch(conn, source_path, report) do
+    Database.exec(
+      conn,
+      """
+      INSERT INTO imports (
+        import_batch_id, source, source_path, imported_at, records_count,
+        warnings_count, report_json
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      """,
+      [
+        report["import_batch_id"],
+        report["source"],
+        source_path,
+        DateTime.utc_now() |> DateTime.to_iso8601(),
+        report["records"],
+        length(report["warnings"] || []),
+        JSON.encode!(report)
+      ]
+    )
+  end
+
+  defp insert_imported_execution_rows(conn, date, events, report) do
+    events
+    |> Enum.filter(&(&1["event"] == "imported_execution"))
+    |> Enum.with_index(1)
+    |> Enum.reduce_while(:ok, fn {event, index}, :ok ->
+      case insert_imported_execution_row(conn, date, event, report, index) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp insert_imported_execution_row(conn, date, event, report, index) do
+    Projection.insert_import_command(conn, Date.to_iso8601(date), event, report, index)
   end
 
   defp parse_zsh_history(content) do

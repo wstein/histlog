@@ -21,7 +21,7 @@ defmodule Histlog.DatabaseSchemaTest do
              Database.with_connection(root, fn conn ->
                :ok = Schema.ensure(conn)
 
-               assert {:ok, "2"} = Schema.schema_version(conn)
+               assert {:ok, "4"} = Schema.schema_version(conn)
 
                assert {:ok, tables} =
                         Database.query_maps(
@@ -36,7 +36,8 @@ defmodule Histlog.DatabaseSchemaTest do
 
                table_names = Enum.map(tables, & &1.name)
 
-               for table <- ~w(executions processed_sessions schema_metadata sessions) do
+               for table <-
+                     ~w(cmd_texts commands hosts imports paths processed_sessions schema_metadata sessions shells ttys) do
                  assert table in table_names
                end
 
@@ -50,6 +51,22 @@ defmodule Histlog.DatabaseSchemaTest do
                  |> Enum.map(& &1.name)
 
                assert primary_keys == ["date", "session_file"]
+
+               assert {:ok, command_columns} =
+                        Database.query_maps(conn, "PRAGMA table_info(commands)")
+
+               command_column_names = Enum.map(command_columns, & &1.name)
+               assert "import_batch_id" in command_column_names
+               assert "import_row_index" in command_column_names
+               assert "cmd_text_id" in command_column_names
+
+               assert {:ok, history_columns} =
+                        Database.query_maps(conn, "PRAGMA table_info(history_view)")
+
+               history_column_names = Enum.map(history_columns, & &1.name)
+               assert "date" in history_column_names
+               assert "command" in history_column_names
+               assert "cwd" in history_column_names
 
                :ok
              end)

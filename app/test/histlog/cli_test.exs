@@ -8,7 +8,6 @@ defmodule Histlog.CLITest do
   alias Histlog.Database
   alias Histlog.Database.Schema
   alias Histlog.SessionWriter
-  alias Histlog.Storage
 
   @fixtures Path.expand("../fixtures/import", __DIR__)
 
@@ -131,7 +130,7 @@ defmodule Histlog.CLITest do
              ])
   end
 
-  test "export command emits derived execution rows as ndjson", %{root: root, date: date} do
+  test "export command emits derived query rows as ndjson", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -742,7 +741,10 @@ defmodule Histlog.CLITest do
     assert warning =~ "schema_version_mismatch"
   end
 
-  test "query family commands merge sqlite, live, and imported rows", %{root: root, date: date} do
+  test "query family commands merge sqlite and live rows with materialized imports", %{
+    root: root,
+    date: date
+  } do
     closed_cwd = Path.join(root, "closed")
     live_cwd = Path.join(root, "live")
     import_cwd = Path.join(root, "imported")
@@ -799,12 +801,10 @@ defmodule Histlog.CLITest do
         "completeness" => "complete"
       })
 
-    Storage.ensure_layout(root, date)
-
-    import_path = Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-native.ndjson")
+    import_source = Path.join(root, "import-source.ndjson")
 
     File.write!(
-      import_path,
+      import_source,
       JSON.encode!(%{
         "event" => "imported_execution",
         "command" => "cat #{import_file}",
@@ -817,6 +817,22 @@ defmodule Histlog.CLITest do
 
     capture_io(fn ->
       assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    capture_io(fn ->
+      assert :ok =
+               CLI.run([
+                 "import",
+                 import_source,
+                 "--root",
+                 root,
+                 "--date",
+                 Date.to_iso8601(date),
+                 "--source",
+                 "native",
+                 "--import-batch-id",
+                 "native-batch"
+               ])
     end)
 
     query_output =
@@ -930,7 +946,7 @@ defmodule Histlog.CLITest do
            } = JSON.decode!(output)
 
     Database.with_connection(root, fn conn ->
-      Database.exec(conn, "DELETE FROM executions WHERE date = ?", [Date.to_iso8601(date)])
+      Database.exec(conn, "DELETE FROM commands WHERE date = ?", [Date.to_iso8601(date)])
     end)
 
     output =
@@ -988,6 +1004,22 @@ defmodule Histlog.CLITest do
              "imported_execution",
              "import_batch_finished"
            ]
+
+    query_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert query_output =~ "mix test\n"
+    assert query_output =~ "git status\n"
   end
 
   test "init command prints shell integration without aliases by default" do
