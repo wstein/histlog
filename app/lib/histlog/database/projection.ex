@@ -4,6 +4,7 @@ defmodule Histlog.Database.Projection do
   """
 
   alias Histlog.Database
+  alias Histlog.CommandText
   alias Histlog.PathAnalyzer
 
   @named_targets MapSet.new([
@@ -36,8 +37,13 @@ defmodule Histlog.Database.Projection do
   def upsert_command_text(_conn, command) when command in [nil, ""],
     do: {:error, :missing_command}
 
-  def upsert_command_text(conn, command),
-    do: upsert_named(conn, "cmd_texts", "command", command)
+  def upsert_command_text(conn, command) do
+    case CommandText.normalize(command) do
+      nil -> {:error, :missing_command}
+      "" -> {:error, :missing_command}
+      normalized -> upsert_named(conn, "cmd_texts", "command", normalized)
+    end
+  end
 
   def upsert_path(_conn, nil), do: {:ok, nil}
   def upsert_path(_conn, ""), do: {:ok, nil}
@@ -114,6 +120,8 @@ defmodule Histlog.Database.Projection do
   end
 
   def insert_session_command(conn, session_row_id, date_string, row) do
+    row = CommandText.normalize_row(row)
+
     with {:ok, cmd_text_id} <- upsert_command_text(conn, row["command"]),
          {:ok, cwd_id} <- upsert_path(conn, row["cwd"]),
          :ok <-
@@ -148,7 +156,7 @@ defmodule Histlog.Database.Projection do
                row["duration_ms"],
                row["exit_status"],
                row["completeness"] || "unknown",
-               private?(row["command"]),
+               private?(row),
                assisted?(row)
              ]
            ),
@@ -164,6 +172,8 @@ defmodule Histlog.Database.Projection do
   end
 
   def insert_import_command(conn, date_string, event, report, index) do
+    event = CommandText.normalize_row(event)
+
     with {:ok, cmd_text_id} <- upsert_command_text(conn, event["command"]),
          {:ok, cwd_id} <- upsert_path(conn, event["cwd"]),
          {:ok, shell_id} <- upsert_named(conn, "shells", "name", import_shell(report["source"])),
@@ -196,7 +206,7 @@ defmodule Histlog.Database.Projection do
                cwd_id,
                event["timestamp"],
                event["exit_status"],
-               private?(event["command"]),
+               private?(event),
                shell_id
              ]
            ),
@@ -260,11 +270,8 @@ defmodule Histlog.Database.Projection do
     end
   end
 
-  defp private?(command) when is_binary(command) do
-    if String.starts_with?(command, " "), do: 1, else: 0
-  end
-
-  defp private?(_command), do: 0
+  defp private?(%{"is_private" => value}) when value in [1, true], do: 1
+  defp private?(_row), do: 0
 
   defp assisted?(%{"assisted" => true}), do: 1
   defp assisted?(_row), do: 0

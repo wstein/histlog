@@ -89,6 +89,38 @@ defmodule Histlog.SessionWriterTest do
     assert writer.seq == 3
   end
 
+  test "trims command text while preserving private-command metadata", %{root: root} do
+    date = ~D[2026-05-06]
+
+    assert {:ok, writer} =
+             SessionWriter.start(
+               root: root,
+               date: date,
+               host: "machine",
+               process_id: 1234,
+               parent_process_id: 1200,
+               shell: "zsh",
+               session_id: "session-1",
+               monotonic_start: 12_345
+             )
+
+    assert {:ok, writer, _event} =
+             SessionWriter.observe_execution(writer, "  secret command  ", "/tmp", %{
+               "timestamp" => "2026-05-06T20:00:00Z",
+               "duration_ms" => 10,
+               "exit_status" => 0,
+               "completeness" => "complete"
+             })
+
+    assert {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+    assert {:ok, events} = Storage.read_events(writer.closed_path)
+
+    assert %{"command" => "secret command", "is_private" => 1} =
+             Enum.find(events, &(&1["event"] == "command_defined"))
+
+    refute Map.has_key?(Enum.find(events, &(&1["event"] == "execution_observed")), "is_private")
+  end
+
   test "persists configured durability mode in hook-safe writer state", %{root: root} do
     assert {:ok, writer} =
              SessionWriter.start(

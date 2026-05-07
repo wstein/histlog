@@ -4,6 +4,7 @@ defmodule Histlog.Consolidator do
   """
 
   alias Histlog.Checksum
+  alias Histlog.CommandText
   alias Histlog.Database
   alias Histlog.Database.Projection
   alias Histlog.Database.Schema
@@ -318,11 +319,13 @@ defmodule Histlog.Consolidator do
     events
     |> Enum.filter(&(&1["event"] == "execution_observed"))
     |> Enum.map(fn event ->
+      command = Map.get(commands, event["command_id"], %{})
+
       %{
         "event" => "execution",
         "session_id" => session_id,
         "exec_id" => event["exec_id"],
-        "command" => Map.get(commands, event["command_id"]),
+        "command" => command["command"],
         "cwd" => Map.get(folders, event["cwd_id"]),
         "timestamp" => event["timestamp"],
         "duration_ms" => event["duration_ms"],
@@ -331,8 +334,10 @@ defmodule Histlog.Consolidator do
         "shell" => session["shell"],
         "host" => session["host"],
         "tty" => session["tty"],
-        "source" => "sqlite"
+        "source" => "sqlite",
+        "is_private" => command["is_private"] || 0
       }
+      |> CommandText.normalize_row()
     end)
   end
 
@@ -351,6 +356,18 @@ defmodule Histlog.Consolidator do
     |> then(fn
       nil -> nil
       event -> Map.get(folders, event["cwd_id"])
+    end)
+  end
+
+  defp catalog(events, "command_defined", id_field, _value_field) do
+    events
+    |> Enum.filter(&(&1["event"] == "command_defined"))
+    |> Map.new(fn event ->
+      {event[id_field],
+       %{
+         "command" => CommandText.normalize(event["command"]),
+         "is_private" => event["is_private"] || 0
+       }}
     end)
   end
 

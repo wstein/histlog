@@ -82,11 +82,11 @@ defmodule Histlog.Query.Filter do
   end
 
   defp match_private?(row, opts) do
-    private? = row["is_private"] in [1, true] || String.starts_with?(row["command"] || "", " ")
+    private? = row["is_private"] in [1, true]
 
     cond do
       Keyword.get(opts, :private, false) -> private?
-      Keyword.get(opts, :no_private, false) -> !private?
+      Keyword.get(opts, :no_private, false) || disabled_boolean?(opts, :private) -> !private?
       true -> true
     end
   end
@@ -96,7 +96,7 @@ defmodule Histlog.Query.Filter do
 
     cond do
       Keyword.get(opts, :imported, false) -> imported?
-      Keyword.get(opts, :no_imported, false) -> !imported?
+      Keyword.get(opts, :no_imported, false) || disabled_boolean?(opts, :imported) -> !imported?
       true -> true
     end
   end
@@ -106,7 +106,7 @@ defmodule Histlog.Query.Filter do
 
     cond do
       Keyword.get(opts, :assisted, false) -> assisted?
-      Keyword.get(opts, :no_assisted, false) -> !assisted?
+      Keyword.get(opts, :no_assisted, false) || disabled_boolean?(opts, :assisted) -> !assisted?
       true -> true
     end
   end
@@ -176,6 +176,8 @@ defmodule Histlog.Query.Filter do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp disabled_boolean?(opts, key), do: Keyword.fetch(opts, key) == {:ok, false}
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value

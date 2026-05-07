@@ -19,6 +19,8 @@ Writers should emit one compact JSON object followed by a newline for each recor
 
 Validation happens at both event and session scope. Single events must have parseable timestamps and valid domain fields; complete session streams must have a `session_started` header, gapless sequence numbers, and catalog references that point to earlier definitions in the same file.
 
+Command text is normalized before persistence by trimming leading and trailing whitespace. If a shell marks private commands by a leading space, histlog stores that privacy signal in `is_private` on `command_defined` instead of preserving the leading space in the command text.
+
 The on-disk representation remains compact maps. Internal code may convert those maps to typed event structs when explicit shape helps implementation, but encoding and decoding still happen at the NDJSON boundary.
 
 ## Links

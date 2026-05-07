@@ -4,6 +4,7 @@ defmodule Histlog.Query do
   """
 
   alias Histlog.Consolidator
+  alias Histlog.CommandText
   alias Histlog.Database
   alias Histlog.Database.Schema
   alias Histlog.PathAnalyzer
@@ -64,7 +65,11 @@ defmodule Histlog.Query do
                """
              ),
            {:ok, path_groups} <- sqlite_path_groups(conn, nil) do
-        {:ok, rows |> Enum.map(&stringify_keys/1) |> attach_path_groups(path_groups)}
+        {:ok,
+         rows
+         |> Enum.map(&stringify_keys/1)
+         |> Enum.map(&CommandText.normalize_row/1)
+         |> attach_path_groups(path_groups)}
       else
         {:ok, version} -> {:error, {:schema_version_mismatch, expected_version, version}}
         {:error, reason} -> {:error, reason}
@@ -93,7 +98,11 @@ defmodule Histlog.Query do
                [Date.to_iso8601(date)]
              ),
            {:ok, path_groups} <- sqlite_path_groups(conn, date) do
-        {:ok, rows |> Enum.map(&stringify_keys/1) |> attach_path_groups(path_groups)}
+        {:ok,
+         rows
+         |> Enum.map(&stringify_keys/1)
+         |> Enum.map(&CommandText.normalize_row/1)
+         |> attach_path_groups(path_groups)}
       else
         {:ok, version} -> {:error, {:schema_version_mismatch, expected_version, version}}
         {:error, reason} -> {:error, reason}
@@ -137,6 +146,7 @@ defmodule Histlog.Query do
     |> Enum.map(fn row ->
       row
       |> Map.put("source", "live")
+      |> CommandText.normalize_row()
       |> Map.put("paths", PathAnalyzer.command_paths(row["command"], row["cwd"]))
     end)
   end

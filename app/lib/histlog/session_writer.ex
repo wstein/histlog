@@ -4,6 +4,7 @@ defmodule Histlog.SessionWriter do
   """
 
   alias Histlog.Event
+  alias Histlog.CommandText
   alias Histlog.Storage
 
   defstruct [
@@ -131,8 +132,12 @@ defmodule Histlog.SessionWriter do
   @doc """
   Defines a command once per session and returns its session-local id.
   """
-  def define_command(%__MODULE__{} = writer, command) when is_binary(command) do
-    case Map.fetch(writer.commands, command) do
+  def define_command(%__MODULE__{} = writer, command, attrs \\ %{}) when is_binary(command) do
+    private? = Map.get(attrs, "is_private", if(CommandText.private?(command), do: 1, else: 0))
+    command = CommandText.normalize(command)
+    key = command_key(command, private?)
+
+    case Map.fetch(writer.commands, key) do
       {:ok, command_id} ->
         {:ok, writer, command_id}
 
@@ -141,13 +146,14 @@ defmodule Histlog.SessionWriter do
 
         attrs = %{
           "command_id" => command_id,
-          "command" => command
+          "command" => command,
+          "is_private" => private?
         }
 
         with {:ok, writer, _event} <- append(writer, "command_defined", attrs) do
           writer = %{
             writer
-            | commands: Map.put(writer.commands, command, command_id),
+            | commands: Map.put(writer.commands, key, command_id),
               next_command_id: command_id + 1
           }
 
@@ -188,7 +194,11 @@ defmodule Histlog.SessionWriter do
   Records an observed execution, defining command and cwd catalog entries if needed.
   """
   def observe_execution(%__MODULE__{} = writer, command, cwd, attrs \\ %{}) do
-    with {:ok, writer, command_id} <- define_command(writer, command),
+    private? = CommandText.private?(command)
+    command = CommandText.normalize(command)
+
+    with {:ok, writer, command_id} <-
+           define_command(writer, command, %{"is_private" => if(private?, do: 1, else: 0)}),
          {:ok, writer, cwd_id} <- define_folder(writer, cwd) do
       exec_id = writer.next_exec_id
 
@@ -247,6 +257,8 @@ defmodule Histlog.SessionWriter do
     do: event_type in ["session_started", "session_ended", "session_aborted"]
 
   defp sync_event?("fast", _event_type), do: false
+
+  defp command_key(command, private?), do: "#{private?}:#{command}"
 
   defp default_host do
     case :inet.gethostname() do

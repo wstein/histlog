@@ -26,6 +26,20 @@ defmodule Histlog.ImportTest do
     assert :ok = Schema.validate_sequence(events)
   end
 
+  test "normalizes imported command text while preserving private marker" do
+    assert [
+             %{
+               "event" => "imported_execution",
+               "command" => "hidden imported",
+               "is_private" => 1
+             }
+           ] =
+             Import.batch("import-session", "zsh_history", "batch-1", [
+               %{"command" => "  hidden imported  ", "timestamp" => "2026-05-06T16:00:00Z"}
+             ])
+             |> Enum.filter(&(&1["event"] == "imported_execution"))
+  end
+
   test "parses zsh extended history fixtures" do
     content = File.read!(Path.join(@fixtures, "zsh_history"))
 

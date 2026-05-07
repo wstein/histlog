@@ -7,7 +7,9 @@ Histlog should capture command history as structured execution records with enou
 
 ## What
 
-A histlog command record should describe the command text plus meaningful execution context such as timing, exit status, working directory, environment-derived context, shell session identity, and other metadata that helps later analysis.
+A histlog command record should describe normalized command text plus meaningful execution context such as timing, exit status, working directory, environment-derived context, shell session identity, privacy, and other metadata that helps later analysis.
+
+Command text is trimmed at capture/import/projection boundaries. Private command detection happens before trimming so `--private` and `--no-private` do not depend on preserving accidental leading whitespace in rendered command text.
 
 ## Why
 

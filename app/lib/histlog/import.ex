@@ -4,6 +4,7 @@ defmodule Histlog.Import do
   """
 
   alias Histlog.Database
+  alias Histlog.CommandText
   alias Histlog.Database.Projection
   alias Histlog.Database.Schema
   alias Histlog.Event
@@ -24,10 +25,12 @@ defmodule Histlog.Import do
       executions
       |> Enum.with_index(2)
       |> Enum.map(fn {execution, seq} ->
+        execution = normalize_execution(execution)
+
         Event.new!(
           "imported_execution",
           seq,
-          Map.take(execution, ["command", "cwd", "timestamp", "exit_status"])
+          Map.take(execution, ["command", "cwd", "timestamp", "exit_status", "is_private"])
         )
       end)
 
@@ -193,6 +196,14 @@ defmodule Histlog.Import do
     Projection.insert_import_command(conn, Date.to_iso8601(date), event, report, index)
   end
 
+  defp normalize_execution(execution) do
+    private? = execution["is_private"] in [1, true] || CommandText.private?(execution["command"])
+
+    execution
+    |> Map.put("is_private", if(private?, do: 1, else: 0))
+    |> Map.put("command", CommandText.normalize(execution["command"]))
+  end
+
   defp parse_zsh_history(content) do
     executions =
       content
@@ -348,7 +359,9 @@ defmodule Histlog.Import do
   defp flush_fish_record(records, _current), do: records
 
   defp event_to_imported_execution(%{"event" => "imported_execution"} = event) do
-    Map.take(event, ["command", "cwd", "timestamp", "exit_status"])
+    event
+    |> Map.take(["command", "cwd", "timestamp", "exit_status", "is_private"])
+    |> normalize_execution()
   end
 
   defp event_to_imported_execution(%{"event" => "execution_observed"} = event) do
@@ -356,8 +369,10 @@ defmodule Histlog.Import do
       "command" => Map.get(event, "command", ""),
       "cwd" => Map.get(event, "cwd"),
       "timestamp" => Map.get(event, "timestamp", Map.get(event, "started_at")),
-      "exit_status" => Map.get(event, "exit_status")
+      "exit_status" => Map.get(event, "exit_status"),
+      "is_private" => Map.get(event, "is_private")
     }
+    |> normalize_execution()
   end
 
   defp parse_ndjson(content) do
@@ -386,11 +401,14 @@ defmodule Histlog.Import do
   end
 
   defp imported_execution(command, timestamp, cwd \\ nil) do
+    command = utf8_safe(command)
+
     %{
-      "command" => utf8_safe(command),
+      "command" => CommandText.normalize(command),
       "cwd" => utf8_safe(cwd),
       "timestamp" => utf8_safe(timestamp),
-      "exit_status" => nil
+      "exit_status" => nil,
+      "is_private" => if(CommandText.private?(command), do: 1, else: 0)
     }
   end
 

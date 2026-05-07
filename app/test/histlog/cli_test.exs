@@ -319,6 +319,92 @@ defmodule Histlog.CLITest do
     assert output == "mix format\n"
   end
 
+  test "query no-private excludes private commands after command normalization", %{
+    root: root,
+    date: date
+  } do
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-1",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "  secret command  ", "/repo", %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "public command ", "/repo", %{
+        "timestamp" => "2026-05-06T20:01:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:02:00Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    plain =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert plain == "secret command\npublic command\n"
+
+    no_private =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--no-private",
+                   "--plain"
+                 ])
+      end)
+
+    assert no_private == "public command\n"
+
+    private =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--private",
+                   "--plain"
+                 ])
+      end)
+
+    assert private == "secret command\n"
+  end
+
   test "query table and time filters use local time", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(

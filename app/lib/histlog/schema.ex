@@ -109,7 +109,8 @@ defmodule Histlog.Schema do
   end
 
   defp validate_semantics(%{"event" => "command_defined"} = event) do
-    with :ok <- require_positive_integer(event, "command_id") do
+    with :ok <- require_positive_integer(event, "command_id"),
+         :ok <- optional_boolean_integer(event, "is_private") do
       require_string(event, "command")
     end
   end
@@ -338,6 +339,14 @@ defmodule Histlog.Schema do
       require_non_negative_integer(event, field)
     else
       :ok
+    end
+  end
+
+  defp optional_boolean_integer(event, field) do
+    case Map.fetch(event, field) do
+      :error -> :ok
+      {:ok, value} when value in [0, 1, true, false] -> :ok
+      {:ok, value} -> {:error, {:invalid_boolean_integer, field, value}}
     end
   end
 
