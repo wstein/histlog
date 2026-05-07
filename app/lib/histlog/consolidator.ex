@@ -31,13 +31,16 @@ defmodule Histlog.Consolidator do
 
   defp consolidate_in_transaction(conn, root, date, rebuild?) do
     with :ok <- maybe_clear_date(conn, date, rebuild?) do
-      session_paths = session_paths(conn, root, date, rebuild?)
+      session_paths = session_paths(root, date)
 
       {valid, quarantined} =
         Enum.reduce(session_paths, {[], []}, fn path, {valid, quarantined} ->
-          case load_valid_session(path, root, date) do
+          case load_session_for_processing(conn, path, root, date, rebuild?) do
             {:ok, session} ->
               {[session | valid], quarantined}
+
+            {:skipped, _session_file} ->
+              {valid, quarantined}
 
             {:quarantined, entry} ->
               {valid, [entry | quarantined]}
@@ -66,42 +69,57 @@ defmodule Histlog.Consolidator do
     end
   end
 
-  defp session_paths(conn, root, date, rebuild?) do
-    paths =
-      root
-      |> Storage.closed_dir(date)
-      |> Path.join("*.ndjson")
-      |> Path.wildcard()
-      |> Enum.sort()
-
-    if rebuild? do
-      paths
-    else
-      Enum.reject(paths, &processed?(conn, &1))
-    end
+  defp session_paths(root, date) do
+    root
+    |> Storage.closed_dir(date)
+    |> Path.join("*.ndjson")
+    |> Path.wildcard()
+    |> Enum.sort()
   end
 
-  defp processed?(conn, path) do
+  defp processed?(conn, date, path, checksum) do
     case Database.query_value(
            conn,
-           "SELECT 1 AS value FROM processed_sessions WHERE session_file = ? LIMIT 1",
-           [Path.basename(path)]
+           """
+           SELECT 1 AS value
+           FROM processed_sessions
+           WHERE date = ?
+             AND session_file = ?
+             AND source_checksum = ?
+             AND schema_version = ?
+           LIMIT 1
+           """,
+           [Date.to_iso8601(date), Path.basename(path), checksum, Schema.version()]
          ) do
       {:ok, 1} -> true
       _ -> false
     end
   end
 
-  defp load_valid_session(path, root, date) do
-    with {:ok, content} <- File.read(path),
-         {:ok, events} <- NDJSON.decode(content),
+  defp load_session_for_processing(conn, path, root, date, rebuild?) do
+    with {:ok, content} <- File.read(path) do
+      checksum = Checksum.sha256(content)
+
+      if !rebuild? and processed?(conn, date, path, checksum) do
+        {:skipped, Path.basename(path)}
+      else
+        load_valid_session(path, root, date, content, checksum)
+      end
+    else
+      {:error, reason} ->
+        quarantine(path, root, date, inspect(reason))
+    end
+  end
+
+  defp load_valid_session(path, root, date, content, checksum) do
+    with {:ok, events} <- NDJSON.decode(content),
          :ok <- EventSchema.validate_session(events) do
       {:ok,
        %{
          path: path,
          basename: Path.basename(path),
          events: events,
-         source_checksum: Checksum.sha256(content),
+         source_checksum: checksum,
          execution_rows: derive_execution_rows(events)
        }}
     else
@@ -140,7 +158,8 @@ defmodule Histlog.Consolidator do
     date_string = Date.to_iso8601(date)
     session_id = session["session_id"]
 
-    with :ok <-
+    with :ok <- delete_stale_session_materialization(conn, date_string, materialized.basename),
+         :ok <-
            Database.exec(
              conn,
              """
@@ -179,13 +198,12 @@ defmodule Histlog.Consolidator do
              conn,
              """
              INSERT INTO processed_sessions (
-               session_file, session_id, date, processed_at, schema_version,
+               date, session_file, session_id, processed_at, schema_version,
                events_count, executions_count, source_checksum
              )
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(session_file) DO UPDATE SET
+             ON CONFLICT(date, session_file) DO UPDATE SET
                session_id = excluded.session_id,
-               date = excluded.date,
                processed_at = excluded.processed_at,
                schema_version = excluded.schema_version,
                events_count = excluded.events_count,
@@ -193,9 +211,9 @@ defmodule Histlog.Consolidator do
                source_checksum = excluded.source_checksum
              """,
              [
+               date_string,
                materialized.basename,
                session_id,
-               date_string,
                processed_at,
                Schema.version(),
                length(materialized.events),
@@ -203,6 +221,43 @@ defmodule Histlog.Consolidator do
                materialized.source_checksum
              ]
            ) do
+      :ok
+    end
+  end
+
+  defp delete_stale_session_materialization(conn, date_string, session_file) do
+    with {:ok, rows} <-
+           Database.query_maps(
+             conn,
+             """
+             SELECT session_id
+             FROM processed_sessions
+             WHERE date = ? AND session_file = ?
+             """,
+             [date_string, session_file]
+           ),
+         :ok <-
+           Enum.reduce_while(rows, :ok, fn row, :ok ->
+             case delete_session_rows(conn, row.session_id) do
+               :ok -> {:cont, :ok}
+               {:error, reason} -> {:halt, {:error, reason}}
+             end
+           end),
+         :ok <-
+           Database.exec(
+             conn,
+             "DELETE FROM processed_sessions WHERE date = ? AND session_file = ?",
+             [date_string, session_file]
+           ) do
+      :ok
+    end
+  end
+
+  defp delete_session_rows(_conn, nil), do: :ok
+
+  defp delete_session_rows(conn, session_id) do
+    with :ok <- Database.exec(conn, "DELETE FROM executions WHERE session_id = ?", [session_id]),
+         :ok <- Database.exec(conn, "DELETE FROM sessions WHERE session_id = ?", [session_id]) do
       :ok
     end
   end

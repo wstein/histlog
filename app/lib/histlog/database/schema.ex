@@ -5,12 +5,13 @@ defmodule Histlog.Database.Schema do
 
   alias Histlog.Database
 
-  @version 1
+  @version 2
 
   def version, do: @version
 
   def ensure(conn) do
-    with :ok <- Database.execute(conn, ddl()),
+    with :ok <- reset_incompatible_schema(conn),
+         :ok <- Database.execute(conn, ddl()),
          :ok <-
            Database.exec(
              conn,
@@ -29,6 +30,62 @@ defmodule Histlog.Database.Schema do
     Database.query_value(conn, "SELECT value FROM schema_metadata WHERE key = 'schema_version'")
   end
 
+  defp reset_incompatible_schema(conn) do
+    cond do
+      incompatible_processed_sessions?(conn) ->
+        drop_materialization(conn)
+
+      incompatible_executions?(conn) ->
+        drop_materialization(conn)
+
+      true ->
+        :ok
+    end
+  end
+
+  defp incompatible_processed_sessions?(conn) do
+    case Database.query_maps(conn, "PRAGMA table_info(processed_sessions)") do
+      {:ok, []} ->
+        false
+
+      {:ok, rows} ->
+        primary_keys =
+          rows
+          |> Enum.filter(&(&1.pk in [1, 2]))
+          |> Enum.sort_by(& &1.pk)
+          |> Enum.map(& &1.name)
+
+        primary_keys != ["date", "session_file"]
+
+      {:error, _reason} ->
+        true
+    end
+  end
+
+  defp incompatible_executions?(conn) do
+    case Database.query_value(
+           conn,
+           """
+           SELECT sql AS value
+           FROM sqlite_master
+           WHERE type = 'table' AND name = 'executions'
+           """
+         ) do
+      {:ok, nil} -> false
+      {:ok, sql} -> not String.contains?(sql, "CHECK (completeness")
+      {:error, _reason} -> true
+    end
+  end
+
+  defp drop_materialization(conn) do
+    Database.execute(conn, """
+    DROP TABLE IF EXISTS executions;
+    DROP TABLE IF EXISTS sessions;
+    DROP TABLE IF EXISTS processed_sessions;
+    DROP TABLE IF EXISTS schema_metadata;
+    """)
+  end
+
   def ddl do
     """
     PRAGMA foreign_keys = ON;
@@ -39,14 +96,15 @@ defmodule Histlog.Database.Schema do
     );
 
     CREATE TABLE IF NOT EXISTS processed_sessions (
-      session_file TEXT PRIMARY KEY,
-      session_id TEXT,
       date TEXT NOT NULL,
+      session_file TEXT NOT NULL,
+      session_id TEXT,
       processed_at TEXT NOT NULL,
-      schema_version INTEGER NOT NULL,
-      events_count INTEGER NOT NULL,
-      executions_count INTEGER NOT NULL,
-      source_checksum TEXT NOT NULL
+      schema_version INTEGER NOT NULL CHECK (schema_version > 0),
+      events_count INTEGER NOT NULL CHECK (events_count >= 0),
+      executions_count INTEGER NOT NULL CHECK (executions_count >= 0),
+      source_checksum TEXT NOT NULL,
+      PRIMARY KEY (date, session_file)
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
@@ -70,9 +128,9 @@ defmodule Histlog.Database.Schema do
       command TEXT,
       cwd TEXT,
       timestamp TEXT,
-      duration_ms INTEGER,
+      duration_ms INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0),
       exit_status INTEGER,
-      completeness TEXT,
+      completeness TEXT CHECK (completeness IN ('complete', 'partial', 'unknown')),
       shell TEXT,
       host TEXT,
       tty TEXT,

@@ -43,7 +43,7 @@ defmodule Histlog.Query do
   defp sqlite_execution_rows(root, date) do
     path = Storage.database_path(root)
 
-    if File.exists?(path), do: normalize_sqlite_rows(read_sqlite_rows(root, date)), else: []
+    if File.exists?(path), do: normalize_sqlite_rows(path, read_sqlite_rows(root, date)), else: []
   end
 
   defp read_sqlite_rows(root, nil) do
@@ -62,9 +62,10 @@ defmodule Histlog.Query do
                ORDER BY timestamp ASC, id ASC
                """
              ) do
-        rows |> Enum.map(&stringify_keys/1)
+        {:ok, Enum.map(rows, &stringify_keys/1)}
       else
-        _ -> []
+        {:ok, version} -> {:error, {:schema_version_mismatch, expected_version, version}}
+        {:error, reason} -> {:error, reason}
       end
     end)
   end
@@ -87,15 +88,20 @@ defmodule Histlog.Query do
                """,
                [Date.to_iso8601(date)]
              ) do
-        rows |> Enum.map(&stringify_keys/1)
+        {:ok, Enum.map(rows, &stringify_keys/1)}
       else
-        _ -> []
+        {:ok, version} -> {:error, {:schema_version_mismatch, expected_version, version}}
+        {:error, reason} -> {:error, reason}
       end
     end)
   end
 
-  defp normalize_sqlite_rows(rows) when is_list(rows), do: rows
-  defp normalize_sqlite_rows(_error), do: []
+  defp normalize_sqlite_rows(_path, {:ok, rows}), do: rows
+
+  defp normalize_sqlite_rows(path, {:error, reason}) do
+    IO.puts(:stderr, "histlog: skipped sqlite materialization #{path}: #{inspect(reason)}")
+    []
+  end
 
   defp imported_execution_rows(root, nil) do
     root

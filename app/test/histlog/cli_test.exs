@@ -6,7 +6,9 @@ defmodule Histlog.CLITest do
   alias Histlog.CLI
   alias Histlog.Consolidator
   alias Histlog.Database
+  alias Histlog.Database.Schema
   alias Histlog.SessionWriter
+  alias Histlog.Storage
 
   @fixtures Path.expand("../fixtures/import", __DIR__)
 
@@ -704,6 +706,189 @@ defmodule Histlog.CLITest do
       end)
 
     assert live_default_output == "histlog query\n"
+  end
+
+  test "query warns when sqlite materialization cannot be read", %{root: root, date: date} do
+    File.mkdir_p!(root)
+
+    Database.with_connection(root, fn conn ->
+      :ok = Schema.ensure(conn)
+
+      Database.exec(
+        conn,
+        "UPDATE schema_metadata SET value = '999' WHERE key = 'schema_version'"
+      )
+    end)
+
+    warning =
+      capture_io(:stderr, fn ->
+        output =
+          capture_io(fn ->
+            assert :ok =
+                     CLI.run([
+                       "query",
+                       "--root",
+                       root,
+                       "--date",
+                       Date.to_iso8601(date),
+                       "--plain"
+                     ])
+          end)
+
+        assert output == ""
+      end)
+
+    assert warning =~ "skipped sqlite materialization"
+    assert warning =~ "schema_version_mismatch"
+  end
+
+  test "query family commands merge sqlite, live, and imported rows", %{root: root, date: date} do
+    closed_cwd = Path.join(root, "closed")
+    live_cwd = Path.join(root, "live")
+    import_cwd = Path.join(root, "imported")
+    File.mkdir_p!(closed_cwd)
+    File.mkdir_p!(live_cwd)
+    File.mkdir_p!(import_cwd)
+
+    closed_file = Path.join(closed_cwd, "closed.txt")
+    live_file = Path.join(live_cwd, "live.txt")
+    import_file = Path.join(import_cwd, "import.txt")
+    File.write!(closed_file, "")
+    File.write!(live_file, "")
+    File.write!(import_file, "")
+
+    {:ok, closed} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-closed",
+        monotonic_start: 12_345
+      )
+
+    {:ok, closed, _event} =
+      SessionWriter.observe_execution(closed, "cat ./closed.txt", closed_cwd, %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _closed, _event} = SessionWriter.close(closed, "2026-05-06T20:00:01Z")
+
+    {:ok, live} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1235,
+        parent_process_id: 1200,
+        shell: "fish",
+        session_id: "session-live",
+        monotonic_start: 12_346
+      )
+
+    {:ok, _live, _event} =
+      SessionWriter.observe_execution(live, "cat ./live.txt", live_cwd, %{
+        "timestamp" => "2026-05-06T20:01:00Z",
+        "duration_ms" => 20,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    Storage.ensure_layout(root, date)
+
+    import_path = Path.join(Storage.imports_dir(root), "#{Date.to_iso8601(date)}-native.ndjson")
+
+    File.write!(
+      import_path,
+      JSON.encode!(%{
+        "event" => "imported_execution",
+        "command" => "cat #{import_file}",
+        "cwd" => import_cwd,
+        "timestamp" => "2026-05-06T20:02:00Z",
+        "duration_ms" => 30,
+        "exit_status" => 0
+      }) <> "\n"
+    )
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    query_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "query",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--plain"
+                 ])
+      end)
+
+    assert query_output =~ "cat ./closed.txt\n"
+    assert query_output =~ "cat ./live.txt\n"
+    assert query_output =~ "cat #{import_file}\n"
+
+    paths_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "paths",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
+      end)
+
+    paths = JSON.decode!(paths_output)
+    assert Enum.any?(paths, &(&1["path"] == closed_file))
+    assert Enum.any?(paths, &(&1["path"] == live_file))
+    assert Enum.any?(paths, &(&1["path"] == import_file))
+
+    sessions_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "sessions",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--json"
+                 ])
+      end)
+
+    sessions = JSON.decode!(sessions_output)
+    assert Enum.any?(sessions, &(&1["session_id"] == "session-closed"))
+    assert Enum.any?(sessions, &(&1["session_id"] == "session-live"))
+    assert Enum.any?(sessions, &(&1["session"] == "(imported)"))
+
+    export_output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "export",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date)
+                 ])
+      end)
+
+    assert export_output
+           |> String.split("\n", trim: true)
+           |> Enum.map(&JSON.decode!/1)
+           |> Enum.map(& &1["command"])
+           |> Enum.sort() == ["cat ./closed.txt", "cat ./live.txt", "cat #{import_file}"]
   end
 
   test "verify command reports materialization integrity", %{root: root, date: date} do

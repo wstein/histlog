@@ -52,6 +52,24 @@ defmodule Histlog.ConsolidatorTest do
     assert database_count(root, "executions") == 1
   end
 
+  test "reprocesses a closed session when its checksum changes", %{root: root, date: date} do
+    writer = closed_session!(root, date, "session-1", "pwd", "/repo", 0)
+
+    assert {:ok, _first} = Consolidator.consolidate(root: root, date: date)
+
+    writer.closed_path
+    |> File.read!()
+    |> String.replace("\"command\":\"pwd\"", "\"command\":\"whoami\"")
+    |> then(&File.write!(writer.closed_path, &1))
+
+    assert {:ok, second} = Consolidator.consolidate(root: root, date: date)
+    assert second["sessions_processed"] == [Path.basename(writer.closed_path)]
+
+    assert {:ok, rows} = Query.executions(root: root, date: date)
+    assert [%{"command" => "whoami"}] = rows
+    assert database_count(root, "executions") == 1
+  end
+
   test "rebuild rewrites database rows from closed sessions", %{root: root, date: date} do
     closed_session!(root, date, "session-1", "pwd", "/repo", 0)
 

@@ -21,7 +21,7 @@ defmodule Histlog.DatabaseSchemaTest do
              Database.with_connection(root, fn conn ->
                :ok = Schema.ensure(conn)
 
-               assert {:ok, "1"} = Schema.schema_version(conn)
+               assert {:ok, "2"} = Schema.schema_version(conn)
 
                assert {:ok, tables} =
                         Database.query_maps(
@@ -39,6 +39,17 @@ defmodule Histlog.DatabaseSchemaTest do
                for table <- ~w(executions processed_sessions schema_metadata sessions) do
                  assert table in table_names
                end
+
+               assert {:ok, processed_columns} =
+                        Database.query_maps(conn, "PRAGMA table_info(processed_sessions)")
+
+               primary_keys =
+                 processed_columns
+                 |> Enum.filter(&(&1.pk in [1, 2]))
+                 |> Enum.sort_by(& &1.pk)
+                 |> Enum.map(& &1.name)
+
+               assert primary_keys == ["date", "session_file"]
 
                :ok
              end)
