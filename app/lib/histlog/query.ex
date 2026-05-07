@@ -3,6 +3,9 @@ defmodule Histlog.Query do
   Streaming file-based query helpers for derived execution rows.
   """
 
+  alias Histlog.Consolidator
+  alias Histlog.Database
+  alias Histlog.Database.Schema
   alias Histlog.Storage
 
   @doc """
@@ -23,25 +26,84 @@ defmodule Histlog.Query do
 
   defp execution_rows(root, nil) do
     root
-    |> available_dates()
-    |> Enum.flat_map(&execution_rows(root, &1))
+    |> sqlite_execution_rows(nil)
+    |> Kernel.++(live_execution_rows(root, nil))
+    |> Kernel.++(imported_execution_rows(root, nil))
+    |> dedupe_rows()
   end
 
   defp execution_rows(root, date) do
     root
-    |> daily_execution_rows(date)
+    |> sqlite_execution_rows(date)
     |> Kernel.++(live_execution_rows(root, date))
     |> Kernel.++(imported_execution_rows(root, date))
+    |> dedupe_rows()
   end
 
-  defp daily_execution_rows(root, date) do
-    path = Storage.daily_exec_path(root, date)
+  defp sqlite_execution_rows(root, date) do
+    path = Storage.database_path(root)
 
-    if File.exists?(path) do
-      read_ndjson_file(path)
-    else
-      []
-    end
+    if File.exists?(path), do: normalize_sqlite_rows(read_sqlite_rows(root, date)), else: []
+  end
+
+  defp read_sqlite_rows(root, nil) do
+    Database.with_connection(root, [mode: :readonly], fn conn ->
+      expected_version = Integer.to_string(Schema.version())
+
+      with {:ok, ^expected_version} <- Schema.schema_version(conn),
+           {:ok, rows} <-
+             Database.query_maps(
+               conn,
+               """
+               SELECT
+                 'execution' AS event, session_id, exec_id, command, cwd, timestamp,
+                 duration_ms, exit_status, completeness, shell, host, tty, source
+               FROM executions
+               ORDER BY timestamp ASC, id ASC
+               """
+             ) do
+        rows |> Enum.map(&stringify_keys/1)
+      else
+        _ -> []
+      end
+    end)
+  end
+
+  defp read_sqlite_rows(root, date) do
+    Database.with_connection(root, [mode: :readonly], fn conn ->
+      expected_version = Integer.to_string(Schema.version())
+
+      with {:ok, ^expected_version} <- Schema.schema_version(conn),
+           {:ok, rows} <-
+             Database.query_maps(
+               conn,
+               """
+               SELECT
+                 'execution' AS event, session_id, exec_id, command, cwd, timestamp,
+                 duration_ms, exit_status, completeness, shell, host, tty, source
+               FROM executions
+               WHERE date = ?
+               ORDER BY timestamp ASC, id ASC
+               """,
+               [Date.to_iso8601(date)]
+             ) do
+        rows |> Enum.map(&stringify_keys/1)
+      else
+        _ -> []
+      end
+    end)
+  end
+
+  defp normalize_sqlite_rows(rows) when is_list(rows), do: rows
+  defp normalize_sqlite_rows(_error), do: []
+
+  defp imported_execution_rows(root, nil) do
+    root
+    |> Storage.imports_dir()
+    |> Path.join("*.ndjson")
+    |> Path.wildcard()
+    |> Enum.sort()
+    |> read_import_files()
   end
 
   defp imported_execution_rows(root, date) do
@@ -50,12 +112,24 @@ defmodule Histlog.Query do
     |> Path.join("#{Date.to_iso8601(date)}-*.ndjson")
     |> Path.wildcard()
     |> Enum.sort()
+    |> read_import_files()
+  end
+
+  defp read_import_files(paths) do
+    paths
     |> Enum.flat_map(fn path ->
       path
       |> read_ndjson_file()
       |> Enum.filter(&(&1["event"] == "imported_execution"))
       |> Enum.map(&imported_execution_row/1)
     end)
+  end
+
+  defp live_execution_rows(root, nil) do
+    Path.join([root, "sessions", "live", "*", "*.ndjson"])
+    |> Path.wildcard()
+    |> Enum.sort()
+    |> Enum.flat_map(&session_execution_rows/1)
   end
 
   defp live_execution_rows(root, date) do
@@ -74,29 +148,10 @@ defmodule Histlog.Query do
 
   defp session_execution_rows(path) do
     events = read_ndjson_file(path)
-    commands = catalog(events, "command_defined", "command_id", "command")
-    folders = catalog(events, "folder_defined", "folder_id", "folder")
-    session = session_started(events)
 
     events
-    |> Enum.filter(&(&1["event"] == "execution_observed"))
-    |> Enum.map(fn event ->
-      %{
-        "event" => "execution",
-        "session_id" => session["session_id"],
-        "exec_id" => event["exec_id"],
-        "command" => Map.get(commands, event["command_id"]),
-        "cwd" => Map.get(folders, event["cwd_id"]),
-        "timestamp" => event["timestamp"],
-        "duration_ms" => event["duration_ms"],
-        "exit_status" => event["exit_status"],
-        "completeness" => event["completeness"],
-        "shell" => session["shell"],
-        "host" => session["host"],
-        "tty" => session["tty"],
-        "source" => "live"
-      }
-    end)
+    |> Consolidator.derive_execution_rows()
+    |> Enum.map(&Map.put(&1, "source", "live"))
   end
 
   defp imported_execution_row(event) do
@@ -111,47 +166,6 @@ defmodule Histlog.Query do
       "completeness" => "imported",
       "source" => "imported"
     }
-  end
-
-  defp available_dates(root) do
-    root
-    |> date_strings()
-    |> Enum.uniq()
-    |> Enum.sort()
-    |> Enum.flat_map(fn date ->
-      case Date.from_iso8601(date) do
-        {:ok, parsed} -> [parsed]
-        {:error, _reason} -> []
-      end
-    end)
-  end
-
-  defp date_strings(root) do
-    daily =
-      root
-      |> Storage.daily_dir()
-      |> Path.join("*.exec.ndjson")
-      |> Path.wildcard()
-      |> Enum.map(fn path -> path |> Path.basename(".exec.ndjson") end)
-
-    live =
-      Path.join([root, "sessions", "live", "*"])
-      |> Path.wildcard()
-      |> Enum.map(&Path.basename/1)
-
-    imports =
-      root
-      |> Storage.imports_dir()
-      |> Path.join("*.ndjson")
-      |> Path.wildcard()
-      |> Enum.flat_map(fn path ->
-        case Regex.run(~r/^(\d{4}-\d{2}-\d{2})-/, Path.basename(path)) do
-          [_, date] -> [date]
-          _ -> []
-        end
-      end)
-
-    daily ++ live ++ imports
   end
 
   defp read_ndjson_file(path) do
@@ -177,14 +191,30 @@ defmodule Histlog.Query do
     )
   end
 
-  defp catalog(events, event_type, id_field, value_field) do
-    events
-    |> Enum.filter(&(&1["event"] == event_type))
-    |> Map.new(fn event -> {event[id_field], event[value_field]} end)
+  defp stringify_keys(row) do
+    Map.new(row, fn {key, value} -> {to_string(key), value} end)
   end
 
-  defp session_started([%{"event" => "session_started"} = event | _events]), do: event
-  defp session_started(_events), do: %{}
+  defp dedupe_rows(rows) do
+    {_seen, rows} =
+      Enum.reduce(rows, {MapSet.new(), []}, fn row, {seen, acc} ->
+        key = row_key(row)
+
+        cond do
+          is_nil(key) -> {seen, [row | acc]}
+          MapSet.member?(seen, key) -> {seen, acc}
+          true -> {MapSet.put(seen, key), [row | acc]}
+        end
+      end)
+
+    Enum.reverse(rows)
+  end
+
+  defp row_key(%{"session_id" => session_id, "exec_id" => exec_id})
+       when not is_nil(session_id) and not is_nil(exec_id),
+       do: {session_id, exec_id}
+
+  defp row_key(_row), do: nil
 
   defp matches?(row, filters) do
     Enum.all?(filters, fn

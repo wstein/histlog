@@ -23,10 +23,8 @@ defmodule Histlog.Storage do
       closed_dir(root, date),
       quarantine_dir(root, date),
       hook_state_dir(root),
-      daily_dir(root),
       imports_dir(root),
-      exports_dir(root),
-      manifests_dir(root)
+      exports_dir(root)
     ]
     |> Enum.each(&File.mkdir_p!/1)
 
@@ -39,20 +37,11 @@ defmodule Histlog.Storage do
   def quarantine_dir(root, date),
     do: Path.join([root, "sessions", "quarantine", Date.to_iso8601(date)])
 
-  def daily_dir(root), do: Path.join(root, "daily")
   def imports_dir(root), do: Path.join(root, "imports")
   def exports_dir(root), do: Path.join(root, "exports")
-  def manifests_dir(root), do: Path.join(root, "manifests")
   def hook_state_dir(root), do: Path.join(root, "hook-state")
 
-  def daily_events_path(root, date),
-    do: Path.join(daily_dir(root), Date.to_iso8601(date) <> ".ndjson")
-
-  def daily_exec_path(root, date),
-    do: Path.join(daily_dir(root), Date.to_iso8601(date) <> ".exec.ndjson")
-
-  def manifest_path(root, date),
-    do: Path.join(manifests_dir(root), Date.to_iso8601(date) <> ".json")
+  def database_path(root), do: Path.join(root, "histlog.db")
 
   @doc """
   Builds the operator-facing session filename.

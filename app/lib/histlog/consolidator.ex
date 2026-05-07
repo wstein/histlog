@@ -1,194 +1,109 @@
 defmodule Histlog.Consolidator do
   @moduledoc """
-  Daily materialization from closed session NDJSON files.
+  Materialization from closed session NDJSON files into histlog.db.
   """
 
-  alias Histlog.Manifest
-  alias Histlog.Schema
+  alias Histlog.Checksum
+  alias Histlog.Database
+  alias Histlog.Database.Schema
+  alias Histlog.NDJSON
+  alias Histlog.Schema, as: EventSchema
   alias Histlog.Storage
 
   @doc """
-  Consolidates closed sessions for a date.
+  Consolidates closed sessions for a date into the SQLite query database.
   """
   def consolidate(opts \\ []) do
     root = Storage.root(opts)
     date = Keyword.get(opts, :date, Date.utc_today())
+    rebuild? = Keyword.get(opts, :rebuild, false)
 
     Storage.ensure_layout(root, date)
 
-    manifest_path = Storage.manifest_path(root, date)
-    rebuild? = Keyword.get(opts, :rebuild, false)
+    Database.with_connection(root, fn conn ->
+      with :ok <- Schema.ensure(conn) do
+        Database.transaction(conn, fn ->
+          consolidate_in_transaction(conn, root, date, rebuild?)
+        end)
+      end
+    end)
+  end
 
-    with :ok <- recover_pending(root, date),
-         {:ok, manifest} <- read_manifest(manifest_path, date, rebuild?),
-         {:ok, result} <- consolidate_new_sessions(root, date, manifest, rebuild?),
-         :ok <- commit_materialization(root, date, result) do
-      {:ok, result.manifest}
+  defp consolidate_in_transaction(conn, root, date, rebuild?) do
+    with :ok <- maybe_clear_date(conn, date, rebuild?) do
+      session_paths = session_paths(conn, root, date, rebuild?)
+
+      {valid, quarantined} =
+        Enum.reduce(session_paths, {[], []}, fn path, {valid, quarantined} ->
+          case load_valid_session(path, root, date) do
+            {:ok, session} ->
+              {[session | valid], quarantined}
+
+            {:quarantined, entry} ->
+              {valid, [entry | quarantined]}
+          end
+        end)
+
+      valid = Enum.reverse(valid)
+      quarantined = Enum.reverse(quarantined)
+      processed_at = DateTime.utc_now() |> DateTime.to_iso8601()
+
+      with :ok <- insert_sessions(conn, date, valid, processed_at) do
+        {:ok, report(conn, root, date, valid, quarantined, rebuild?)}
+      end
     end
   end
 
-  defp read_manifest(_manifest_path, date, true), do: {:ok, Manifest.empty(date)}
-  defp read_manifest(manifest_path, date, false), do: Manifest.read(manifest_path, date)
+  defp maybe_clear_date(_conn, _date, false), do: :ok
 
-  defp consolidate_new_sessions(root, date, manifest, rebuild?) do
-    session_paths =
+  defp maybe_clear_date(conn, date, true) do
+    date = Date.to_iso8601(date)
+
+    with :ok <- Database.exec(conn, "DELETE FROM executions WHERE date = ?", [date]),
+         :ok <- Database.exec(conn, "DELETE FROM sessions WHERE date = ?", [date]),
+         :ok <- Database.exec(conn, "DELETE FROM processed_sessions WHERE date = ?", [date]) do
+      :ok
+    end
+  end
+
+  defp session_paths(conn, root, date, rebuild?) do
+    paths =
       root
       |> Storage.closed_dir(date)
       |> Path.join("*.ndjson")
       |> Path.wildcard()
       |> Enum.sort()
-      |> maybe_reject_processed(manifest, rebuild?)
 
-    {valid, quarantined} =
-      Enum.reduce(session_paths, {[], []}, fn path, {valid, quarantined} ->
-        case load_valid_session(path, root, date) do
-          {:ok, events} ->
-            {[{path, events} | valid], quarantined}
-
-          {:quarantined, entry} ->
-            {valid, [entry | quarantined]}
-        end
-      end)
-
-    valid = Enum.reverse(valid)
-    quarantined = Enum.reverse(quarantined)
-
-    canonical_events = Enum.flat_map(valid, fn {_path, events} -> events end)
-    execution_rows = Enum.flat_map(valid, fn {_path, events} -> derive_execution_rows(events) end)
-
-    daily_path = Storage.daily_events_path(root, date)
-    exec_path = Storage.daily_exec_path(root, date)
-
-    existing_daily = read_existing(daily_path, rebuild?)
-    existing_exec = read_existing(exec_path, rebuild?)
-    daily_content = existing_daily <> encode_rows(canonical_events)
-    exec_content = existing_exec <> encode_rows(execution_rows)
-
-    updates = %{
-      "sessions_processed" => Enum.map(valid, fn {path, _events} -> Path.basename(path) end),
-      "records_written" => count_ndjson_records(daily_content),
-      "exec_records_written" => count_ndjson_records(exec_content),
-      "checksum" => Manifest.checksum(daily_content),
-      "exec_checksum" => Manifest.checksum(exec_content),
-      "rebuilt" => rebuild?,
-      "quarantined_sessions" => quarantined
-    }
-
-    {:ok,
-     %{
-       daily_path: daily_path,
-       daily_content: daily_content,
-       exec_path: exec_path,
-       exec_content: exec_content,
-       manifest: Manifest.merge(manifest, updates)
-     }}
-  end
-
-  defp commit_materialization(root, date, result) do
-    transaction = build_transaction(root, date, result)
-
-    with :ok <- write_stage(transaction["daily"]["tmp"], result.daily_content),
-         :ok <- write_stage(transaction["exec"]["tmp"], result.exec_content),
-         :ok <- write_pending(root, date, transaction),
-         :ok <- commit_transaction(transaction),
-         :ok <- Manifest.write(Storage.manifest_path(root, date), result.manifest) do
-      File.rm(pending_path(root, date))
-      :ok
+    if rebuild? do
+      paths
+    else
+      Enum.reject(paths, &processed?(conn, &1))
     end
   end
 
-  defp recover_pending(root, date) do
-    path = pending_path(root, date)
-
-    case File.read(path) do
-      {:ok, content} ->
-        with {:ok, transaction} <- JSON.decode(content),
-             :ok <- commit_transaction(transaction),
-             :ok <- Manifest.write(Storage.manifest_path(root, date), transaction["manifest"]) do
-          File.rm(path)
-          :ok
-        end
-
-      {:error, :enoent} ->
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp build_transaction(root, date, result) do
-    %{
-      "schema_version" => 1,
-      "transaction" => "consolidation",
-      "date" => Date.to_iso8601(date),
-      "manifest" => result.manifest,
-      "daily" => %{
-        "target" => result.daily_path,
-        "tmp" => staged_path(result.daily_path),
-        "checksum" => Manifest.checksum(result.daily_content)
-      },
-      "exec" => %{
-        "target" => result.exec_path,
-        "tmp" => staged_path(result.exec_path),
-        "checksum" => Manifest.checksum(result.exec_content)
-      },
-      "manifest_path" => Storage.manifest_path(root, date)
-    }
-  end
-
-  defp commit_transaction(transaction) do
-    with :ok <- commit_file(transaction["daily"]),
-         :ok <- commit_file(transaction["exec"]) do
-      :ok
-    end
-  end
-
-  defp commit_file(%{"target" => target, "tmp" => tmp, "checksum" => checksum}) do
-    cond do
-      file_checksum(target) == {:ok, checksum} ->
-        File.rm(tmp)
-        :ok
-
-      File.exists?(tmp) ->
-        File.mkdir_p!(Path.dirname(target))
-        File.rename(tmp, target)
-
-      true ->
-        {:error, {:missing_staged_file, tmp}}
-    end
-  end
-
-  defp write_stage(path, content) do
-    File.mkdir_p!(Path.dirname(path))
-
-    with :ok <- File.write(path, content, [:binary]),
-         {:ok, :ok} <- File.open(path, [:read, :binary], &:file.sync/1) do
-      :ok
-    end
-  end
-
-  defp write_pending(root, date, transaction) do
-    Storage.atomic_write(pending_path(root, date), JSON.encode!(transaction) <> "\n")
-  end
-
-  defp pending_path(root, date), do: Storage.manifest_path(root, date) <> ".pending"
-
-  defp staged_path(target) do
-    target <> ".stage-" <> (:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false))
-  end
-
-  defp file_checksum(path) do
-    case File.read(path) do
-      {:ok, content} -> {:ok, Manifest.checksum(content)}
-      {:error, _reason} -> :error
+  defp processed?(conn, path) do
+    case Database.query_value(
+           conn,
+           "SELECT 1 AS value FROM processed_sessions WHERE session_file = ? LIMIT 1",
+           [Path.basename(path)]
+         ) do
+      {:ok, 1} -> true
+      _ -> false
     end
   end
 
   defp load_valid_session(path, root, date) do
-    with {:ok, events} <- Storage.read_events(path),
-         :ok <- Schema.validate_session(events) do
-      {:ok, events}
+    with {:ok, content} <- File.read(path),
+         {:ok, events} <- NDJSON.decode(content),
+         :ok <- EventSchema.validate_session(events) do
+      {:ok,
+       %{
+         path: path,
+         basename: Path.basename(path),
+         events: events,
+         source_checksum: Checksum.sha256(content),
+         execution_rows: derive_execution_rows(events)
+       }}
     else
       {:error, reason} ->
         quarantine(path, root, date, inspect(reason))
@@ -210,7 +125,166 @@ defmodule Histlog.Consolidator do
      }}
   end
 
-  defp derive_execution_rows(events) do
+  defp insert_sessions(conn, date, sessions, processed_at) do
+    Enum.reduce_while(sessions, :ok, fn session, :ok ->
+      case insert_session(conn, date, session, processed_at) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp insert_session(conn, date, materialized, processed_at) do
+    session = session_started(materialized.events)
+    ended = session_ended(materialized.events)
+    date_string = Date.to_iso8601(date)
+    session_id = session["session_id"]
+
+    with :ok <-
+           Database.exec(
+             conn,
+             """
+             INSERT INTO sessions (
+               session_id, session_file, date, host, shell, tty, process_id,
+               parent_process_id, started_at, ended_at
+             )
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(session_id) DO UPDATE SET
+               session_file = excluded.session_file,
+               date = excluded.date,
+               host = excluded.host,
+               shell = excluded.shell,
+               tty = excluded.tty,
+               process_id = excluded.process_id,
+               parent_process_id = excluded.parent_process_id,
+               started_at = excluded.started_at,
+               ended_at = excluded.ended_at
+             """,
+             [
+               session_id,
+               materialized.basename,
+               date_string,
+               session["host"],
+               session["shell"],
+               session["tty"],
+               session["process_id"],
+               session["parent_process_id"],
+               session["timestamp"],
+               ended["timestamp"]
+             ]
+           ),
+         :ok <- insert_execution_rows(conn, date, materialized.execution_rows),
+         :ok <-
+           Database.exec(
+             conn,
+             """
+             INSERT INTO processed_sessions (
+               session_file, session_id, date, processed_at, schema_version,
+               events_count, executions_count, source_checksum
+             )
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(session_file) DO UPDATE SET
+               session_id = excluded.session_id,
+               date = excluded.date,
+               processed_at = excluded.processed_at,
+               schema_version = excluded.schema_version,
+               events_count = excluded.events_count,
+               executions_count = excluded.executions_count,
+               source_checksum = excluded.source_checksum
+             """,
+             [
+               materialized.basename,
+               session_id,
+               date_string,
+               processed_at,
+               Schema.version(),
+               length(materialized.events),
+               length(materialized.execution_rows),
+               materialized.source_checksum
+             ]
+           ) do
+      :ok
+    end
+  end
+
+  defp insert_execution_rows(conn, date, rows) do
+    Enum.reduce_while(rows, :ok, fn row, :ok ->
+      case insert_execution_row(conn, date, row) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp insert_execution_row(conn, date, row) do
+    Database.exec(
+      conn,
+      """
+      INSERT INTO executions (
+        session_id, exec_id, date, command, cwd, timestamp, duration_ms,
+        exit_status, completeness, shell, host, tty, source
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sqlite')
+      ON CONFLICT(session_id, exec_id) DO UPDATE SET
+        date = excluded.date,
+        command = excluded.command,
+        cwd = excluded.cwd,
+        timestamp = excluded.timestamp,
+        duration_ms = excluded.duration_ms,
+        exit_status = excluded.exit_status,
+        completeness = excluded.completeness,
+        shell = excluded.shell,
+        host = excluded.host,
+        tty = excluded.tty,
+        source = excluded.source
+      """,
+      [
+        row["session_id"],
+        row["exec_id"],
+        Date.to_iso8601(date),
+        row["command"],
+        row["cwd"],
+        row["timestamp"],
+        row["duration_ms"],
+        row["exit_status"],
+        row["completeness"],
+        row["shell"],
+        row["host"],
+        row["tty"]
+      ]
+    )
+  end
+
+  defp report(conn, root, date, processed, quarantined, rebuild?) do
+    date_string = Date.to_iso8601(date)
+
+    {:ok, records_written} =
+      count_value(
+        conn,
+        "SELECT COALESCE(SUM(events_count), 0) FROM processed_sessions WHERE date = ?",
+        [date_string]
+      )
+
+    {:ok, exec_records_written} =
+      count_value(conn, "SELECT COUNT(*) FROM executions WHERE date = ?", [date_string])
+
+    %{
+      "schema_version" => Schema.version(),
+      "date" => date_string,
+      "database_path" => Storage.database_path(root),
+      "sessions_processed" => Enum.map(processed, & &1.basename),
+      "records_written" => records_written,
+      "exec_records_written" => exec_records_written,
+      "rebuilt" => rebuild?,
+      "quarantined_sessions" => quarantined
+    }
+  end
+
+  defp count_value(conn, sql, params) do
+    Database.query_value(conn, "SELECT (#{sql}) AS value", params)
+  end
+
+  def derive_execution_rows(events) do
     commands = catalog(events, "command_defined", "command_id", "command")
     folders = catalog(events, "folder_defined", "folder_id", "folder")
     session = session_started(events)
@@ -231,7 +305,8 @@ defmodule Histlog.Consolidator do
         "completeness" => event["completeness"],
         "shell" => session["shell"],
         "host" => session["host"],
-        "tty" => session["tty"]
+        "tty" => session["tty"],
+        "source" => "sqlite"
       }
     end)
   end
@@ -239,34 +314,13 @@ defmodule Histlog.Consolidator do
   defp session_started([%{"event" => "session_started"} = event | _events]), do: event
   defp session_started(_events), do: %{}
 
+  defp session_ended(events) do
+    Enum.find(events, %{}, &(&1["event"] == "session_ended"))
+  end
+
   defp catalog(events, event_type, id_field, value_field) do
     events
     |> Enum.filter(&(&1["event"] == event_type))
     |> Map.new(fn event -> {event[id_field], event[value_field]} end)
-  end
-
-  defp encode_rows(rows), do: Enum.map_join(rows, "", &(JSON.encode!(&1) <> "\n"))
-
-  defp maybe_reject_processed(session_paths, _manifest, true), do: session_paths
-
-  defp maybe_reject_processed(session_paths, manifest, false) do
-    Enum.reject(session_paths, &Manifest.processed?(manifest, &1))
-  end
-
-  defp read_existing(_path, true), do: ""
-
-  defp read_existing(path, false) do
-    case File.read(path) do
-      {:ok, content} -> content
-      {:error, :enoent} -> ""
-    end
-  end
-
-  defp count_ndjson_records(""), do: 0
-
-  defp count_ndjson_records(content) do
-    content
-    |> String.split("\n", trim: true)
-    |> length()
   end
 end

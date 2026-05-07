@@ -1,142 +1,188 @@
 defmodule Histlog.Verifier do
   @moduledoc """
-  Verification for daily materialization files and manifests.
+  Verification for the SQLite materialized query database.
   """
 
-  alias Histlog.Manifest
+  alias Histlog.Database
+  alias Histlog.Database.Schema
   alias Histlog.Storage
 
+  @tables ~w(schema_metadata processed_sessions sessions executions)
+
   @doc """
-  Recomputes daily materialization counts and checksums for a date.
+  Verifies database schema and consolidation checkpoints for a date.
   """
   def verify(opts \\ []) do
     root = Storage.root(opts)
     date = Keyword.get(opts, :date, Date.utc_today())
-    manifest_path = Storage.manifest_path(root, date)
+    path = Storage.database_path(root)
 
-    with {:ok, manifest} <- read_manifest(manifest_path) do
-      report = build_report(root, date, manifest)
+    if File.exists?(path) do
+      report =
+        Database.with_connection(root, [mode: :readonly], fn conn ->
+          build_report(conn, path, date)
+        end)
 
-      if report["ok"] do
-        {:ok, report}
-      else
-        {:error, report}
+      case report do
+        %{"ok" => true} -> {:ok, report}
+        %{"ok" => false} -> {:error, report}
+        {:error, reason} -> {:error, database_error_report(path, date, reason)}
       end
+    else
+      {:error, database_missing_report(path, date)}
     end
   end
 
-  defp read_manifest(path) do
-    case File.read(path) do
-      {:ok, content} ->
-        JSON.decode(content)
+  defp build_report(conn, path, date) do
+    table_checks = table_checks(conn)
+    schema = schema_check(conn, table_checks["schema_metadata"]["ok"])
 
-      {:error, :enoent} ->
-        {:error, manifest_missing_report(path)}
-
-      {:error, reason} ->
-        {:error, %{"ok" => false, "errors" => [inspect(reason)], "manifest_path" => path}}
-    end
-  end
-
-  defp build_report(root, date, manifest) do
-    daily =
-      verify_file(
-        Storage.daily_events_path(root, date),
-        manifest["records_written"],
-        manifest["checksum"]
-      )
-
-    exec =
-      verify_file(
-        Storage.daily_exec_path(root, date),
-        manifest["exec_records_written"],
-        manifest["exec_checksum"]
-      )
+    counts =
+      count_checks(conn, date, Enum.all?(table_checks, fn {_name, check} -> check["ok"] end))
 
     errors =
       []
-      |> add_errors("daily", daily)
-      |> add_errors("exec", exec)
+      |> add_schema_errors(schema)
+      |> add_table_errors(table_checks)
+      |> add_count_errors(counts)
 
     %{
       "ok" => errors == [],
       "date" => Date.to_iso8601(date),
-      "manifest_path" => Storage.manifest_path(root, date),
+      "database_path" => path,
       "errors" => errors,
       "checks" => %{
-        "daily" => daily,
-        "exec" => exec
+        "database" => %{"ok" => true, "path" => path},
+        "schema" => schema,
+        "tables" => table_checks,
+        "counts" => counts
       }
     }
   end
 
-  defp verify_file(path, expected_records, expected_checksum) do
-    case File.read(path) do
-      {:ok, content} ->
-        actual_records = count_ndjson_records(content)
-        actual_checksum = Manifest.checksum(content)
+  defp table_checks(conn) do
+    Map.new(@tables, fn table ->
+      exists? =
+        case Database.query_value(
+               conn,
+               "SELECT COUNT(*) AS value FROM sqlite_master WHERE type = 'table' AND name = ?",
+               [table]
+             ) do
+          {:ok, 1} -> true
+          _ -> false
+        end
 
-        %{
-          "ok" => actual_records == expected_records and actual_checksum == expected_checksum,
-          "path" => path,
-          "records_expected" => expected_records,
-          "records_actual" => actual_records,
-          "checksum_expected" => expected_checksum,
-          "checksum_actual" => actual_checksum
-        }
-
-      {:error, reason} ->
-        %{
-          "ok" => false,
-          "path" => path,
-          "records_expected" => expected_records,
-          "records_actual" => nil,
-          "checksum_expected" => expected_checksum,
-          "checksum_actual" => nil,
-          "error" => inspect(reason)
-        }
-    end
+      {table, %{"ok" => exists?, "table" => table}}
+    end)
   end
 
-  defp add_errors(errors, _name, %{"ok" => true}), do: errors
-
-  defp add_errors(errors, name, %{"error" => reason}) do
-    errors ++ ["#{name}: #{reason}"]
+  defp schema_check(_conn, false) do
+    %{"ok" => false, "expected" => Schema.version(), "actual" => nil}
   end
 
-  defp add_errors(errors, name, check) do
-    count_error =
-      if check["records_expected"] == check["records_actual"] do
-        []
-      else
-        [
-          "#{name}: records expected #{inspect(check["records_expected"])} got #{inspect(check["records_actual"])}"
-        ]
+  defp schema_check(conn, true) do
+    expected = Integer.to_string(Schema.version())
+
+    actual =
+      case Schema.schema_version(conn) do
+        {:ok, value} -> value
+        _ -> nil
       end
 
-    checksum_error =
-      if check["checksum_expected"] == check["checksum_actual"] do
-        []
-      else
-        ["#{name}: checksum mismatch"]
-      end
-
-    errors ++ count_error ++ checksum_error
-  end
-
-  defp manifest_missing_report(path) do
     %{
-      "ok" => false,
-      "manifest_path" => path,
-      "errors" => ["manifest_missing"]
+      "ok" => actual == expected,
+      "expected" => expected,
+      "actual" => actual
     }
   end
 
-  defp count_ndjson_records(""), do: 0
+  defp count_checks(_conn, _date, false) do
+    %{
+      "ok" => false,
+      "processed_sessions" => nil,
+      "sessions" => nil,
+      "processed_execution_rows" => nil,
+      "executions" => nil
+    }
+  end
 
-  defp count_ndjson_records(content) do
-    content
-    |> String.split("\n", trim: true)
-    |> length()
+  defp count_checks(conn, date, true) do
+    date = Date.to_iso8601(date)
+
+    {:ok, processed_sessions} =
+      count(conn, "SELECT COUNT(*) FROM processed_sessions WHERE date = ?", [date])
+
+    {:ok, sessions} = count(conn, "SELECT COUNT(*) FROM sessions WHERE date = ?", [date])
+
+    {:ok, processed_execution_rows} =
+      count(
+        conn,
+        "SELECT COALESCE(SUM(executions_count), 0) FROM processed_sessions WHERE date = ?",
+        [
+          date
+        ]
+      )
+
+    {:ok, executions} = count(conn, "SELECT COUNT(*) FROM executions WHERE date = ?", [date])
+
+    %{
+      "ok" => processed_sessions == sessions and processed_execution_rows == executions,
+      "processed_sessions" => processed_sessions,
+      "sessions" => sessions,
+      "processed_execution_rows" => processed_execution_rows,
+      "executions" => executions
+    }
+  end
+
+  defp count(conn, sql, params) do
+    Database.query_value(conn, "SELECT (#{sql}) AS value", params)
+  end
+
+  defp add_schema_errors(errors, %{"ok" => true}), do: errors
+
+  defp add_schema_errors(errors, check) do
+    errors ++ ["schema: expected #{inspect(check["expected"])} got #{inspect(check["actual"])}"]
+  end
+
+  defp add_table_errors(errors, table_checks) do
+    missing =
+      table_checks
+      |> Enum.reject(fn {_name, check} -> check["ok"] end)
+      |> Enum.map(fn {name, _check} -> "table_missing: #{name}" end)
+
+    errors ++ missing
+  end
+
+  defp add_count_errors(errors, %{"ok" => true}), do: errors
+
+  defp add_count_errors(errors, counts) do
+    errors ++
+      [
+        "counts: processed_sessions=#{inspect(counts["processed_sessions"])} sessions=#{inspect(counts["sessions"])} processed_execution_rows=#{inspect(counts["processed_execution_rows"])} executions=#{inspect(counts["executions"])}"
+      ]
+  end
+
+  defp database_missing_report(path, date) do
+    %{
+      "ok" => false,
+      "date" => Date.to_iso8601(date),
+      "database_path" => path,
+      "errors" => ["database_missing"],
+      "checks" => %{
+        "database" => %{"ok" => false, "path" => path, "error" => "missing"}
+      }
+    }
+  end
+
+  defp database_error_report(path, date, reason) do
+    %{
+      "ok" => false,
+      "date" => Date.to_iso8601(date),
+      "database_path" => path,
+      "errors" => [inspect(reason)],
+      "checks" => %{
+        "database" => %{"ok" => false, "path" => path, "error" => inspect(reason)}
+      }
+    }
   end
 end

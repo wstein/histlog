@@ -21,7 +21,7 @@ defmodule Histlog.CLI.Commands.Consolidate do
   defp run_consolidate(opts) do
     with {:ok, opts} <- Options.normalize(opts) do
       case Consolidator.consolidate(opts) do
-        {:ok, manifest} -> IO.puts(JSON.encode!(manifest))
+        {:ok, report} -> IO.puts(JSON.encode!(report))
         {:error, reason} -> {:error, inspect(reason)}
       end
     end
@@ -31,13 +31,13 @@ defmodule Histlog.CLI.Commands.Consolidate do
     """
     Usage: histlog consolidate [options]
 
-    Materialize closed shell sessions for querying.
+    Materialize closed shell sessions into histlog.db for querying.
 
     Options:
       -h, --help              Show this help
       -d, --date YYYY-MM-DD   Consolidate one date
       -r, --root PATH         Use a specific histlog data root
-          --rebuild           Rebuild daily materializations for the date
+          --rebuild           Rebuild database rows for the date
     """
   end
 end

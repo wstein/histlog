@@ -5,8 +5,8 @@ defmodule Histlog.CLITest do
 
   alias Histlog.CLI
   alias Histlog.Consolidator
+  alias Histlog.Database
   alias Histlog.SessionWriter
-  alias Histlog.Storage
 
   @fixtures Path.expand("../fixtures/import", __DIR__)
 
@@ -43,12 +43,12 @@ defmodule Histlog.CLITest do
 
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:02Z")
 
-    manifest_output =
+    report_output =
       capture_io(fn ->
         assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
-    assert JSON.decode!(manifest_output)["records_written"] == 5
+    assert JSON.decode!(report_output)["records_written"] == 5
 
     query_output =
       capture_io(fn ->
@@ -151,7 +151,7 @@ defmodule Histlog.CLITest do
       })
 
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:02Z")
-    assert {:ok, _manifest} = Consolidator.consolidate(root: root, date: date)
+    assert {:ok, _report} = Consolidator.consolidate(root: root, date: date)
 
     output =
       capture_io(fn ->
@@ -366,7 +366,7 @@ defmodule Histlog.CLITest do
     assert plain_output == "local clock\n"
   end
 
-  test "query skips malformed materialized rows with a warning", %{root: root, date: date} do
+  test "query skips malformed live rows with a warning", %{root: root, date: date} do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -387,13 +387,7 @@ defmodule Histlog.CLITest do
         "completeness" => "complete"
       })
 
-    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:02Z")
-
-    capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
-    end)
-
-    File.write!(Storage.daily_exec_path(root, date), "not-json\n", [:append])
+    File.write!(writer.live_path, "not-json\n", [:append])
 
     warning =
       capture_io(:stderr, fn ->
@@ -414,7 +408,7 @@ defmodule Histlog.CLITest do
       end)
 
     assert warning =~ "skipped malformed record"
-    assert warning =~ ".exec.ndjson:2"
+    assert warning =~ ".ndjson:"
   end
 
   test "paths command summarizes cwd and path-like arguments", %{root: root, date: date} do
@@ -734,16 +728,25 @@ defmodule Histlog.CLITest do
       })
 
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
-    assert {:ok, _manifest} = Consolidator.consolidate(root: root, date: date)
+    assert {:ok, _report} = Consolidator.consolidate(root: root, date: date)
 
     output =
       capture_io(fn ->
         assert :ok = CLI.run(["verify", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
-    assert %{"ok" => true, "checks" => %{"daily" => %{"ok" => true}}} = JSON.decode!(output)
+    assert %{
+             "ok" => true,
+             "checks" => %{
+               "database" => %{"ok" => true},
+               "schema" => %{"ok" => true},
+               "counts" => %{"ok" => true}
+             }
+           } = JSON.decode!(output)
 
-    File.write!(Storage.daily_events_path(root, date), "corrupted\n")
+    Database.with_connection(root, fn conn ->
+      Database.exec(conn, "DELETE FROM executions WHERE date = ?", [Date.to_iso8601(date)])
+    end)
 
     output =
       capture_io(fn ->
@@ -752,7 +755,7 @@ defmodule Histlog.CLITest do
       end)
 
     assert %{"ok" => false, "errors" => errors} = JSON.decode!(output)
-    assert Enum.any?(errors, &String.contains?(&1, "daily"))
+    assert Enum.any?(errors, &String.contains?(&1, "counts"))
   end
 
   test "import command converts shell history fixtures to native import NDJSON", %{

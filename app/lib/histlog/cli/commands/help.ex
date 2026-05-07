@@ -28,7 +28,7 @@ defmodule Histlog.CLI.Commands.Help do
       paths       - Show tracked file/directory paths and usage counts
       export      - Export derived rows for pipelines
       consolidate - Materialize closed session logs
-      verify      - Verify daily materialization checksums
+      verify      - Verify database materialization checks
       import      - Import shell history files
       init        - Print shell integration snippets
       doctor      - Diagnose setup

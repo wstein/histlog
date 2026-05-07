@@ -39,7 +39,7 @@ defmodule Histlog.CLI.Commands.Verify do
     """
     Usage: histlog verify [options]
 
-    Verify daily materialization checksums and record counts.
+    Verify database schema and consolidation checkpoints.
 
     Options:
       -h, --help              Show this help
