@@ -27,23 +27,23 @@ The Elixir rewrite owns the schema. It may update tables, indexes, views, and me
 
 No backward compatibility with `histlog2` tables, views, migrations, or identifiers is required.
 
+SQLite access uses `exqlite` directly through a small `Histlog.Database` wrapper. The project should not add a larger persistence framework unless the query model outgrows explicit SQL.
+
 ## Initial Shape
 
-The schema should support at least:
+The v1 schema supports:
 
 - schema metadata and version
 - processed session checkpoint rows
 - sessions
-- commands
-- working directories and path arguments
-- imports
-- verification metadata
+- derived executions
+- indexes for date, timestamp, command, cwd, and exit status
 
 Use explicit schema versioning so `histlog consolidate --rebuild` can recreate the database when the schema changes.
 
 ## Links
 
 - [[Daily Finished Session Consolidation]] - Writes this database from closed sessions.
-- [[Manifest And Checkpointing]] - Tracks processed sessions and schema version.
+- [[Checkpointing]] - Tracks processed sessions and schema version.
 - [[Query Source Union]] - Requires queries to merge SQLite rows with live session NDJSON.
 - [[Histlog2 Functional Blueprint]] - Reuses product behavior without schema compatibility.

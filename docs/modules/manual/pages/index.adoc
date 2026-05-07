@@ -1,7 +1,7 @@
 = Manual
 :page-layout: default
 
-histlog is a short-lived CLI tool that records shell history as append-only internal NDJSON event streams and daily materialized views.
+histlog is a short-lived CLI tool that records shell history as append-only internal NDJSON event streams and materializes closed sessions into `histlog.db` for fast queries.
 
 Use this manual for day-to-day operation:
 

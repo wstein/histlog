@@ -6,7 +6,7 @@ histlog sits between interactive shells and file-based history analysis.
 == System Context
 
 Shell integrations write event records through `Histlog.SessionWriter`.
-Closed session files are consumed by `Histlog.Consolidator`, which produces daily canonical streams, derived execution rows, and manifests.
+Closed session files are consumed by `Histlog.Consolidator`, which materializes sessions, execution rows, and processed-session checkpoints into `histlog.db`.
 
 == External Interfaces
 

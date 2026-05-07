@@ -6,7 +6,7 @@ Welcome to `histlog`.
 == What This Project Is
 
 histlog is an Elixir implementation of a log-structured shell history system.
-It captures interactive shell activity as append-only per-session NDJSON streams, then consolidates closed sessions into daily materialized files.
+It captures interactive shell activity as append-only per-session NDJSON streams, then consolidates closed sessions into `histlog.db`.
 
 == First Steps
 

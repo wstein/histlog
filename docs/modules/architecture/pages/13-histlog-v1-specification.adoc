@@ -2,10 +2,10 @@
 :page-layout: default
 
 histlog v1 is a log-structured, append-only shell history system implemented in Elixir.
-It captures interactive shell sessions, executed commands, working directory state, durations, and exit statuses without using a database.
+It captures interactive shell sessions, executed commands, working directory state, durations, and exit statuses as canonical session logs.
 
 The v1 source of truth is a set of per-session NDJSON event streams.
-Daily consolidation materializes those events into query-friendly files and manifests.
+Consolidation materializes closed sessions into `$HISTLOG_ROOT/histlog.db`.
 
 == Goals
 
@@ -14,15 +14,15 @@ histlog v1 must:
 * preserve raw shell activity as immutable events
 * keep one append-only logfile per CLI session
 * use NDJSON as the subsystem boundary and storage format
-* consolidate finished sessions into daily historical outputs
+* consolidate finished sessions into a native SQLite query database
 * tolerate partial sessions, crashes, malformed records, and missing finish information
-* remain database-free while keeping future database materialization possible
+* query consolidated SQLite rows plus currently live session NDJSON
 
 == Non-Goals
 
 histlog v1 does not provide:
 
-* SQL database storage
+* compatibility with the legacy `histlog2` SQLite schema
 * global deduplication
 * distributed synchronization
 * real-time indexing
@@ -37,13 +37,9 @@ histlog v1 does not provide:
     live/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
     closed/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
     quarantine/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
-  daily/
-    YYYY-MM-DD.ndjson
-    YYYY-MM-DD.exec.ndjson
+  histlog.db
   imports/
   exports/
-  manifests/
-    YYYY-MM-DD.json
 ----
 
 The `session_started` event includes an opaque `session_id`, host, process id, parent process id, timestamp, monotonic start value, and shell name.
@@ -142,36 +138,39 @@ Aliases are opt-in through `histlog init SHELL --aliases`.
 == Consolidation
 
 Consolidation runs periodically or on demand.
-It consumes closed session files and writes:
+It consumes closed session files and writes `histlog.db`.
 
-* `daily/YYYY-MM-DD.ndjson` for merged canonical events
-* `daily/YYYY-MM-DD.exec.ndjson` for derived execution rows
-* `manifests/YYYY-MM-DD.json` for processed sessions, record counts, and checksums
+The database contains:
+
+* schema metadata and schema version
+* processed-session checkpoints
+* session summary rows
+* derived execution rows
 
 The protocol is:
 
 1. scan closed sessions for a day
-2. skip sessions already present in the manifest
+2. skip sessions already present in the processed-session checkpoint
 3. validate each session's NDJSON and sequence numbers
 4. quarantine malformed sessions and continue processing other sessions
-5. write staged daily and execution outputs
-6. write a pending consolidation transaction
-7. fsync staged files
-8. atomically rename staged outputs into place
-9. write the manifest
-10. remove the pending transaction
+5. derive execution rows
+6. insert sessions, executions, and checkpoints inside one SQLite transaction
+7. commit all database changes together
 
-If a previous run left a pending transaction, consolidation must recover it before scanning new sessions.
-Recovery completes any remaining staged file renames and writes the matching manifest so query materializations and manifests cannot drift silently.
+If a run stops partway through, SQLite rolls back the incomplete transaction.
+The next run can retry safely and skip rows already checkpointed.
 
 Consolidation is idempotent.
 It must never mutate the canonical meaning of source events.
+
+`histlog consolidate --rebuild --date YYYY-MM-DD` deletes materialized rows and checkpoints for the selected date before rebuilding them from current closed sessions.
 
 == Integrity And Safety
 
 Each session file must have strictly increasing sequence numbers beginning at `1`.
 Malformed sessions are quarantined at the session-file level so one corrupt file cannot block the whole day.
-Query-oriented commands skip malformed materialized or live rows with an operator-visible warning so valid history remains accessible even when a file was edited or partially synced.
+Query-oriented commands read `histlog.db`, import streams, and live session NDJSON.
+Malformed live or import rows are skipped with an operator-visible warning so valid history remains accessible even when a file was edited or partially synced.
 
 All shell-derived input is untrusted.
 The writer redacts common secret shapes and marks records that were changed before persistence.
@@ -197,20 +196,23 @@ The v1 module boundaries are:
 |`Histlog.Storage`
 |Filesystem layout, atomic writes, session moves, quarantine, and streaming reads.
 
+|`Histlog.Database.Schema`
+|SQLite schema definition and schema versioning.
+
+|`Histlog.Database`
+|Thin wrapper around the `exqlite` SQLite binding.
+
 |`Histlog.SessionWriter`
 |Append-only writer for one shell session.
 
 |`Histlog.Consolidator`
-|Daily materialization, derived execution output, and manifest creation.
-
-|`Histlog.Manifest`
-|Manifest encoding, checksum, and processed-session tracking.
+|SQLite materialization, derived execution output, and processed-session checkpointing.
 
 |`Histlog.Import`
 |External zsh, bash, fish, and native NDJSON history ingestion as synthetic event streams.
 
 |`Histlog.Query`
-|Streaming file-based query helpers.
+|Query helpers that merge SQLite rows, live session NDJSON, and imports.
 
 |`Histlog.Shell.Zsh`, `Histlog.Shell.Bash`, `Histlog.Shell.Fish`
 |Shell integration helpers and init script generation.
@@ -227,6 +229,7 @@ Required automated tests cover:
 * sequence monotonicity
 * session file close and atomic move
 * consolidation idempotency
+* SQLite schema creation
 * derived execution rows from partial and complete observations
 * corruption quarantine
 * import event shape

@@ -8,10 +8,10 @@ histlog is organized as a small set of Elixir modules around the NDJSON file bou
 * `Histlog.Event` builds and encodes canonical events.
 * `Histlog.Schema` validates event shape and session sequence numbers.
 * `Histlog.Storage` owns filesystem layout, atomic writes, and quarantine moves.
+* `Histlog.Database.Schema` owns the native SQLite schema.
 * `Histlog.SessionWriter` writes one append-only live session file.
-* `Histlog.Consolidator` materializes closed sessions into daily outputs.
-* `Histlog.Manifest` records consolidation checkpoints and checksums.
+* `Histlog.Consolidator` materializes closed sessions into `histlog.db`.
 * `Histlog.Import` parses external shell history into synthetic event streams.
-* `Histlog.Query` streams derived execution rows for simple file-based queries.
+* `Histlog.Query` reads SQLite rows plus live session NDJSON.
 * `Histlog.CLI` exposes operational workflows as an escript entrypoint.
 * `Histlog.CLI.Commands.*` owns command-specific option parsing and workflow dispatch.

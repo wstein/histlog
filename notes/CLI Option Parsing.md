@@ -32,6 +32,6 @@ All query-family commands must apply parsing, filtering, sorting, and rendering 
 - [[Shell Hook CLI Boundary]] - Defines the internal hook command surface.
 - [[Shell Init Prints Integration Code]] - Generates setup code through the public CLI.
 - [[Durability Mode]] - Defines the durability option passed through generated hooks.
-- [[Manifest And Checkpointing]] - Uses CLI commands for consolidation and verification.
+- [[Checkpointing]] - Uses CLI commands for consolidation and verification.
 - [[Functional Blueprint Intake Gate]] - Limits histlog2 behavior intake to file-backed v1 operations.
 - [[Query Source Union]] - Defines the shared query source contract.

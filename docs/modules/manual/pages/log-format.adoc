@@ -37,14 +37,17 @@ Derived execution rows are materialized views, not canonical truth.
 
 Partial executions are valid because shell hooks can miss completion data.
 
-== Manifest
+== Database Checkpoint
 
-[source,json]
+[source,sql]
 ----
-{"schema_version":1,"date":"2026-05-06","sessions_processed":["session-Mac-80615-123.ndjson"],"records_written":5,"exec_records_written":1,"checksum":"sha256...","exec_checksum":"sha256...","quarantined_sessions":[]}
+SELECT session_file, session_id, date, events_count, executions_count
+FROM processed_sessions
+WHERE date = '2026-05-06';
 ----
 
-The manifest records materialization checksums and the sessions included for a date.
+`histlog.db` stores materialized execution rows plus processed-session checkpoints.
+Closed session NDJSON remains the canonical source; the database is rebuilt from those files when needed.
 
 == Redacted Command
 

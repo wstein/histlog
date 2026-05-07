@@ -6,9 +6,10 @@ This page summarizes accepted v1 decisions.
 == Decision Log
 
 * D-001: Elixir is the implementation language.
-* D-002: v1 uses no database.
+* D-002: v1 uses SQLite as a derived local materialization.
 * D-003: Per-session NDJSON streams are canonical truth.
 * D-004: `execution_observed` is the primary execution event.
-* D-005: Daily consolidation materializes query-friendly files.
+* D-005: Consolidation materializes query-friendly SQLite rows.
 * D-006: Shell imports become synthetic event streams.
 * D-007: Corrupt sessions are quarantined instead of silently skipped.
+* D-008: SQLite access uses the `exqlite` Erlang/Elixir binding directly rather than a higher-level persistence framework.

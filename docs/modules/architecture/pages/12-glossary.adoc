@@ -13,10 +13,13 @@ Closed session::
 A session file that was moved from `sessions/live/` to `sessions/closed/`.
 
 Consolidation::
-The process that validates closed sessions and materializes daily files.
+The process that validates closed sessions and materializes rows into `histlog.db`.
 
-Manifest::
-A JSON checkpoint that records processed sessions, checksums, counts, and quarantined files.
+Processed-session checkpoint::
+A SQLite row that records which closed session file has been materialized, with record counts and source checksum.
+
+histlog.db::
+The local SQLite database that stores derived query rows. It is rebuilt from canonical closed session files when needed.
 
 Quarantine::
 The storage area for malformed session files that should not block other sessions.

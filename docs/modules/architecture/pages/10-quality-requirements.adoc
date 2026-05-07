@@ -7,6 +7,6 @@ histlog's quality bar is defined by correctness under failure and low overhead d
 
 * Reliability: closed sessions can be consolidated repeatedly without duplicate output.
 * Safety: shell-derived strings are redacted before persistence.
-* Recoverability: malformed sessions are quarantined and recorded in manifests.
+* Recoverability: malformed sessions are quarantined and database transactions roll back incomplete materializations.
 * Performance: command capture performs append-only writes and defers analysis.
 * Maintainability: formatter, tests, and warnings-as-errors compile remain green.

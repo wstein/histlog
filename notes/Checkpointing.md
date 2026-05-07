@@ -1,13 +1,13 @@
 ---
 id: 20260506222908
-aliases: ["manifest", "checkpointing"]
+aliases: ["checkpointing", "processed sessions"]
 tags: ["integrity", "consolidation"]
 ---
 Histlog consolidation should record checkpoint metadata so database materialization is idempotent and auditable.
 
 ## What
 
-Consolidation metadata records processed sessions, record counts, schema version, materialization timestamps, and quarantined sessions. It is the checkpoint that prevents reprocessing the same closed session during future consolidation runs.
+Consolidation metadata records processed sessions, record counts, schema version, materialization timestamps, and source checksums. It is the checkpoint that prevents reprocessing the same closed session during future consolidation runs.
 
 ## Why
 

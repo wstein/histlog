@@ -1,18 +1,18 @@
 = Introduction And Goals
 :page-layout: default
 
-histlog exists to make interactive shell history useful as durable operational evidence without requiring a database in v1.
+histlog exists to make interactive shell history useful as durable operational evidence while keeping capture append-only and inspectable.
 
 == Product Goals
 
 * Capture shell sessions, commands, working directories, durations, and exit statuses.
 * Preserve raw command evidence as immutable NDJSON events.
 * Keep interactive shell overhead low by deferring analysis to consolidation.
-* Support future database or index targets as derived materializations.
+* Materialize closed sessions into a local SQLite database for fast CLI queries.
 
 == Stakeholders
 
 * Shell users who want reliable command history.
 * Maintainers who need deterministic file formats and tests.
 * Operators who need inspectable recovery from partial or corrupt sessions.
-* Future integrations that consume event streams, derived execution rows, or manifests.
+* Future integrations that consume event streams or derived execution rows.

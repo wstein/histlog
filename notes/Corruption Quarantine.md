@@ -7,7 +7,7 @@ Histlog should quarantine malformed session files so one corrupt stream cannot b
 
 ## What
 
-When a session file cannot be parsed or fails schema or sequence validation, consolidation moves or copies it to a quarantine area and records the failure in the manifest. Other valid sessions continue processing.
+When a session file cannot be parsed or fails schema or sequence validation, consolidation moves or copies it to a quarantine area and reports the failure in the consolidation result. Other valid sessions continue processing.
 
 ## Why
 
@@ -20,5 +20,5 @@ Treat parse failure, invalid event shape, sequence gaps, and inconsistent sessio
 ## Links
 
 - [[Session Logfile Per CLI Session]] - Gives corruption a session-sized containment boundary.
-- [[Manifest And Checkpointing]] - Records quarantined sessions in daily metadata.
+- [[Checkpointing]] - Tracks successfully processed sessions separately from quarantined inputs.
 - [[Daily Finished Session Consolidation]] - Applies quarantine while materializing closed sessions.

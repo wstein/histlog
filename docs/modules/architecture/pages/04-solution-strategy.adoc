@@ -8,6 +8,6 @@ histlog treats files as the source-of-truth boundary and Elixir as the orchestra
 * Model shell activity as immutable events.
 * Write one NDJSON stream per CLI session.
 * Use session-local command and folder identifiers.
-* Materialize closed sessions into daily files and manifests.
-* Keep query and import workflows streaming and file-based.
+* Materialize closed sessions into `$HISTLOG_ROOT/histlog.db`.
+* Query both the SQLite materialization and currently live session files.
 * Quarantine malformed sessions at the session-file boundary.

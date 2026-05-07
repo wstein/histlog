@@ -21,7 +21,7 @@ Consolidation should use a transaction when updating `histlog.db`. A later run m
 
 ## Links
 
-- [[Manifest And Checkpointing]] - Defines the manifest fields verified here.
+- [[Checkpointing]] - Defines the checkpoint rows verified here.
 - [[Daily Finished Session Consolidation]] - Produces the materialized database.
 - [[SQLite Consolidation Schema]] - Defines the tables verification should inspect.
 - [[Corruption Quarantine]] - Handles malformed session inputs before materialization.
