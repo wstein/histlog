@@ -19,14 +19,15 @@ The public query command does not expose NDJSON; use `histlog export --format nd
 Session files store the `session_id` only in `session_started`.
 Later records rely on the file boundary and sequence number.
 
-== Derived Execution Row
+== Derived Query Row
 
 [source,json]
 ----
 {"event":"execution","session_id":"XBQxaBoA6-rWLbEKJqoAIw","exec_id":1,"command":"mix test","cwd":"/repo","timestamp":"2026-05-06T21:43:06.769Z","duration_ms":331,"exit_status":0,"completeness":"complete","shell":"fish","host":"Mac"}
 ----
 
-Derived execution rows are materialized views, not canonical truth.
+Derived query rows are materialized views, not canonical truth.
+Inside `histlog.db`, command text, paths, shells, sessions, imports, and command occurrences are stored in separate relational tables.
 
 == Partial Execution
 
@@ -41,12 +42,12 @@ Partial executions are valid because shell hooks can miss completion data.
 
 [source,sql]
 ----
-SELECT session_file, session_id, date, events_count, executions_count
+SELECT session_file, session_uid, date, events_count, commands_count
 FROM processed_sessions
 WHERE date = '2026-05-06';
 ----
 
-`histlog.db` stores materialized execution rows plus processed-session checkpoints.
+`histlog.db` stores a normalized command projection plus processed-session checkpoints.
 Closed session NDJSON remains the canonical source; the database is rebuilt from those files when needed.
 
 == Redacted Command

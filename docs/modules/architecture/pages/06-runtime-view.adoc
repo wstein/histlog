@@ -21,17 +21,17 @@ The canonical boundary remains the session NDJSON file:
 
 == Consolidation
 
-`Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, and writes sessions, execution rows, and processed-session checkpoints to `$HISTLOG_ROOT/histlog.db` inside one SQLite transaction.
+`Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, and writes normalized session, command, command-text, path, and processed-session checkpoint rows to `$HISTLOG_ROOT/histlog.db` inside one SQLite transaction.
 It is invoked explicitly by `histlog consolidate` or by an external scheduler that runs the CLI.
 
 == Verification
 
-`Histlog.Verifier` opens `histlog.db`, checks the schema version and required tables, and compares processed-session checkpoint counts with materialized execution rows.
+`Histlog.Verifier` opens `histlog.db`, checks the schema version and required tables, and compares processed-session checkpoint counts with materialized command rows.
 
 == Import
 
-`Histlog.Import` parses zsh, bash, fish, or native NDJSON inputs into `import_batch_*` and `imported_execution` events.
+`Histlog.Import` parses zsh, bash, fish, or native NDJSON inputs into `import_batch_*` and `imported_execution` events, writes the import NDJSON/report artifacts, and materializes imported commands into `histlog.db`.
 
 == Query
 
-`Histlog.Query` reads consolidated SQLite rows and merges them with live session NDJSON so the current shell is visible before consolidation.
+`Histlog.Query` reads consolidated SQLite rows and merges them with live session NDJSON so the current shell is visible before consolidation. Import files are not scanned during query; imports enter the database when `histlog import` runs.

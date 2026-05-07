@@ -20,5 +20,5 @@ Prefer `execution_observed` in the live stream. For complete executions, use `ti
 ## Links
 
 - [[Session Logfile Per CLI Session]] - Stores observed executions in the per-session event stream.
-- [[Daily Finished Session Consolidation]] - Normalizes observed events into derived execution rows.
+- [[Daily Finished Session Consolidation]] - Normalizes observed events into queryable command rows.
 - [[Rich Command Metadata Collection]] - Explains why partial command evidence still has value.

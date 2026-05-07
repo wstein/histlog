@@ -15,4 +15,4 @@ histlog exists to make interactive shell history useful as durable operational e
 * Shell users who want reliable command history.
 * Maintainers who need deterministic file formats and tests.
 * Operators who need inspectable recovery from partial or corrupt sessions.
-* Future integrations that consume event streams or derived execution rows.
+* Future integrations that consume event streams or derived query rows.

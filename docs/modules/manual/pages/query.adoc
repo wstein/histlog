@@ -1,7 +1,7 @@
 = Query History
 :page-layout: default
 
-`query` searches consolidated SQLite rows, imports, and currently live sessions.
+`query` searches consolidated SQLite rows and currently live sessions.
 It prints a colorized human-readable table by default.
 
 [source,sh]

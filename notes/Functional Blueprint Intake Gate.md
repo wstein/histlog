@@ -19,9 +19,9 @@ A behavior may enter v1 only when it can be implemented over one of these source
 
 - `$HISTLOG_ROOT/histlog.db`
 - currently live session rows
-- import event streams
 
 For query-family behavior, SQLite and live session rows are not alternatives; both must be included.
+Import streams enter SQLite before query-family behavior reads them.
 
 The behavior must not mutate canonical session events. If it requires in-place history changes, a daemon, or compatibility with the `histlog2` database schema, defer it outside v1.
 

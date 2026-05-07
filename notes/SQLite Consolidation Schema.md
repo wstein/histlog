@@ -13,7 +13,7 @@ The default consolidation database is:
 $HISTLOG_ROOT/histlog.db
 ```
 
-It stores query-ready rows derived from closed session logs. It is a materialized view, not the canonical capture artifact.
+It stores a query-ready relational projection derived from closed session logs and import artifacts. It is a materialized view, not the canonical capture artifact.
 
 ## Why
 
@@ -26,22 +26,28 @@ Query commands must not rely only on SQLite. They must also include live session
 The Elixir rewrite owns the schema. It may update tables, indexes, views, and metadata as needed for the current product behavior.
 
 No backward compatibility with `histlog2` tables, views, migrations, or identifiers is required.
+The schema may still learn from `histlog2`'s mature relational shape: command text, paths, shells, ttys, sessions, imports, and commands are separate concepts instead of one flat execution table.
 
 SQLite access uses `exqlite` directly through a small `Histlog.Database` wrapper. The project should not add a larger persistence framework unless the query model outgrows explicit SQL.
 
-## Initial Shape
+## Projection Shape
 
 The v1 schema supports:
 
 - schema metadata and version
 - processed session checkpoint rows keyed by `(date, session_file)`
-- sessions
-- derived executions
-- indexes for date, timestamp, command, cwd, and exit status
+- hosts, shells, ttys, and paths as shared dimensions
+- sessions keyed by canonical session identity
+- import batches with report/provenance metadata
+- command text interning in `cmd_texts`
+- command projection rows in `commands`
+- query views that join normalized tables back into user-facing rows
+- indexes for date, timestamp, command text, cwd, exit status, source, and import batches
 
 Processed-session skip logic must compare date, session file, source checksum, and schema version. A closed session file with the same name but different content must be reprocessed.
 
-The execution projection should keep basic integrity constraints, including non-negative durations and an allowed `completeness` enum.
+The command projection should keep basic integrity constraints, including non-negative durations and an allowed `completeness` enum.
+Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
 
 Use explicit schema versioning so `histlog consolidate --rebuild` can recreate the database when the schema changes.
 

@@ -145,7 +145,8 @@ The database contains:
 * schema metadata and schema version
 * processed-session checkpoints keyed by date and session filename
 * session summary rows
-* derived execution rows
+* import batch provenance
+* normalized command projection rows
 
 The protocol is:
 
@@ -153,8 +154,8 @@ The protocol is:
 2. skip sessions already present in the processed-session checkpoint with matching date, source checksum, and schema version
 3. validate each session's NDJSON and sequence numbers
 4. quarantine malformed sessions and continue processing other sessions
-5. derive execution rows
-6. insert sessions, executions, and checkpoints inside one SQLite transaction
+5. derive command observations
+6. insert normalized sessions, command text, paths, command rows, and checkpoints inside one SQLite transaction
 7. commit all database changes together
 
 If a run stops partway through, SQLite rolls back the incomplete transaction.
@@ -169,8 +170,10 @@ It must never mutate the canonical meaning of source events.
 
 Each session file must have strictly increasing sequence numbers beginning at `1`.
 Malformed sessions are quarantined at the session-file level so one corrupt file cannot block the whole day.
-Query-oriented commands read `histlog.db`, import streams, and live session NDJSON.
-Malformed live or import rows are skipped with an operator-visible warning so valid history remains accessible even when a file was edited or partially synced.
+Query-oriented commands read `histlog.db` and live session NDJSON.
+Import streams are materialized into `histlog.db` during import and are not a permanent query source.
+Malformed live rows are skipped with an operator-visible warning so valid history remains accessible even when a file was edited or partially synced.
+Malformed import rows are reported during import before those records enter the database projection.
 
 All shell-derived input is untrusted.
 The writer redacts common secret shapes and marks records that were changed before persistence.
@@ -206,13 +209,13 @@ The v1 module boundaries are:
 |Append-only writer for one shell session.
 
 |`Histlog.Consolidator`
-|SQLite materialization, derived execution output, and processed-session checkpointing.
+|SQLite materialization, normalized command projection, and processed-session checkpointing.
 
 |`Histlog.Import`
 |External zsh, bash, fish, and native NDJSON history ingestion as synthetic event streams.
 
 |`Histlog.Query`
-|Query helpers that merge SQLite rows, live session NDJSON, and imports.
+|Query helpers that merge SQLite rows with live session NDJSON.
 
 |`Histlog.Shell.Zsh`, `Histlog.Shell.Bash`, `Histlog.Shell.Fish`
 |Shell integration helpers and init script generation.
@@ -230,7 +233,7 @@ Required automated tests cover:
 * session file close and atomic move
 * consolidation idempotency
 * SQLite schema creation
-* derived execution rows from partial and complete observations
+* derived query rows from partial and complete observations
 * corruption quarantine
 * import event shape
 

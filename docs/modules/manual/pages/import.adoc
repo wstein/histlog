@@ -1,7 +1,7 @@
 = Import History
 :page-layout: default
 
-`import` parses zsh, bash, fish, or native histlog history and stores synthetic import events under `imports/`.
+`import` parses zsh, bash, fish, or native histlog history, stores synthetic import events under `imports/`, and materializes imported commands into `histlog.db`.
 
 [source,sh]
 ----
@@ -18,8 +18,8 @@ Supported sources:
 * `fish_history`
 * `native`
 
-Imported records become synthetic event streams.
-They do not mutate canonical session logs.
+Imported records become synthetic event streams for auditability.
+They do not mutate canonical session logs, and query commands read the SQLite materialization rather than scanning import files repeatedly.
 
 Each import also writes a diagnostics report next to the generated import stream:
 

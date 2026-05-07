@@ -15,13 +15,13 @@ Materialization commits inside a SQLite transaction:
 
 * validate closed session NDJSON
 * quarantine malformed session files
-* insert sessions, execution rows, and processed-session checkpoints
+* insert normalized sessions, command text, paths, command rows, and processed-session checkpoints
 * commit all database changes together
 
 If a run stops partway through, SQLite rolls back the incomplete transaction.
 The next run can retry safely without duplicating already processed sessions.
 
-`verify` checks the database schema and compares processed-session checkpoints with materialized rows.
+`verify` checks the database schema and compares processed-session checkpoints with materialized command rows.
 
 [source,sh]
 ----
