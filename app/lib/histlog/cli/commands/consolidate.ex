@@ -38,6 +38,7 @@ defmodule Histlog.CLI.Commands.Consolidate do
 
   defp write_report(report, :plain) do
     IO.puts("#{color_label("date")}: #{report["date"]}")
+    IO.puts("#{color_label("dates")}: #{color_count(length(report["dates"] || []))}")
     IO.puts("#{color_label("database")}: #{report["database_path"]}")
     IO.puts("#{color_label("schema")}: #{report["schema_version"]}")
 
@@ -82,12 +83,13 @@ defmodule Histlog.CLI.Commands.Consolidate do
     Usage: histlog consolidate [options]
 
     Materialize closed shell sessions into histlog.db for querying.
+    Without --date, all closed session dates are materialized.
 
     Options:
       -h, --help              Show this help
       -d, --date YYYY-MM-DD   Consolidate one date
       -r, --root PATH         Use a specific histlog data root
-          --rebuild           Rebuild database rows for the date
+          --rebuild           Rebuild database rows for the selected date scope
           --json              Output the full JSON report
     """
   end

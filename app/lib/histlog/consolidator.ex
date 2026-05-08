@@ -13,25 +13,60 @@ defmodule Histlog.Consolidator do
   alias Histlog.Storage
 
   @doc """
-  Consolidates closed sessions for a date into the SQLite query database.
+  Consolidates closed sessions into the SQLite query database.
+
+  When `:date` is provided, only that date is processed. Without `:date`, all
+  dated closed-session directories are processed so query-family commands see
+  the complete closed history after one materialization pass.
   """
   def consolidate(opts \\ []) do
     root = Storage.root(opts)
-    date = Keyword.get(opts, :date, Date.utc_today())
+    date = Keyword.get(opts, :date)
     rebuild? = Keyword.get(opts, :rebuild, false)
-
-    Storage.ensure_layout(root, date)
 
     Database.with_connection(root, fn conn ->
       with {:ok, schema_report} <- Schema.ensure_with_report(conn) do
         Database.transaction(conn, fn ->
-          consolidate_in_transaction(conn, root, date, rebuild?, schema_report)
+          dates = consolidation_dates(root, date)
+
+          dates
+          |> Enum.each(&Storage.ensure_layout(root, &1))
+          |> then(fn _ ->
+            consolidate_in_transaction(conn, root, dates, rebuild?, schema_report)
+          end)
         end)
       end
     end)
   end
 
-  defp consolidate_in_transaction(conn, root, date, rebuild?, schema_report) do
+  defp consolidation_dates(_root, %Date{} = date), do: [date]
+
+  defp consolidation_dates(root, nil) do
+    root
+    |> Path.join("sessions/closed/*")
+    |> Path.wildcard()
+    |> Enum.filter(&File.dir?/1)
+    |> Enum.map(&Path.basename/1)
+    |> Enum.flat_map(fn date ->
+      case Date.from_iso8601(date) do
+        {:ok, parsed} -> [parsed]
+        {:error, _reason} -> []
+      end
+    end)
+    |> Enum.sort(Date)
+  end
+
+  defp consolidate_in_transaction(conn, root, dates, rebuild?, schema_report) do
+    {processed, quarantined} =
+      Enum.reduce(dates, {[], []}, fn date, {processed, quarantined} ->
+        {:ok, report} = consolidate_date_in_transaction(conn, root, date, rebuild?, schema_report)
+        {processed ++ report.processed, quarantined ++ report.quarantined}
+      end)
+
+    {:ok, report(conn, root, dates, processed, quarantined, rebuild?, schema_report)}
+  end
+
+  defp consolidate_date_in_transaction(conn, root, date, rebuild?, _schema_report) do
     with :ok <- maybe_clear_date(conn, date, rebuild?) do
       session_paths = session_paths(root, date)
 
@@ -54,7 +89,7 @@ defmodule Histlog.Consolidator do
       processed_at = DateTime.utc_now() |> DateTime.to_iso8601()
 
       with :ok <- insert_sessions(conn, date, valid, processed_at) do
-        {:ok, report(conn, root, date, valid, quarantined, rebuild?, schema_report)}
+        {:ok, %{processed: valid, quarantined: quarantined}}
       end
     end
   end
@@ -278,24 +313,66 @@ defmodule Histlog.Consolidator do
     Projection.insert_session_command(conn, session_row_id, Date.to_iso8601(date), row)
   end
 
-  defp report(conn, root, date, processed, quarantined, rebuild?, schema_report) do
-    date_string = Date.to_iso8601(date)
+  defp report(conn, root, [date], processed, quarantined, rebuild?, schema_report) do
+    report_for_scope(
+      conn,
+      root,
+      Date.to_iso8601(date),
+      [Date.to_iso8601(date)],
+      "WHERE date = ?",
+      [Date.to_iso8601(date)],
+      processed,
+      quarantined,
+      rebuild?,
+      schema_report
+    )
+  end
 
+  defp report(conn, root, dates, processed, quarantined, rebuild?, schema_report) do
+    report_for_scope(
+      conn,
+      root,
+      "all",
+      Enum.map(dates, &Date.to_iso8601/1),
+      "",
+      [],
+      processed,
+      quarantined,
+      rebuild?,
+      schema_report
+    )
+  end
+
+  defp report_for_scope(
+         conn,
+         root,
+         date_label,
+         dates,
+         where_clause,
+         params,
+         processed,
+         quarantined,
+         rebuild?,
+         schema_report
+       ) do
     {:ok, records_written} =
       count_value(
         conn,
-        "SELECT COALESCE(SUM(events_count), 0) FROM processed_sessions WHERE date = ?",
-        [date_string]
+        "SELECT COALESCE(SUM(events_count), 0) FROM processed_sessions #{where_clause}",
+        params
       )
 
     {:ok, exec_records_written} =
-      count_value(conn, "SELECT COUNT(*) FROM commands WHERE date = ? AND source = 'session'", [
-        date_string
-      ])
+      count_value(
+        conn,
+        "SELECT COUNT(*) FROM commands #{where_clause_for_commands(where_clause)}",
+        params
+      )
 
     %{
       "schema_version" => Schema.version(),
-      "date" => date_string,
+      "date" => date_label,
+      "dates" => dates,
       "database_path" => Storage.database_path(root),
       "sessions_processed" => Enum.map(processed, & &1.basename),
       "records_written" => records_written,
@@ -305,6 +382,9 @@ defmodule Histlog.Consolidator do
       "quarantined_sessions" => quarantined
     }
   end
+
+  defp where_clause_for_commands(""), do: "WHERE source = 'session'"
+  defp where_clause_for_commands(where_clause), do: "#{where_clause} AND source = 'session'"
 
   defp count_value(conn, sql, params) do
     Database.query_value(conn, "SELECT (#{sql}) AS value", params)

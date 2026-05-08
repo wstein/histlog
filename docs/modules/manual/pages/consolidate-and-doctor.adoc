@@ -1,16 +1,19 @@
 = Consolidate And Doctor
 :page-layout: default
 
-`consolidate` reads closed sessions for the selected day, writes query rows to `$HISTLOG_ROOT/histlog.db`, and prints a human-readable report by default.
+`consolidate` reads closed sessions, writes query rows to `$HISTLOG_ROOT/histlog.db`, and prints a human-readable report by default.
+Without `--date`, it materializes all closed session dates so query-family commands can see the full closed history.
 
 [source,sh]
 ----
+histlog consolidate --root /tmp/histlog
 histlog consolidate --root /tmp/histlog --date 2026-05-06
 histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
 histlog consolidate --root /tmp/histlog --date 2026-05-06 --json
 ----
 
-`consolidate --rebuild` deletes database rows and checkpoints for that date, then rematerializes them from current closed sessions.
+`consolidate --date YYYY-MM-DD` limits materialization to one day.
+`consolidate --rebuild` deletes database rows and checkpoints for the selected date scope, then rematerializes them from current closed sessions.
 If the local database projection schema is incompatible, `consolidate` may drop and recreate the derived projection from canonical NDJSON. The report includes `schema_reset: true` when that happens; use `--json` for the full machine-readable report.
 
 Materialization commits inside a SQLite transaction:

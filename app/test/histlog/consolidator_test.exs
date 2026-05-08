@@ -68,6 +68,24 @@ defmodule Histlog.ConsolidatorTest do
     assert Enum.map(rows, & &1["command"]) == ["mix test", "mix test"]
   end
 
+  test "materializes all closed session dates when date is omitted", %{root: root, date: date} do
+    next_date = Date.add(date, 1)
+
+    closed_session!(root, date, "session-1", "pwd", "/repo/one", 0)
+    closed_session!(root, next_date, "session-2", "git status", "/repo/two", 0)
+
+    assert {:ok, report} = Consolidator.consolidate(root: root)
+
+    assert report["date"] == "all"
+    assert report["dates"] == [Date.to_iso8601(date), Date.to_iso8601(next_date)]
+    assert length(report["sessions_processed"]) == 2
+    assert report["records_written"] == 10
+    assert report["exec_records_written"] == 2
+
+    assert {:ok, rows} = Query.executions(root: root)
+    assert Enum.map(rows, & &1["command"]) == ["pwd", "git status"]
+  end
+
   test "reprocesses a closed session when its checksum changes", %{root: root, date: date} do
     writer = closed_session!(root, date, "session-1", "pwd", "/repo", 0)
 

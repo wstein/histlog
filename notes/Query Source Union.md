@@ -14,6 +14,7 @@ Commands such as `histlog query`, `histlog sessions`, `histlog paths`, and `hist
 
 Closed sessions that have already been consolidated should come from SQLite. Active sessions that have not yet been consolidated should come from session NDJSON.
 Import streams are canonical audit artifacts, but they must be materialized into SQLite before query-family commands see them.
+Closed sessions should not be parsed directly by query-family commands; `histlog consolidate` without `--date` materializes all closed session dates into SQLite.
 
 ## Why
 
