@@ -30,6 +30,33 @@ defmodule Histlog.PathNormalizerTest do
            ] = PathAnalyzer.command_paths(command, cwd)
   end
 
+  test "path analyzer expands simple brace path copies without shell execution" do
+    root =
+      Path.join(System.tmp_dir!(), "histlog-brace-path-#{System.unique_integer([:positive])}")
+
+    on_exit(fn -> File.rm_rf!(root) end)
+    File.mkdir_p!(root)
+    File.write!(Path.join(root, "histlog.db"), "")
+
+    assert [
+             %{
+               "arg_position" => 0,
+               "path" => original,
+               "exists" => true,
+               "type" => "f"
+             },
+             %{
+               "arg_position" => 0,
+               "path" => backup,
+               "exists" => false,
+               "type" => "u"
+             }
+           ] = PathAnalyzer.command_paths("cp histlog.db{,-bak}", root)
+
+    assert original == PathNormalizer.normalize(Path.join(root, "histlog.db"))
+    assert backup == PathNormalizer.normalize(Path.join(root, "histlog.db-bak"))
+  end
+
   test "projection stores home-relative path dimension values" do
     root = Path.join(System.tmp_dir!(), "histlog-path-normalizer-#{System.unique_integer()}")
     on_exit(fn -> File.rm_rf!(root) end)

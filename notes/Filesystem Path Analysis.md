@@ -17,7 +17,9 @@ Shell commands often derive meaning from location. The same command can have ver
 
 Path analysis should normalize and classify paths without assuming that every string is a filesystem reference. `histlog paths` summarizes observed working directories as execution counts and materialized command argument paths as argument counts.
 
-Closed sessions and imports derive command argument path facts during SQLite materialization. Live session rows derive the same shape at query time until the session closes. Path analysis records the original argument, resolved path, argument position, existence flag, and coarse path type so later query behavior can explain whether a path was observed directly, inferred from a relative argument, or missing at materialization time.
+Closed sessions and imports derive command argument path facts during SQLite materialization. Live session rows derive the same shape at query time until the session closes. Path analysis records the normalized path, argument position, existence flag, and coarse path type so later query behavior can explain whether a path was observed directly, inferred from a relative argument, or missing at materialization time.
+
+Path analysis may perform safe string-only expansion for simple brace forms such as `histlog.db{,-bak}`. It must not invoke the user's shell, expand environment variables, run command substitution, or depend on mutable shell runtime state. Command text remains the canonical source for the original argument spelling.
 
 ## Links
 

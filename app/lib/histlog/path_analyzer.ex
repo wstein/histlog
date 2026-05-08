@@ -17,10 +17,17 @@ defmodule Histlog.PathAnalyzer do
     |> Enum.drop(1)
     |> Enum.with_index()
     |> Enum.flat_map(fn {token, index} ->
-      case analyze_token(token, cwd, index) do
-        nil -> []
-        path -> [path]
-      end
+      expanded_tokens = expand_simple_braces(token)
+
+      force_path? =
+        length(expanded_tokens) > 1 && Enum.any?(expanded_tokens, &path_evidence?(&1, cwd))
+
+      Enum.flat_map(expanded_tokens, fn expanded_token ->
+        case analyze_token(expanded_token, cwd, index, force_path?) do
+          nil -> []
+          path -> [path]
+        end
+      end)
     end)
   end
 
@@ -42,10 +49,29 @@ defmodule Histlog.PathAnalyzer do
     |> String.trim_trailing("\"")
   end
 
-  defp analyze_token(token, cwd, index) do
+  defp expand_simple_braces(token) do
+    case Regex.run(~r/^(?<prefix>[^{}]*)\{(?<body>[^{}]+)\}(?<suffix>[^{}]*)$/, token,
+           capture: :all_names
+         ) do
+      [body, prefix, suffix] ->
+        body
+        |> String.split(",", trim: false)
+        |> Enum.reject(&String.contains?(&1, ["{", "}"]))
+        |> Enum.map(&(prefix <> &1 <> suffix))
+        |> Enum.reject(&(&1 == ""))
+
+      _no_simple_brace ->
+        [token]
+    end
+  end
+
+  defp analyze_token(token, cwd, index, force_path?) do
     cond do
       skip_token?(token) ->
         nil
+
+      force_path? ->
+        build_path(token, cwd, index)
 
       path_like?(token) ->
         build_path(token, cwd, index)
@@ -55,6 +81,8 @@ defmodule Histlog.PathAnalyzer do
         if File.exists?(resolved), do: build_path(token, cwd, index), else: nil
     end
   end
+
+  defp path_evidence?(token, cwd), do: path_like?(token) || File.exists?(resolve(token, cwd))
 
   defp skip_token?(token) do
     String.starts_with?(token, "-") ||
