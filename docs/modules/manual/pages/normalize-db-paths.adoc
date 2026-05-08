@@ -1,0 +1,43 @@
+= Normalize Database Paths
+:page-layout: default
+
+`scripts/normalize-db-paths.exs` is a standalone maintenance script for normalizing existing `histlog.db` path rows after home-directory path normalization was introduced.
+
+It is not a `histlog` CLI command.
+
+== Why
+
+Current histlog builds normalize paths under the current user's home directory to `~`.
+Older database rows may still contain absolute home paths such as `/Users/name/...` or `/home/name/...`.
+
+== Dry Run
+
+[source,sh]
+----
+elixir scripts/normalize-db-paths.exs \
+  --root ~/.local/share/histlog \
+  --dry-run
+----
+
+== Apply
+
+[source,sh]
+----
+elixir scripts/normalize-db-paths.exs --root ~/.local/share/histlog
+----
+
+The script:
+
+* backs up the database to `histlog.db.paths-backup-YYYYMMDDHHMMSS`
+* normalizes `paths.path`
+* merges duplicate path rows when an absolute home path and a `~` path already coexist
+* rewrites `sessions`, `commands`, and `command_paths` references to the merged path row
+* normalizes legacy `command_paths.resolved_path` values when that column exists
+
+After applying, run:
+
+[source,sh]
+----
+histlog paths --today
+histlog doctor
+----
