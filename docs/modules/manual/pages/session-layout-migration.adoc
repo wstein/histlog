@@ -1,0 +1,58 @@
+= Session Layout Migration
+:page-layout: default
+
+`scripts/flatten-session-layout.exs` is a standalone maintenance script for moving early alpha session files from dated directories into the flat session layout.
+
+It is not a `histlog` CLI command.
+
+== Why
+
+Early alpha builds wrote session files like:
+
+[source,text]
+----
+sessions/live/YYYY-MM-DD/session-*.ndjson
+sessions/closed/YYYY-MM-DD/session-*.ndjson
+----
+
+Current builds write the date into the filename instead:
+
+[source,text]
+----
+sessions/live/session-YYYY-MM-DD-*.ndjson
+sessions/closed/session-YYYY-MM-DD-*.ndjson
+----
+
+This keeps collection simple while preserving date visibility in file listings.
+
+== Dry Run
+
+[source,sh]
+----
+elixir scripts/flatten-session-layout.exs \
+  --root ~/.local/share/histlog \
+  --dry-run
+----
+
+== Apply
+
+[source,sh]
+----
+elixir scripts/flatten-session-layout.exs --root ~/.local/share/histlog
+----
+
+The script:
+
+* moves `live`, `closed`, and `quarantine` session files
+* prefixes filenames with the dated directory when needed
+* refuses to overwrite different existing flat files
+* removes empty legacy date directories
+* prints a JSON report for auditability
+
+After applying, run:
+
+[source,sh]
+----
+histlog consolidate
+histlog query
+----
