@@ -57,6 +57,17 @@ defmodule Histlog.PathNormalizerTest do
     assert backup == PathNormalizer.normalize(Path.join(root, "histlog.db-bak"))
   end
 
+  test "path analyzer skips shell runtime expansions" do
+    root = Path.join(System.tmp_dir!(), "histlog-runtime-expansion-#{System.unique_integer()}")
+    on_exit(fn -> File.rm_rf!(root) end)
+    File.mkdir_p!(root)
+
+    assert [] = PathAnalyzer.command_paths("cat $HOME/.ssh/config", root)
+    assert [] = PathAnalyzer.command_paths("cat $(pwd)/mix.exs", root)
+    assert [] = PathAnalyzer.command_paths("cat `pwd`/mix.exs", root)
+    assert [] = PathAnalyzer.command_paths("echo {alpha,beta}", root)
+  end
+
   test "projection stores home-relative path dimension values" do
     root = Path.join(System.tmp_dir!(), "histlog-path-normalizer-#{System.unique_integer()}")
     on_exit(fn -> File.rm_rf!(root) end)

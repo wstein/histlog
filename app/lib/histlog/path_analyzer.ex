@@ -87,6 +87,8 @@ defmodule Histlog.PathAnalyzer do
   defp skip_token?(token) do
     String.starts_with?(token, "-") ||
       String.contains?(token, "://") ||
+      String.contains?(token, "$") ||
+      String.contains?(token, "`") ||
       String.match?(token, ~r/^\d+$/) ||
       String.match?(token, ~r/^[A-Za-z_][A-Za-z0-9_]*=/) ||
       token in ["|", ">", ">>", "<", "2>", "2>>", "&>", "&&", "||", ";"]
