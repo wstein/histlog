@@ -142,14 +142,17 @@ defmodule Histlog.ConsolidatorTest do
 
   test "quarantines malformed sessions and continues", %{root: root, date: date} do
     Storage.ensure_layout(root, date)
-    bad_path = Path.join(Storage.closed_dir(root, date), "session-bad.ndjson")
+    bad_path = Path.join(Storage.closed_dir(root, date), "session-2026-05-06-bad.ndjson")
     File.write!(bad_path, "{\"not\":\"a histlog event\"}\n")
 
     assert {:ok, report} = Consolidator.consolidate(root: root, date: date)
 
-    assert [%{"session" => "session-bad.ndjson"}] = report["quarantined_sessions"]
+    assert [%{"session" => "session-2026-05-06-bad.ndjson"}] = report["quarantined_sessions"]
     refute File.exists?(bad_path)
-    assert File.exists?(Path.join(Storage.quarantine_dir(root, date), "session-bad.ndjson"))
+
+    assert File.exists?(
+             Path.join(Storage.quarantine_dir(root, date), "session-2026-05-06-bad.ndjson")
+           )
   end
 
   defp closed_session!(root, date, session_id, command, cwd, exit_status) do

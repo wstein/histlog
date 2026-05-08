@@ -34,9 +34,9 @@ histlog v1 does not provide:
 ----
 ~/.local/share/histlog/
   sessions/
-    live/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
-    closed/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
-    quarantine/YYYY-MM-DD/session-<host>-<pid>-<start_ns>.ndjson
+    live/session-YYYY-MM-DD-<host>-<pid>-<start_ns>.ndjson
+    closed/session-YYYY-MM-DD-<host>-<pid>-<start_ns>.ndjson
+    quarantine/session-YYYY-MM-DD-<host>-<pid>-<start_ns>.ndjson
   histlog.db
   imports/
   exports/
@@ -95,7 +95,7 @@ Every capture, query, import, info, doctor, and consolidation workflow runs as a
 
 [source,text]
 ----
-Shell hook adapter -> histlog hook CLI -> Histlog.SessionWriter -> sessions/live/<date>/session-*.ndjson
+Shell hook adapter -> histlog hook CLI -> Histlog.SessionWriter -> sessions/live/session-*.ndjson
 ----
 
 The writer:

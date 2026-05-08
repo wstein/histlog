@@ -17,7 +17,7 @@ Per-session logs reduce write contention, make active sessions easier to reason 
 
 Name and locate session logfiles so a later process can distinguish active, finished, and already consolidated sessions. Do not mix multiple CLI sessions into one live logfile; use consolidation to merge or index finished session data into historical storage.
 
-Query-family commands must read active `sessions/live/**/*.ndjson` files in addition to consolidated SQLite rows, so commands from the current shell are visible before consolidation.
+Query-family commands must read active `sessions/live/session-*.ndjson` files in addition to consolidated SQLite rows, so commands from the current shell are visible before consolidation.
 
 ## Links
 

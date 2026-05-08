@@ -15,9 +15,9 @@ defmodule Histlog.Consolidator do
   @doc """
   Consolidates closed sessions into the SQLite query database.
 
-  When `:date` is provided, only that date is processed. Without `:date`, all
-  dated closed-session directories are processed so query-family commands see
-  the complete closed history after one materialization pass.
+  When `:date` is provided, only files for that date are processed. Without
+  `:date`, all flat closed-session files are processed so query-family commands
+  see the complete closed history after one materialization pass.
   """
   def consolidate(opts \\ []) do
     root = Storage.root(opts)
@@ -43,17 +43,27 @@ defmodule Histlog.Consolidator do
 
   defp consolidation_dates(root, nil) do
     root
-    |> Path.join("sessions/closed/*")
+    |> Path.join("sessions/closed/session-*.ndjson")
     |> Path.wildcard()
-    |> Enum.filter(&File.dir?/1)
     |> Enum.map(&Path.basename/1)
-    |> Enum.flat_map(fn date ->
-      case Date.from_iso8601(date) do
-        {:ok, parsed} -> [parsed]
-        {:error, _reason} -> []
+    |> Enum.flat_map(fn filename ->
+      with [_, date] <- Regex.run(~r/^session-(\d{4}-\d{2}-\d{2})-/, filename),
+           {:ok, parsed} <- Date.from_iso8601(date) do
+        [parsed]
+      else
+        _ -> []
       end
     end)
+    |> Enum.uniq()
     |> Enum.sort(Date)
+  end
+
+  defp session_paths(root, date) do
+    root
+    |> Storage.closed_dir(date)
+    |> Path.join("session-#{Date.to_iso8601(date)}-*.ndjson")
+    |> Path.wildcard()
+    |> Enum.sort()
   end
 
   defp consolidate_in_transaction(conn, root, dates, rebuild?, schema_report) do
@@ -118,14 +128,6 @@ defmodule Histlog.Consolidator do
          :ok <- Database.exec(conn, "DELETE FROM processed_sessions WHERE date = ?", [date]) do
       :ok
     end
-  end
-
-  defp session_paths(root, date) do
-    root
-    |> Storage.closed_dir(date)
-    |> Path.join("*.ndjson")
-    |> Path.wildcard()
-    |> Enum.sort()
   end
 
   defp processed?(conn, date, path, checksum) do

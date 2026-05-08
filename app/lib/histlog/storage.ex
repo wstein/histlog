@@ -15,13 +15,13 @@ defmodule Histlog.Storage do
   end
 
   @doc """
-  Creates the v1 directory layout for a date.
+  Creates the v1 directory layout.
   """
-  def ensure_layout(root, date) do
+  def ensure_layout(root, _date \\ nil) do
     [
-      live_dir(root, date),
-      closed_dir(root, date),
-      quarantine_dir(root, date),
+      live_dir(root),
+      closed_dir(root),
+      quarantine_dir(root),
       hook_state_dir(root),
       imports_dir(root),
       exports_dir(root)
@@ -31,11 +31,10 @@ defmodule Histlog.Storage do
     :ok
   end
 
-  def live_dir(root, date), do: Path.join([root, "sessions", "live", Date.to_iso8601(date)])
-  def closed_dir(root, date), do: Path.join([root, "sessions", "closed", Date.to_iso8601(date)])
+  def live_dir(root, _date \\ nil), do: Path.join([root, "sessions", "live"])
+  def closed_dir(root, _date \\ nil), do: Path.join([root, "sessions", "closed"])
 
-  def quarantine_dir(root, date),
-    do: Path.join([root, "sessions", "quarantine", Date.to_iso8601(date)])
+  def quarantine_dir(root, _date \\ nil), do: Path.join([root, "sessions", "quarantine"])
 
   def imports_dir(root), do: Path.join(root, "imports")
   def exports_dir(root), do: Path.join(root, "exports")
@@ -46,13 +45,13 @@ defmodule Histlog.Storage do
   @doc """
   Builds the operator-facing session filename.
   """
-  def session_filename(host, process_id, start_ns) do
+  def session_filename(date, host, process_id, start_ns) do
     safe_host =
       host
       |> String.replace(~r/[^A-Za-z0-9_.-]/, "_")
       |> String.trim("_")
 
-    "session-#{safe_host}-#{process_id}-#{start_ns}.ndjson"
+    "session-#{Date.to_iso8601(date)}-#{safe_host}-#{process_id}-#{start_ns}.ndjson"
   end
 
   @doc """

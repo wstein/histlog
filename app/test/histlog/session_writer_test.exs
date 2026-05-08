@@ -29,6 +29,9 @@ defmodule Histlog.SessionWriterTest do
 
     assert File.exists?(writer.live_path)
 
+    assert writer.live_path ==
+             Path.join(root, "sessions/live/session-2026-05-06-machine-1234-12345.ndjson")
+
     assert {:ok, writer, _event} =
              SessionWriter.observe_execution(writer, "ls -alh", "/home/user/work", %{
                "started_at" => "2026-05-06T20:00:01Z",
@@ -42,6 +45,9 @@ defmodule Histlog.SessionWriterTest do
 
     refute File.exists?(writer.live_path)
     assert File.exists?(writer.closed_path)
+
+    assert writer.closed_path ==
+             Path.join(root, "sessions/closed/session-2026-05-06-machine-1234-12345.ndjson")
 
     assert {:ok, events} = Storage.read_events(writer.closed_path)
     assert :ok = Schema.validate_sequence(events)

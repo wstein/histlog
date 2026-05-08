@@ -118,7 +118,7 @@ defmodule Histlog.Query do
   end
 
   defp live_execution_rows(root, nil) do
-    Path.join([root, "sessions", "live", "*", "*.ndjson"])
+    Path.join([root, "sessions", "live", "session-*.ndjson"])
     |> Path.wildcard()
     |> Enum.sort()
     |> Enum.flat_map(&session_execution_rows/1)
@@ -133,7 +133,7 @@ defmodule Histlog.Query do
   defp live_session_paths(root, date) do
     root
     |> Storage.live_dir(date)
-    |> Path.join("*.ndjson")
+    |> Path.join("session-#{Date.to_iso8601(date)}-*.ndjson")
     |> Path.wildcard()
     |> Enum.sort()
   end

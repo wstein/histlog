@@ -95,7 +95,7 @@ defmodule Histlog.SessionWriter do
     start_ns = System.convert_time_unit(monotonic_start, :native, :nanosecond)
     session_id = Keyword.get_lazy(opts, :session_id, &new_session_id/0)
     durability = Histlog.Durability.normalize!(Keyword.get(opts, :durability, "balanced"))
-    filename = Storage.session_filename(host, process_id, start_ns)
+    filename = Storage.session_filename(date, host, process_id, start_ns)
 
     Storage.ensure_layout(root, date)
 

@@ -107,7 +107,7 @@ defmodule Histlog.SmokeShellTest do
   defp closed_session_events!(root) do
     paths =
       root
-      |> Path.join("sessions/closed/**/*.ndjson")
+      |> Path.join("sessions/closed/session-*.ndjson")
       |> Path.wildcard()
 
     assert [path] = paths

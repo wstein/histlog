@@ -10,7 +10,7 @@ All query-family commands must read from consolidated SQLite history and live se
 Commands such as `histlog query`, `histlog sessions`, `histlog paths`, and `histlog export` must combine:
 
 - consolidated rows from `$HISTLOG_ROOT/histlog.db`
-- currently live session logs from `sessions/live/**/*.ndjson`
+- currently live session logs from `sessions/live/session-*.ndjson`
 
 Closed sessions that have already been consolidated should come from SQLite. Active sessions that have not yet been consolidated should come from session NDJSON.
 Import streams are canonical audit artifacts, but they must be materialized into SQLite before query-family commands see them.
