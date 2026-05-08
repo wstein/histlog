@@ -49,7 +49,8 @@ defmodule Histlog.CLITest do
         assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
-    assert JSON.decode!(report_output)["records_written"] == 5
+    assert strip_ansi(report_output) =~ "events: 5"
+    assert strip_ansi(report_output) =~ "commands: 1"
 
     query_output =
       capture_io(fn ->
@@ -939,7 +940,10 @@ defmodule Histlog.CLITest do
              "\e[38;5;141mSess\e[0m \e[38;5;14mTimestamp\e[0m          \e[33m Duration\e[0m \e[38;5;84mExit\e[0m Command\n--------------------------------------------------\n"
   end
 
-  test "consolidate command accepts rebuild flag", %{root: root, date: date} do
+  test "consolidate command emits human output by default and json when requested", %{
+    root: root,
+    date: date
+  } do
     {:ok, writer} =
       SessionWriter.start(
         root: root,
@@ -962,7 +966,7 @@ defmodule Histlog.CLITest do
 
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
 
-    output =
+    plain =
       capture_io(fn ->
         assert :ok =
                  CLI.run([
@@ -972,6 +976,25 @@ defmodule Histlog.CLITest do
                    "--date",
                    Date.to_iso8601(date),
                    "--rebuild"
+                 ])
+      end)
+
+    assert strip_ansi(plain) =~ "date: 2026-05-06"
+    assert strip_ansi(plain) =~ "database: #{Path.join(root, "histlog.db")}"
+    assert strip_ansi(plain) =~ "rebuilt: true"
+    refute String.starts_with?(plain, "{")
+
+    output =
+      capture_io(fn ->
+        assert :ok =
+                 CLI.run([
+                   "consolidate",
+                   "--root",
+                   root,
+                   "--date",
+                   Date.to_iso8601(date),
+                   "--rebuild",
+                   "--json"
                  ])
       end)
 
