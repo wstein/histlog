@@ -243,12 +243,11 @@ defmodule Histlog.Database.Projection do
         conn,
         """
         INSERT INTO command_paths (
-          command_id, path_id, arg_position, original_arg, resolved_path, path_exists, source
+          command_id, path_id, arg_position, path_exists, source
         )
-        VALUES (?, ?, ?, ?, ?, ?, 'argument')
-        ON CONFLICT(command_id, arg_position, original_arg) DO UPDATE SET
+        VALUES (?, ?, ?, ?, 'argument')
+        ON CONFLICT(command_id, arg_position, path_id) DO UPDATE SET
           path_id = excluded.path_id,
-          resolved_path = excluded.resolved_path,
           path_exists = excluded.path_exists,
           source = excluded.source
         """,
@@ -256,8 +255,6 @@ defmodule Histlog.Database.Projection do
           command_id,
           path_id,
           path["arg_position"],
-          path["original_arg"],
-          path["resolved_path"],
           if(path["exists"], do: 1, else: 0)
         ]
       )

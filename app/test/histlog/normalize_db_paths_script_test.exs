@@ -47,9 +47,9 @@ defmodule Histlog.NormalizeDbPathsScriptTest do
       :ok =
         Database.exec(conn, """
         INSERT INTO command_paths (
-          command_id, path_id, arg_position, original_arg, resolved_path, path_exists
+          command_id, path_id, arg_position, path_exists
         )
-        VALUES (1, 3, 0, './file.txt', '#{home}/project/file.txt', 1)
+        VALUES (1, 3, 0, 1)
         """)
     end)
 
@@ -63,7 +63,7 @@ defmodule Histlog.NormalizeDbPathsScriptTest do
     assert {:ok, report} = JSON.decode(output)
     assert report["path_rows_changed"] == 2
     assert report["path_reference_updates"] == 1
-    assert report["resolved_path_rows_changed"] == 1
+    assert report["resolved_path_rows_changed"] == 0
     assert [_backup] = Path.wildcard(Path.join(root, "histlog.db.paths-backup-*"))
 
     assert {:ok, rows} =
@@ -88,9 +88,9 @@ defmodule Histlog.NormalizeDbPathsScriptTest do
                Database.query_maps(conn, "SELECT cwd FROM history_view")
              end)
 
-    assert {:ok, [%{resolved_path: "~/project/file.txt"}]} =
+    assert {:ok, [%{path: "~/project/file.txt"}]} =
              Database.with_connection(root, fn conn ->
-               Database.query_maps(conn, "SELECT resolved_path FROM command_paths")
+               Database.query_maps(conn, "SELECT path FROM command_paths_view")
              end)
   end
 

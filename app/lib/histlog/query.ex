@@ -147,7 +147,21 @@ defmodule Histlog.Query do
       row
       |> Map.put("source", "live")
       |> CommandText.normalize_row()
-      |> Map.put("paths", PathAnalyzer.command_paths(row["command"], row["cwd"]))
+      |> Map.put("paths", normalized_command_paths(row["command"], row["cwd"]))
+    end)
+  end
+
+  defp normalized_command_paths(command, cwd) do
+    command
+    |> PathAnalyzer.command_paths(cwd)
+    |> Enum.map(fn path ->
+      %{
+        "arg_position" => path["arg_position"],
+        "path" => path["resolved_path"],
+        "exists" => path["exists"],
+        "type" => path["type"],
+        "source" => "argument"
+      }
     end)
   end
 
@@ -157,17 +171,9 @@ defmodule Histlog.Query do
              conn,
              """
              SELECT
-               command_paths.command_id AS command_id,
-               command_paths.arg_position AS arg_position,
-               command_paths.original_arg AS original_arg,
-               command_paths.resolved_path AS resolved_path,
-               command_paths.path_exists AS path_exists,
-               command_paths.source AS source,
-               paths.path AS path,
-               paths.type AS type
-             FROM command_paths
-             JOIN paths ON command_paths.path_id = paths.id
-             ORDER BY command_paths.command_id ASC, command_paths.arg_position ASC
+               command_id, arg_position, path_exists, source, path, type
+             FROM command_paths_view
+             ORDER BY command_id ASC, arg_position ASC
              """
            ) do
       {:ok, group_path_rows(rows)}
@@ -180,19 +186,16 @@ defmodule Histlog.Query do
              conn,
              """
              SELECT
-               command_paths.command_id AS command_id,
-               command_paths.arg_position AS arg_position,
-               command_paths.original_arg AS original_arg,
-               command_paths.resolved_path AS resolved_path,
-               command_paths.path_exists AS path_exists,
-               command_paths.source AS source,
-               paths.path AS path,
-               paths.type AS type
-             FROM command_paths
-             JOIN paths ON command_paths.path_id = paths.id
-             JOIN commands ON command_paths.command_id = commands.id
+               command_paths_view.command_id AS command_id,
+               command_paths_view.arg_position AS arg_position,
+               command_paths_view.path_exists AS path_exists,
+               command_paths_view.source AS source,
+               command_paths_view.path AS path,
+               command_paths_view.type AS type
+             FROM command_paths_view
+             JOIN commands ON command_paths_view.command_id = commands.id
              WHERE commands.date = ?
-             ORDER BY command_paths.command_id ASC, command_paths.arg_position ASC
+             ORDER BY command_paths_view.command_id ASC, command_paths_view.arg_position ASC
              """,
              [Date.to_iso8601(date)]
            ) do
@@ -209,8 +212,6 @@ defmodule Histlog.Query do
        Enum.map(paths, fn path ->
          %{
            "arg_position" => path["arg_position"],
-           "original_arg" => path["original_arg"],
-           "resolved_path" => path["resolved_path"],
            "path" => path["path"],
            "exists" => path["path_exists"] == 1,
            "type" => path["type"],

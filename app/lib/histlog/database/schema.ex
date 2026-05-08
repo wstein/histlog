@@ -8,7 +8,7 @@ defmodule Histlog.Database.Schema do
 
   alias Histlog.Database
 
-  @version 6
+  @version 7
   @tables ~w(schema_metadata processed_sessions hosts shells ttys paths sessions imports cmd_texts commands command_paths)
 
   def version, do: @version
@@ -76,6 +76,7 @@ defmodule Histlog.Database.Schema do
            Database.execute(conn, """
            DROP VIEW IF EXISTS history_view;
            DROP VIEW IF EXISTS sessions_view;
+           DROP VIEW IF EXISTS command_paths_view;
            DROP TABLE IF EXISTS command_paths;
            DROP TABLE IF EXISTS commands;
            DROP TABLE IF EXISTS cmd_texts;
@@ -226,14 +227,12 @@ defmodule Histlog.Database.Schema do
       command_id INTEGER NOT NULL,
       path_id INTEGER NOT NULL,
       arg_position INTEGER NOT NULL CHECK (arg_position >= 0),
-      original_arg TEXT NOT NULL,
-      resolved_path TEXT NOT NULL,
       path_exists INTEGER NOT NULL DEFAULT 0 CHECK (path_exists IN (0, 1)),
       source TEXT NOT NULL DEFAULT 'argument' CHECK (source IN ('argument')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (command_id) REFERENCES commands(id) ON DELETE CASCADE,
       FOREIGN KEY (path_id) REFERENCES paths(id),
-      UNIQUE(command_id, arg_position, original_arg)
+      UNIQUE(command_id, arg_position, path_id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_processed_sessions_date
@@ -313,6 +312,17 @@ defmodule Histlog.Database.Schema do
       LEFT JOIN shells import_shells ON commands.import_shell_id = import_shells.id
       LEFT JOIN hosts ON sessions.host_id = hosts.id
       LEFT JOIN ttys ON sessions.tty_id = ttys.id;
+
+    CREATE VIEW IF NOT EXISTS command_paths_view AS
+      SELECT
+        command_paths.command_id AS command_id,
+        command_paths.arg_position AS arg_position,
+        paths.path AS path,
+        paths.type AS type,
+        command_paths.path_exists AS path_exists,
+        command_paths.source AS source
+      FROM command_paths
+      JOIN paths ON command_paths.path_id = paths.id;
 
     CREATE VIEW IF NOT EXISTS sessions_view AS
       SELECT

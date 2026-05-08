@@ -36,14 +36,14 @@ Use `history_view` as the preferred database read surface for command history.
 
 [source,sql]
 ----
-SELECT cp.command_id, cp.arg_position, cp.original_arg, p.path, p.type
-FROM command_paths cp
-JOIN paths p ON cp.path_id = p.id;
+SELECT command_id, arg_position, path, type, path_exists, source
+FROM command_paths_view;
 ----
 
 Command path rows are derived analysis facts.
 They are rebuilt from command text and cwd during consolidation or import materialization.
 They are not canonical history.
+The base `command_paths` table stores only relationship facts; command text already contains the original argument text, and `paths` owns the normalized path string.
 
 == Partial Execution
 

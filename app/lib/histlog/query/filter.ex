@@ -138,7 +138,7 @@ defmodule Histlog.Query.Filter do
 
   defp path_matches?(paths, path) do
     Enum.any?(paths, fn path_row ->
-      Enum.any?(["path", "resolved_path", "original_arg"], fn key ->
+      Enum.any?(["path"], fn key ->
         path_row
         |> Map.get(key)
         |> to_string()

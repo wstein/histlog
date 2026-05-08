@@ -26,7 +26,7 @@ defmodule Histlog.Query.Paths do
 
   defp materialized_argument_paths(%{"paths" => paths}) when is_list(paths) and paths != [] do
     Enum.flat_map(paths, fn path ->
-      case path["path"] || path["resolved_path"] do
+      case path["path"] do
         value when is_binary(value) and value != "" -> [PathNormalizer.normalize(value)]
         _other -> []
       end

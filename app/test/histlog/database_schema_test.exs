@@ -22,7 +22,7 @@ defmodule Histlog.DatabaseSchemaTest do
              Database.with_connection(root, fn conn ->
                :ok = Schema.ensure(conn)
 
-               assert {:ok, "6"} = Schema.schema_version(conn)
+               assert {:ok, "7"} = Schema.schema_version(conn)
 
                assert {:ok, tables} =
                         Database.query_maps(
@@ -61,6 +61,16 @@ defmodule Histlog.DatabaseSchemaTest do
                assert "import_row_index" in command_column_names
                assert "cmd_text_id" in command_column_names
 
+               assert {:ok, command_path_columns} =
+                        Database.query_maps(conn, "PRAGMA table_info(command_paths)")
+
+               command_path_column_names = Enum.map(command_path_columns, & &1.name)
+               assert "command_id" in command_path_column_names
+               assert "path_id" in command_path_column_names
+               assert "arg_position" in command_path_column_names
+               refute "original_arg" in command_path_column_names
+               refute "resolved_path" in command_path_column_names
+
                assert {:ok, history_columns} =
                         Database.query_maps(conn, "PRAGMA table_info(history_view)")
 
@@ -68,6 +78,20 @@ defmodule Histlog.DatabaseSchemaTest do
                assert "date" in history_column_names
                assert "command" in history_column_names
                assert "cwd" in history_column_names
+
+               assert {:ok, path_view_columns} =
+                        Database.query_maps(conn, "PRAGMA table_info(command_paths_view)")
+
+               path_view_column_names = Enum.map(path_view_columns, & &1.name)
+
+               assert path_view_column_names == [
+                        "command_id",
+                        "arg_position",
+                        "path",
+                        "type",
+                        "path_exists",
+                        "source"
+                      ]
 
                assert {:ok, indexes} =
                         Database.query_maps(
@@ -142,7 +166,7 @@ defmodule Histlog.DatabaseSchemaTest do
                  )
 
                assert {:ok, %{"schema_reset" => true}} = Schema.ensure_with_report(conn)
-               assert {:ok, "6"} = Schema.schema_version(conn)
+               assert {:ok, "7"} = Schema.schema_version(conn)
 
                :ok
              end)

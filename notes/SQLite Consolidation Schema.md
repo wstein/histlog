@@ -45,7 +45,7 @@ The v1 schema supports:
 - query views that join normalized tables back into user-facing rows
 - indexes for date, timestamp, command text, cwd, exit status, source, and import batches
 
-Base tables are internal projection storage. Query code should prefer `history_view` for command history and `sessions_view` for session summaries unless a targeted maintenance task needs base-table access.
+Base tables are internal projection storage. Query code should prefer `history_view` for command history, `sessions_view` for session summaries, and `command_paths_view` for command argument path facts unless a targeted maintenance task needs base-table access.
 
 Processed-session skip logic must compare date, session file, source checksum, and schema version. A closed session file with the same name but different content must be reprocessed.
 
@@ -54,7 +54,8 @@ Missing or empty command text is invalid projection input; do not silently inser
 Stored command sources are `session` and `import`; live commands are derived from active session NDJSON at query time and are not written to SQLite.
 Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
 
-`command_paths` stores derived command argument path facts keyed to materialized command rows. These rows are not canonical history; they are rebuildable analysis products derived from command text and cwd during consolidation or import materialization.
+`command_paths` stores derived command argument path facts keyed to materialized command rows. It stores only relationships and fact metadata: command id, path id, argument position, existence flag, and source. It must not duplicate the original argument text or resolved path string because command text already owns the original text and `paths` owns the normalized path value.
+These rows are not canonical history; they are rebuildable analysis products derived from command text and cwd during consolidation or import materialization.
 Paths under `System.user_home!()` are normalized to `~` before materialization so the database does not repeat a machine-specific absolute home directory. This normalization must not hardcode a username or platform-specific home path.
 
 Use explicit schema versioning. During this early rewrite, incompatible projection schemas are dropped and rebuilt from canonical NDJSON rather than migrated in place. Consolidation reports this as `schema_reset: true`.
