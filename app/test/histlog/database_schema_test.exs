@@ -17,6 +17,38 @@ defmodule Histlog.DatabaseSchemaTest do
     {:ok, root: root}
   end
 
+  test "creates database parent directory for writable connections" do
+    root =
+      Path.join(
+        System.tmp_dir!(),
+        "histlog-database-missing-root-#{System.unique_integer([:positive])}"
+      )
+
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    assert :ok =
+             Database.with_connection(root, fn conn ->
+               :ok = Schema.ensure(conn)
+             end)
+
+    assert File.exists?(Path.join(root, "histlog.db"))
+  end
+
+  test "does not create missing database for readonly connections" do
+    root =
+      Path.join(
+        System.tmp_dir!(),
+        "histlog-database-missing-readonly-root-#{System.unique_integer([:positive])}"
+      )
+
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    assert {:error, _reason} =
+             Database.with_connection(root, [mode: :readonly], fn _conn -> :ok end)
+
+    refute File.exists?(root)
+  end
+
   test "creates the v1 materialization schema", %{root: root} do
     assert :ok =
              Database.with_connection(root, fn conn ->

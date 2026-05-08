@@ -9,9 +9,9 @@ defmodule Histlog.Database do
   def path(root), do: Storage.database_path(root)
 
   def open(root, opts \\ []) do
-    root
-    |> path()
-    |> Sqlite3.open(opts)
+    database_path = path(root)
+    maybe_prepare_parent(database_path, opts)
+    Sqlite3.open(database_path, opts)
   end
 
   def close(conn), do: Sqlite3.close(conn)
@@ -92,5 +92,11 @@ defmodule Histlog.Database do
     columns
     |> Enum.zip(row)
     |> Map.new(fn {column, value} -> {String.to_atom(column), value} end)
+  end
+
+  defp maybe_prepare_parent(database_path, opts) do
+    unless Keyword.get(opts, :mode) == :readonly do
+      File.mkdir_p!(Path.dirname(database_path))
+    end
   end
 end
