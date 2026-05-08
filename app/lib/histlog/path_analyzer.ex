@@ -75,8 +75,7 @@ defmodule Histlog.PathAnalyzer do
 
     %{
       "arg_position" => index,
-      "original_arg" => token,
-      "resolved_path" => PathNormalizer.normalize(resolved),
+      "path" => PathNormalizer.normalize(resolved),
       "exists" => File.exists?(resolved),
       "type" => path_type(resolved)
     }

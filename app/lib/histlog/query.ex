@@ -157,7 +157,7 @@ defmodule Histlog.Query do
     |> Enum.map(fn path ->
       %{
         "arg_position" => path["arg_position"],
-        "path" => path["resolved_path"],
+        "path" => path["path"],
         "exists" => path["exists"],
         "type" => path["type"],
         "source" => "argument"

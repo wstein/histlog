@@ -15,15 +15,17 @@ defmodule Histlog.PathNormalizerTest do
     assert PathNormalizer.expand("~/project/file.txt") == Path.join(home, "project/file.txt")
   end
 
-  test "path analyzer stores home-relative resolved paths" do
+  test "path analyzer returns normalized path facts" do
     home = System.user_home!()
     command = "cat ./project/file.txt"
     cwd = home
 
     assert [
              %{
-               "original_arg" => "./project/file.txt",
-               "resolved_path" => "~/project/file.txt"
+               "arg_position" => 0,
+               "path" => "~/project/file.txt",
+               "exists" => false,
+               "type" => "u"
              }
            ] = PathAnalyzer.command_paths(command, cwd)
   end

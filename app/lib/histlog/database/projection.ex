@@ -238,7 +238,7 @@ defmodule Histlog.Database.Projection do
   end
 
   defp insert_command_path(conn, command_id, path) do
-    with {:ok, path_id} <- upsert_path(conn, path["resolved_path"]) do
+    with {:ok, path_id} <- upsert_path(conn, path["path"]) do
       Database.exec(
         conn,
         """
