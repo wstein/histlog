@@ -31,6 +31,8 @@ Implement consolidation as an explicitly triggered or externally scheduled Elixi
 
 `histlog consolidate` without a date scans every dated closed-session directory. `histlog consolidate --date YYYY-MM-DD` is the narrow form for one date. This keeps query-family commands from depending on direct closed-NDJSON scans while still making one materialization pass enough to index all finished sessions.
 
+Consolidation is also the initializer for a fresh data root. If `$HISTLOG_ROOT` does not exist, writable SQLite open creates the root and `histlog.db` before schema setup. Read-only diagnostics intentionally do not do this.
+
 The SQLite schema is owned by this Elixir rewrite and may change as needed. There is no backward-compatibility requirement with the `histlog2` schema.
 
 ## Links

@@ -14,6 +14,7 @@ histlog consolidate --root /tmp/histlog --date 2026-05-06 --json
 
 `consolidate --date YYYY-MM-DD` limits materialization to one day.
 `consolidate --rebuild` deletes database rows and checkpoints for the selected date scope, then rematerializes them from current closed sessions.
+When `$HISTLOG_ROOT` does not exist yet, `consolidate` creates the root and initializes `histlog.db`.
 If the local database projection schema is incompatible, `consolidate` may drop and recreate the derived projection from canonical NDJSON. The report includes `schema_reset: true` when that happens; use `--json` for the full machine-readable report.
 
 Materialization commits inside a SQLite transaction:
@@ -28,6 +29,7 @@ The next run can retry safely without duplicating already processed sessions.
 
 `info` shows runtime information such as version, paths, and environment variables.
 `doctor` diagnoses that state, including schema checks, materialization counts, SQLite integrity, and orphan relationship checks. It prints recommendations when checks fail.
+`doctor` opens the database read-only and does not create a missing data root.
 
 [source,sh]
 ----

@@ -29,6 +29,8 @@ No backward compatibility with `histlog2` tables, views, migrations, or identifi
 The schema may still learn from `histlog2`'s mature relational shape: command text, paths, shells, ttys, sessions, imports, and commands are separate concepts instead of one flat execution table.
 
 SQLite access uses `exqlite` directly through a small `Histlog.Database` wrapper. The project should not add a larger persistence framework unless the query model outgrows explicit SQL.
+Writable database workflows create the database parent directory before opening SQLite so a fresh `$HISTLOG_ROOT` can be initialized by `histlog consolidate`.
+Read-only workflows must not create missing roots or databases; diagnostics should report missing state rather than materialize it.
 
 ## Projection Shape
 
