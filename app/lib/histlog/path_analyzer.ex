@@ -7,6 +7,8 @@ defmodule Histlog.PathAnalyzer do
   but never executes shell code.
   """
 
+  alias Histlog.PathNormalizer
+
   @token_pattern ~r/(?:'[^']*'|"[^"]*"|\S+)/
 
   def command_paths(command, cwd) when is_binary(command) do
@@ -74,7 +76,7 @@ defmodule Histlog.PathAnalyzer do
     %{
       "arg_position" => index,
       "original_arg" => token,
-      "resolved_path" => resolved,
+      "resolved_path" => PathNormalizer.normalize(resolved),
       "exists" => File.exists?(resolved),
       "type" => path_type(resolved)
     }

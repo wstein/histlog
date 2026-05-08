@@ -4,6 +4,7 @@
 `paths` summarizes filesystem locations observed as working directories and path-like command arguments.
 For closed sessions and imports, argument paths come from materialized `command_paths` facts in `histlog.db`.
 For live sessions, histlog derives the same shape from active session NDJSON until the session is consolidated.
+Paths under the current user's home directory are displayed and materialized with a `~` prefix rather than an absolute home path.
 
 [source,sh]
 ----

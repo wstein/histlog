@@ -155,6 +155,8 @@ defmodule Histlog.DatabaseSchemaTest do
              Database.with_connection(root, fn conn ->
                :ok = Schema.ensure(conn)
 
+               normalized_path = Histlog.PathNormalizer.normalize(path)
+
                assert {:ok, _path_id} = Projection.upsert_path(conn, path)
 
                assert {:ok, "u"} =
@@ -162,7 +164,7 @@ defmodule Histlog.DatabaseSchemaTest do
                           conn,
                           "SELECT type AS value FROM paths WHERE path = ?",
                           [
-                            path
+                            normalized_path
                           ]
                         )
 
@@ -175,7 +177,7 @@ defmodule Histlog.DatabaseSchemaTest do
                           conn,
                           "SELECT type AS value FROM paths WHERE path = ?",
                           [
-                            path
+                            normalized_path
                           ]
                         )
 

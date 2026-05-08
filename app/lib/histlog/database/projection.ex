@@ -6,6 +6,7 @@ defmodule Histlog.Database.Projection do
   alias Histlog.Database
   alias Histlog.CommandText
   alias Histlog.PathAnalyzer
+  alias Histlog.PathNormalizer
 
   @named_targets MapSet.new([
                    {"hosts", "name"},
@@ -49,6 +50,7 @@ defmodule Histlog.Database.Projection do
   def upsert_path(_conn, ""), do: {:ok, nil}
 
   def upsert_path(conn, path) do
+    path = PathNormalizer.normalize(path)
     type = path_type(path)
 
     with :ok <-
@@ -263,6 +265,8 @@ defmodule Histlog.Database.Projection do
   end
 
   defp path_type(path) do
+    path = PathNormalizer.expand(path)
+
     cond do
       File.dir?(path) -> "d"
       File.regular?(path) -> "f"

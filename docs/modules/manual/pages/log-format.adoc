@@ -36,7 +36,7 @@ Use `history_view` as the preferred database read surface for command history.
 
 [source,sql]
 ----
-SELECT cp.command_id, cp.arg_position, cp.original_arg, cp.resolved_path, p.type
+SELECT cp.command_id, cp.arg_position, cp.original_arg, p.path, p.type
 FROM command_paths cp
 JOIN paths p ON cp.path_id = p.id;
 ----

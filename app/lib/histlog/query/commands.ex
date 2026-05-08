@@ -3,6 +3,8 @@ defmodule Histlog.Query.Commands do
   Command discovery summaries derived from query execution rows.
   """
 
+  alias Histlog.PathNormalizer
+
   def rows(execution_rows, opts \\ []) do
     with {:ok, matcher} <- matcher(Keyword.get(opts, :search, ""), opts) do
       rows =
@@ -83,7 +85,7 @@ defmodule Histlog.Query.Commands do
   defp directory_match?(_row, nil), do: true
 
   defp directory_match?(%{"cwd" => cwd}, directory) when is_binary(cwd) and cwd != "" do
-    Path.expand(cwd) == Path.expand(directory)
+    PathNormalizer.expand(cwd) == Path.expand(directory)
   end
 
   defp directory_match?(_row, _directory), do: false

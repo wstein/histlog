@@ -3,6 +3,8 @@ defmodule Histlog.Query.Paths do
   Semantic path summaries derived from query execution rows.
   """
 
+  alias Histlog.PathNormalizer
+
   def rows(execution_rows) do
     exec_counts = Enum.frequencies(Enum.flat_map(execution_rows, &cwd_path/1))
     arg_counts = Enum.frequencies(Enum.flat_map(execution_rows, &materialized_argument_paths/1))
@@ -25,7 +27,7 @@ defmodule Histlog.Query.Paths do
   defp materialized_argument_paths(%{"paths" => paths}) when is_list(paths) and paths != [] do
     Enum.flat_map(paths, fn path ->
       case path["path"] || path["resolved_path"] do
-        value when is_binary(value) and value != "" -> [value]
+        value when is_binary(value) and value != "" -> [PathNormalizer.normalize(value)]
         _other -> []
       end
     end)
@@ -50,15 +52,26 @@ defmodule Histlog.Query.Paths do
   end
 
   defp existing_path(token, cwd) do
-    path = normalize_path(token, cwd)
+    expanded = expand_path(token, cwd)
+    path = PathNormalizer.normalize(expanded)
 
-    if path_argument?(token) && File.exists?(path), do: [path], else: []
+    if path_argument?(token) && File.exists?(expanded), do: [path], else: []
   end
 
   defp path_argument?(token),
     do: !String.starts_with?(token, "-") && !String.contains?(token, "://")
 
-  defp normalize_path("~" <> rest, _cwd), do: Path.expand("~" <> rest)
-  defp normalize_path(path, cwd) when is_binary(cwd) and cwd != "", do: Path.expand(path, cwd)
-  defp normalize_path(path, _cwd), do: Path.expand(path)
+  defp normalize_path("~" <> rest, _cwd), do: PathNormalizer.normalize(Path.expand("~" <> rest))
+
+  defp normalize_path(path, cwd) when is_binary(cwd) and cwd != "",
+    do: PathNormalizer.normalize(Path.expand(path, PathNormalizer.expand(cwd)))
+
+  defp normalize_path(path, _cwd), do: PathNormalizer.normalize(Path.expand(path))
+
+  defp expand_path("~" <> rest, _cwd), do: Path.expand("~" <> rest)
+
+  defp expand_path(path, cwd) when is_binary(cwd) and cwd != "",
+    do: Path.expand(path, PathNormalizer.expand(cwd))
+
+  defp expand_path(path, _cwd), do: Path.expand(path)
 end

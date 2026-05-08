@@ -55,6 +55,7 @@ Stored command sources are `session` and `import`; live commands are derived fro
 Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
 
 `command_paths` stores derived command argument path facts keyed to materialized command rows. These rows are not canonical history; they are rebuildable analysis products derived from command text and cwd during consolidation or import materialization.
+Paths under `System.user_home!()` are normalized to `~` before materialization so the database does not repeat a machine-specific absolute home directory. This normalization must not hardcode a username or platform-specific home path.
 
 Use explicit schema versioning. During this early rewrite, incompatible projection schemas are dropped and rebuilt from canonical NDJSON rather than migrated in place. Consolidation reports this as `schema_reset: true`.
 

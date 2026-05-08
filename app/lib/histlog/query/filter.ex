@@ -3,6 +3,7 @@ defmodule Histlog.Query.Filter do
 
   alias Histlog.Query.Duration
   alias Histlog.Query.Time
+  alias Histlog.PathNormalizer
 
   def rows(rows, args, opts) do
     search = Enum.join(args, " ") |> blank_to_nil()
@@ -40,7 +41,7 @@ defmodule Histlog.Query.Filter do
 
   defp match_dir?(_row, nil), do: true
   defp match_dir?(row, ""), do: row["cwd"] == File.cwd!()
-  defp match_dir?(row, dir), do: Path.expand(row["cwd"] || "") == Path.expand(dir)
+  defp match_dir?(row, dir), do: PathNormalizer.expand(row["cwd"] || "") == Path.expand(dir)
 
   defp match_status?(row, opts) do
     cond do
