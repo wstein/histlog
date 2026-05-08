@@ -269,23 +269,42 @@ defmodule Histlog.Shell.Init do
   end
 
   defp zsh_completions do
+    command_entries =
+      Histlog.Shell.Completions.commands()
+      |> Enum.map_join("\n", fn {command, description} ->
+        "    '#{command}:#{String.downcase(description)}'"
+      end)
+
+    option_cases =
+      Histlog.Shell.Completions.commands()
+      |> Enum.map_join("\n", fn {command, _description} ->
+        options = Histlog.Shell.Completions.options(command) |> Enum.join(" ")
+
+        """
+          #{command})
+            _arguments '*::histlog #{command} option:((#{options}))'
+            ;;
+        """
+      end)
+
     """
     _histlog() {
       local -a commands
       commands=(
-        'init:print shell integration'
-        'query:query history'
-        'commands:summarize command usage'
-        'statistics:show history statistics'
-        'sessions:list shell sessions'
-        'paths:summarize filesystem paths'
-        'export:export history rows'
-        'import:import history'
-        'consolidate:consolidate ended sessions'
-        'info:show runtime information'
-        'doctor:diagnose setup'
+    #{command_entries}
       )
-      _describe 'histlog command' commands
+
+      if (( CURRENT == 2 )); then
+        _describe 'histlog command' commands
+        return
+      fi
+
+      case "${words[2]}" in
+    #{option_cases}
+        *)
+          _describe 'histlog command' commands
+          ;;
+      esac
     }
     if whence -w compdef >/dev/null 2>&1; then
       compdef _histlog histlog
@@ -294,27 +313,58 @@ defmodule Histlog.Shell.Init do
   end
 
   defp bash_completions do
+    commands =
+      Histlog.Shell.Completions.commands()
+      |> Enum.map_join(" ", fn {command, _description} -> command end)
+
+    cases =
+      Histlog.Shell.Completions.commands()
+      |> Enum.map_join("\n", fn {command, _description} ->
+        options = Histlog.Shell.Completions.options(command) |> Enum.join(" ")
+        "        #{command}) words=\"#{options}\" ;;"
+      end)
+
     """
     _histlog_completion() {
-      COMPREPLY=($(compgen -W "init query commands statistics sessions paths export import consolidate info doctor" -- "${COMP_WORDS[COMP_CWORD]}"))
+      local current command words
+      current="${COMP_WORDS[COMP_CWORD]}"
+      command="${COMP_WORDS[1]:-}"
+
+      if [ "$COMP_CWORD" -le 1 ]; then
+        words="#{commands}"
+      else
+        case "$command" in
+    #{cases}
+          *) words="#{commands}" ;;
+        esac
+      fi
+
+      COMPREPLY=($(compgen -W "$words" -- "$current"))
     }
     complete -F _histlog_completion histlog
     """
   end
 
   defp fish_completions do
+    command_lines =
+      Histlog.Shell.Completions.commands()
+      |> Enum.map_join("\n", fn {command, description} ->
+        ~s(complete -c histlog -f -n "__fish_use_subcommand" -a "#{command}" -d "#{description}")
+      end)
+
+    option_lines =
+      Histlog.Shell.Completions.commands()
+      |> Enum.flat_map(fn {command, _description} ->
+        Enum.map(Histlog.Shell.Completions.options(command), fn option ->
+          name = String.trim_leading(option, "-")
+          ~s(complete -c histlog -f -n "__fish_seen_subcommand_from #{command}" -l "#{name}")
+        end)
+      end)
+      |> Enum.join("\n")
+
     """
-    complete -c histlog -f -a "init" -d "Print shell integration"
-    complete -c histlog -f -a "query" -d "Query history"
-    complete -c histlog -f -a "commands" -d "Summarize command usage"
-    complete -c histlog -f -a "statistics" -d "Show history statistics"
-    complete -c histlog -f -a "sessions" -d "List shell sessions"
-    complete -c histlog -f -a "paths" -d "Summarize filesystem paths"
-    complete -c histlog -f -a "export" -d "Export history rows"
-    complete -c histlog -f -a "import" -d "Import history"
-    complete -c histlog -f -a "consolidate" -d "Consolidate ended sessions"
-    complete -c histlog -f -a "info" -d "Show runtime information"
-    complete -c histlog -f -a "doctor" -d "Diagnose setup"
+    #{command_lines}
+    #{option_lines}
     """
   end
 

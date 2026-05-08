@@ -23,6 +23,9 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "\"$HISTLOG_BIN\" hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
     assert script =~ "--durability \"$HISTLOG_DURABILITY\""
     assert script =~ "compdef _histlog histlog"
+    assert script =~ "query)"
+    assert script =~ "--today"
+    assert script =~ "--no-private"
     refute script =~ "alias hl="
   end
 
@@ -32,6 +35,9 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "export HISTLOG_SHELL=\"bash\""
     assert script =~ "local cmd=\"${1:-$BASH_COMMAND}\""
     assert script =~ "histlog\\ hook*"
+    assert script =~ "query) words="
+    assert script =~ "--today"
+    assert script =~ "--no-private"
   end
 
   test "fish init uses fish events" do
@@ -39,6 +45,11 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "function __histlog_preexec --on-event fish_preexec"
     assert script =~ "function __histlog_postexec --on-event fish_postexec"
     assert script =~ "set -gx HISTLOG_SHELL fish"
+    assert script =~ "__fish_seen_subcommand_from query"
+    assert script =~ ~s(-l "today")
+    assert script =~ ~s(-l "no-private")
+    assert script =~ "__fish_seen_subcommand_from init"
+    assert script =~ ~s(-l "binary")
     assert script =~ "alias hl='histlog'"
   end
 
