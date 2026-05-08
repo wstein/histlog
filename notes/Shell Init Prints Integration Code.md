@@ -15,7 +15,7 @@ Shell rc files are personal, fragile, and security-sensitive. Printing integrati
 
 ## How
 
-Implement `init` as stdout-only generation for supported shells. Include completion setup by default. Add aliases only when the user passes `--aliases`, because aliases change the interactive command namespace.
+Implement `init` as stdout-only generation for supported shells. Include completion setup by default. Add a guarded `hl` alias when that name is still available, because it is the smallest useful shortcut. Add broader convenience aliases only when the user passes `--aliases`, because those aliases change more of the interactive command namespace.
 
 Bash integration is weaker than zsh and fish because it depends on the shell `DEBUG` trap. In v1, generated bash code installs histlog's `DEBUG` trap directly and does not preserve a pre-existing trap.
 

@@ -23,6 +23,9 @@ eval "$(histlog init zsh --binary /absolute/path/to/histlog)"
 
 When `--binary` is supplied, the generated script assigns `HISTLOG_BIN` directly instead of honoring a pre-existing environment value.
 
+The generated script creates `hl` as a guarded alias when that name is available.
+Pass `--aliases` to add extra convenience aliases such as query, sync, and rebuild shortcuts.
+
 Durability modes are `safe`, `balanced`, and `fast`; `balanced` is the default.
 
 [source,sh]

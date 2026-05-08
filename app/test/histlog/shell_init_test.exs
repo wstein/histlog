@@ -15,7 +15,7 @@ defmodule Histlog.ShellInitTest do
     assert {:ok, "zsh"} = Init.detect(%{"SHELL" => "/bin/zsh"}, fn -> nil end)
   end
 
-  test "zsh init prints hooks, completions, and no aliases by default" do
+  test "zsh init prints hooks, completions, and guarded hl alias by default" do
     assert {:ok, script} = Init.script("zsh")
     assert script =~ "add-zsh-hook preexec _histlog_preexec"
     assert script =~ "_histlog_now_ms"
@@ -26,7 +26,9 @@ defmodule Histlog.ShellInitTest do
     assert script =~ "query)"
     assert script =~ "--today"
     assert script =~ "--no-private"
-    refute script =~ "alias hl="
+    assert script =~ "if ! command -v hl >/dev/null 2>&1; then"
+    assert script =~ ~s(alias hl="$HISTLOG_BIN")
+    refute script =~ "alias hq="
   end
 
   test "bash init filters recursive hook capture" do
@@ -50,7 +52,9 @@ defmodule Histlog.ShellInitTest do
     assert script =~ ~s(-l "no-private")
     assert script =~ "__fish_seen_subcommand_from init"
     assert script =~ ~s(-l "binary")
-    assert script =~ "alias hl='histlog'"
+    assert script =~ "if not type -q hl"
+    assert script =~ ~s(alias hl "$HISTLOG_BIN")
+    assert script =~ ~s(alias hq "$HISTLOG_BIN query")
   end
 
   test "init can pin an explicit histlog binary path" do

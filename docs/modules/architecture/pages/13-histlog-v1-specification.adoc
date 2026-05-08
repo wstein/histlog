@@ -133,7 +133,8 @@ Supported v1 hook commands are:
 
 The generated code suppresses hook errors by default, quotes variables, avoids recursive capture of `histlog hook ...`, and passes command text only as data.
 Completion setup is included by default.
-Aliases are opt-in through `histlog init SHELL --aliases`.
+The generated code creates a guarded `hl` alias only when that name is available.
+Additional aliases are opt-in through `histlog init SHELL --aliases`.
 
 == Consolidation
 

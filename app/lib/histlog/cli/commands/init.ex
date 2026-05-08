@@ -46,7 +46,7 @@ defmodule Histlog.CLI.Commands.Init do
 
     Options:
       -h, --help                    Show this help
-          --aliases                 Include convenience aliases
+          --aliases                 Include additional convenience aliases
           --binary PATH             Pin an absolute histlog executable path
           --durability MODE         safe, balanced, or fast
     """

@@ -368,25 +368,53 @@ defmodule Histlog.Shell.Init do
     """
   end
 
-  defp posix_aliases(false), do: ""
-
-  defp posix_aliases(true) do
+  defp posix_aliases(false) do
     """
-    alias hl='histlog'
-    alias hq='histlog query'
-    alias hs='histlog sync'
-    alias hr='histlog rebuild'
+    if ! command -v hl >/dev/null 2>&1; then
+      alias hl="$HISTLOG_BIN"
+    fi
     """
   end
 
-  defp fish_aliases(false), do: ""
+  defp posix_aliases(true) do
+    """
+    if ! command -v hl >/dev/null 2>&1; then
+      alias hl="$HISTLOG_BIN"
+    fi
+    if ! command -v hq >/dev/null 2>&1; then
+      alias hq="$HISTLOG_BIN query"
+    fi
+    if ! command -v hs >/dev/null 2>&1; then
+      alias hs="$HISTLOG_BIN sync"
+    fi
+    if ! command -v hr >/dev/null 2>&1; then
+      alias hr="$HISTLOG_BIN rebuild"
+    fi
+    """
+  end
+
+  defp fish_aliases(false) do
+    """
+    if not type -q hl
+        alias hl "$HISTLOG_BIN"
+    end
+    """
+  end
 
   defp fish_aliases(true) do
     """
-    alias hl='histlog'
-    alias hq='histlog query'
-    alias hs='histlog sync'
-    alias hr='histlog rebuild'
+    if not type -q hl
+        alias hl "$HISTLOG_BIN"
+    end
+    if not type -q hq
+        alias hq "$HISTLOG_BIN query"
+    end
+    if not type -q hs
+        alias hs "$HISTLOG_BIN sync"
+    end
+    if not type -q hr
+        alias hr "$HISTLOG_BIN rebuild"
+    end
     """
   end
 

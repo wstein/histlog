@@ -1565,7 +1565,7 @@ defmodule Histlog.CLITest do
     assert query_output =~ "git status\n"
   end
 
-  test "init command prints shell integration without aliases by default" do
+  test "init command prints shell integration with guarded hl alias by default" do
     output =
       capture_io(fn ->
         assert :ok = CLI.run(["init", "zsh"])
@@ -1573,7 +1573,9 @@ defmodule Histlog.CLITest do
 
     assert output =~ "histlog zsh integration"
     assert output =~ "\"$HISTLOG_BIN\" hook session-start --root \"$HISTLOG_ROOT\" --shell zsh"
-    refute output =~ "alias hl="
+    assert output =~ "if ! command -v hl >/dev/null 2>&1; then"
+    assert output =~ ~s(alias hl="$HISTLOG_BIN")
+    refute output =~ "alias hq="
   end
 
   test "init command accepts an explicit binary path" do
@@ -1619,14 +1621,15 @@ defmodule Histlog.CLITest do
     assert error =~ "invalid durability"
   end
 
-  test "init command prints aliases only when requested" do
+  test "init command prints additional aliases only when requested" do
     output =
       capture_io(fn ->
         assert :ok = CLI.run(["init", "bash", "--aliases"])
       end)
 
     assert output =~ "histlog bash integration"
-    assert output =~ "alias hl='histlog'"
+    assert output =~ ~s(alias hl="$HISTLOG_BIN")
+    assert output =~ ~s(alias hq="$HISTLOG_BIN query")
   end
 
   test "doctor emits plain diagnostics by default", %{root: root, date: date} do
