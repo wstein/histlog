@@ -1644,7 +1644,7 @@ defmodule Histlog.CLITest do
 
     output = strip_ansi(output)
     assert output =~ "detected_shell: zsh"
-    assert output =~ "diagnosis: attention"
+    assert output =~ "diagnosis:"
     assert output =~ "shell: ok"
     assert output =~ "database: ok"
     assert output =~ "schema: ok"

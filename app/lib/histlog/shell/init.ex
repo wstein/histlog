@@ -221,7 +221,7 @@ defmodule Histlog.Shell.Init do
     """
     # histlog fish integration
     if set -q HISTLOG_ACTIVE
-        exit
+        return
     end
 
     set -gx HISTLOG_ACTIVE 1

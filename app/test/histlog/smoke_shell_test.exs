@@ -86,6 +86,9 @@ defmodule Histlog.SmokeShellTest do
       System.cmd(executable, args,
         env: [
           {"HISTLOG_ROOT", root},
+          {"HISTLOG_ACTIVE", nil},
+          {"HISTLOG_SESSION_ID", nil},
+          {"HISTLOG_BIN", nil},
           {"PATH", wrapper_dir <> ":" <> System.get_env("PATH", "")}
         ],
         stderr_to_stdout: true
