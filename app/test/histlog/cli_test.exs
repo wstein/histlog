@@ -208,6 +208,7 @@ defmodule Histlog.CLITest do
     assert help_output =~ "query       - Flexible query"
     assert help_output =~ "commands    - Summarize command usage"
     assert help_output =~ "info        - Show runtime paths and environment"
+    assert help_output =~ "db          - Maintain the derived database"
     assert help_output =~ "histlog help <command>"
     refute help_output =~ "hook"
 
@@ -254,7 +255,8 @@ defmodule Histlog.CLITest do
           {"import", "Usage: histlog import FILE [options]"},
           {"init", "Usage: histlog init [zsh|bash|fish]"},
           {"info", "Usage: histlog info [shell]"},
-          {"doctor", "Usage: histlog doctor [zsh|bash|fish]"}
+          {"doctor", "Usage: histlog doctor [zsh|bash|fish]"},
+          {"db", "Usage: histlog db <command> [options]"}
         ] do
       help_output =
         capture_io(fn ->
@@ -270,6 +272,13 @@ defmodule Histlog.CLITest do
 
       assert short_help_output == help_output
     end
+
+    db_rebuild_help_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["help", "db", "rebuild"])
+      end)
+
+    assert db_rebuild_help_output =~ "Usage: histlog db rebuild [options]"
 
     assert {:error, "no command-specific help for \"missing\""} = CLI.run(["help", "missing"])
   end
@@ -1037,26 +1046,25 @@ defmodule Histlog.CLITest do
                    "--root",
                    root,
                    "--date",
-                   Date.to_iso8601(date),
-                   "--rebuild"
+                   Date.to_iso8601(date)
                  ])
       end)
 
     assert strip_ansi(plain) =~ "date: 2026-05-06"
     assert strip_ansi(plain) =~ "database: #{Path.join(root, "histlog.db")}"
-    assert strip_ansi(plain) =~ "rebuilt: true"
+    assert strip_ansi(plain) =~ "rebuilt: false"
     refute String.starts_with?(plain, "{")
 
     output =
       capture_io(fn ->
         assert :ok =
                  CLI.run([
-                   "consolidate",
+                   "db",
+                   "rebuild",
                    "--root",
                    root,
                    "--date",
                    Date.to_iso8601(date),
-                   "--rebuild",
                    "--json"
                  ])
       end)
@@ -1416,7 +1424,7 @@ defmodule Histlog.CLITest do
     output = strip_ansi(output)
     assert output =~ "diagnosis: attention"
     assert output =~ "materialization_counts: failed"
-    assert output =~ "recommendation: run `histlog consolidate --rebuild --date YYYY-MM-DD`"
+    assert output =~ "recommendation: run `histlog db rebuild --date YYYY-MM-DD`"
 
     output =
       capture_io(fn ->

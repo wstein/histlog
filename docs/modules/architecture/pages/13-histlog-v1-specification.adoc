@@ -167,7 +167,7 @@ If the local projection schema is incompatible during the early rewrite, it may 
 Consolidation is idempotent.
 It must never mutate the canonical meaning of source events.
 
-`histlog consolidate --rebuild --date YYYY-MM-DD` deletes materialized rows and checkpoints for the selected date before rebuilding them from current closed sessions.
+`histlog db rebuild --date YYYY-MM-DD` deletes materialized rows and checkpoints for the selected date before rebuilding them from current closed sessions.
 
 == Integrity And Safety
 

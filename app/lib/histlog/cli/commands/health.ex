@@ -242,20 +242,19 @@ defmodule Histlog.CLI.Commands.Health do
     do: "run `histlog consolidate --date YYYY-MM-DD` or import history to create histlog.db"
 
   defp recommendation(%{"check" => "database"}),
-    do: "run `histlog consolidate --rebuild --date YYYY-MM-DD` after checking the database path"
+    do: "run `histlog db rebuild --date YYYY-MM-DD` after checking the database path"
 
   defp recommendation(%{"check" => "schema"}),
-    do:
-      "run `histlog consolidate --rebuild --date YYYY-MM-DD` to rebuild the derived database projection"
+    do: "run `histlog db rebuild --date YYYY-MM-DD` to rebuild the derived database projection"
 
   defp recommendation(%{"check" => "materialization_counts"}),
-    do: "run `histlog consolidate --rebuild --date YYYY-MM-DD` to refresh database checkpoints"
+    do: "run `histlog db rebuild --date YYYY-MM-DD` to refresh database checkpoints"
 
   defp recommendation(%{"check" => "sqlite_integrity"}),
     do: "rebuild the derived projection after backing up suspicious database files"
 
   defp recommendation(%{"check" => "orphan_checks"}),
-    do: "run `histlog consolidate --rebuild --date YYYY-MM-DD` to refresh database relationships"
+    do: "run `histlog db rebuild --date YYYY-MM-DD` to refresh database relationships"
 
   defp recommendation(check), do: "inspect #{check["check"]}"
 end

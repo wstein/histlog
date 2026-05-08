@@ -8,14 +8,14 @@ Without `--date`, it materializes all closed session dates so query-family comma
 ----
 histlog consolidate --root /tmp/histlog
 histlog consolidate --root /tmp/histlog --date 2026-05-06
-histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
 histlog consolidate --root /tmp/histlog --date 2026-05-06 --json
+histlog db rebuild --root /tmp/histlog --date 2026-05-06
 ----
 
 `consolidate --date YYYY-MM-DD` limits materialization to one day.
-`consolidate --rebuild` deletes database rows and checkpoints for the selected date scope, then rematerializes them from current closed sessions.
 When `$HISTLOG_ROOT` does not exist yet, `consolidate` creates the root and initializes `histlog.db`.
 If the local database projection schema is incompatible, `consolidate` may drop and recreate the derived projection from canonical NDJSON. The report includes `schema_reset: true` when that happens; use `--json` for the full machine-readable report.
+Use `histlog db rebuild` when the intent is maintenance or repair: it deletes database rows and checkpoints for the selected date scope, then rematerializes them from current closed sessions.
 
 Materialization commits inside a SQLite transaction:
 

@@ -1,4 +1,4 @@
-defmodule Histlog.CLI.Commands.Consolidate do
+defmodule Histlog.CLI.Commands.Db do
   @moduledoc false
 
   alias Histlog.CLI.Options
@@ -7,18 +7,26 @@ defmodule Histlog.CLI.Commands.Consolidate do
   @switches Options.common_switches() ++ [json: :boolean, help: :boolean]
   @aliases Options.common_aliases() ++ [h: :help]
 
-  def run(argv) do
+  def run([]), do: write_help()
+  def run(["--help"]), do: write_help()
+  def run(["-h"]), do: write_help()
+
+  def run(["rebuild" | argv]), do: rebuild(argv)
+  def run([command | _argv]), do: {:error, "unknown db command #{inspect(command)}"}
+
+  defp rebuild(argv) do
     with {:ok, opts, []} <- Options.parse(argv, @switches, @aliases) do
       if Keyword.get(opts, :help, false) do
-        IO.write(help())
-        :ok
+        write_rebuild_help()
       else
-        run_consolidate(opts)
+        run_rebuild(opts)
       end
     end
   end
 
-  defp run_consolidate(opts) do
+  defp run_rebuild(opts) do
+    opts = Keyword.put(opts, :rebuild, true)
+
     with {:ok, opts} <- Options.normalize(opts) do
       case Consolidator.consolidate(opts) do
         {:ok, report} -> write_report(report, output_format(opts))
@@ -37,9 +45,9 @@ defmodule Histlog.CLI.Commands.Consolidate do
   end
 
   defp write_report(report, :plain) do
+    IO.puts("#{color_label("database")}: #{report["database_path"]}")
     IO.puts("#{color_label("date")}: #{report["date"]}")
     IO.puts("#{color_label("dates")}: #{color_count(length(report["dates"] || []))}")
-    IO.puts("#{color_label("database")}: #{report["database_path"]}")
     IO.puts("#{color_label("schema")}: #{report["schema_version"]}")
 
     IO.puts(
@@ -78,16 +86,39 @@ defmodule Histlog.CLI.Commands.Consolidate do
   defp color_label(label), do: color(label, "38;5;14")
   defp color(text, code), do: "\e[#{code}m#{text}\e[0m"
 
+  defp write_help do
+    IO.write(help())
+    :ok
+  end
+
+  defp write_rebuild_help do
+    IO.write(rebuild_help())
+    :ok
+  end
+
   defp help do
     """
-    Usage: histlog consolidate [options]
+    Usage: histlog db <command> [options]
 
-    Materialize closed shell sessions into histlog.db for querying.
-    Without --date, all closed session dates are materialized.
+    Database maintenance commands for the derived histlog.db projection.
+
+    Commands:
+      rebuild     Rebuild derived database rows from canonical session files
+
+    Run `histlog db rebuild --help` for rebuild options.
+    """
+  end
+
+  defp rebuild_help do
+    """
+    Usage: histlog db rebuild [options]
+
+    Rebuild derived database rows from canonical closed session files.
+    Without --date, all closed session dates are rebuilt.
 
     Options:
       -h, --help              Show this help
-      -d, --date YYYY-MM-DD   Consolidate one date
+      -d, --date YYYY-MM-DD   Rebuild one date
       -r, --root PATH         Use a specific histlog data root
           --json              Output the full JSON report
     """

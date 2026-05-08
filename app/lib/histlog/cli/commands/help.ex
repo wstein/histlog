@@ -16,6 +16,8 @@ defmodule Histlog.CLI.Commands.Help do
   def run(["init"]), do: Commands.Init.run(["--help"])
   def run(["info"]), do: Commands.Info.run(["--help"])
   def run(["doctor"]), do: Commands.Doctor.run(["--help"])
+  def run(["db"]), do: Commands.Db.run(["--help"])
+  def run(["db", "rebuild"]), do: Commands.Db.run(["rebuild", "--help"])
   def run(["help"]), do: write_top_level()
   def run([command]), do: {:error, "no command-specific help for #{inspect(command)}"}
   def run(args), do: {:error, "unexpected help arguments #{inspect(args)}"}
@@ -36,6 +38,7 @@ defmodule Histlog.CLI.Commands.Help do
       init        - Print shell integration snippets
       info        - Show runtime paths and environment
       doctor      - Diagnose setup
+      db          - Maintain the derived database
       help        - Show this help
 
     Global flags:

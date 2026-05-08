@@ -12,7 +12,8 @@ defmodule Histlog.Shell.Completions do
     {"consolidate", "Consolidate ended sessions"},
     {"info", "Show runtime information"},
     {"doctor", "Diagnose setup"},
-    {"init", "Print shell integration"}
+    {"init", "Print shell integration"},
+    {"db", "Maintain the derived database"}
   ]
 
   @global ["--help", "-h"]
@@ -36,10 +37,11 @@ defmodule Histlog.Shell.Completions do
     "export" =>
       @global ++ ~w(--root --date --time --since --before --today --yesterday --week --format),
     "import" => @global ++ ~w(--root --date --source --session-id --import-batch-id),
-    "consolidate" => @global ++ ~w(--root --date --rebuild --json),
+    "consolidate" => @global ++ ~w(--root --date --json),
     "info" => @global ++ ~w(--root --json --plain),
     "doctor" => @global ++ ~w(--root --date --json --plain),
-    "init" => @global ++ ~w(--aliases --binary --durability)
+    "init" => @global ++ ~w(--aliases --binary --durability),
+    "db" => @global ++ ~w(rebuild --root --date --json)
   }
 
   def commands, do: @commands

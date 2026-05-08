@@ -29,6 +29,7 @@ defmodule Histlog.CLI do
   def run(["init" | argv]), do: Commands.Init.run(argv)
   def run(["info" | argv]), do: Commands.Info.run(argv)
   def run(["doctor" | argv]), do: Commands.Doctor.run(argv)
+  def run(["db" | argv]), do: Commands.Db.run(argv)
   def run(["help" | argv]), do: Commands.Help.run(argv)
   def run(["--help" | _argv]), do: Commands.Help.run([])
   def run(["-h" | _argv]), do: Commands.Help.run([])
