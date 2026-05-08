@@ -55,6 +55,7 @@ Stored command sources are `session` and `import`; live commands are derived fro
 Imported commands use `source = "import"` plus `import_batch_id` and `import_row_index` for stable identity. Query code should not scan import NDJSON directly.
 
 `command_paths` stores derived command argument path facts keyed to materialized command rows. It stores only relationships and fact metadata: command id, path id, argument position, existence flag, and source. It must not duplicate the original argument text or resolved path string because command text already owns the original text and `paths` owns the normalized path value.
+`command_paths.path_exists` is a command-time analysis fact. It records whether the analyzer believed that argument resolved to an existing filesystem path when the command was materialized. It is not equivalent to `paths.type != "u"` because `paths.type` belongs to the shared path dimension and may be upgraded by later observations.
 These rows are not canonical history; they are rebuildable analysis products derived from command text and cwd during consolidation or import materialization.
 Paths under `System.user_home!()` are normalized to `~` before materialization so the database does not repeat a machine-specific absolute home directory. This normalization must not hardcode a username or platform-specific home path.
 

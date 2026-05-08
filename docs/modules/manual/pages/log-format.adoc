@@ -44,6 +44,8 @@ Command path rows are derived analysis facts.
 They are rebuilt from command text and cwd during consolidation or import materialization.
 They are not canonical history.
 The base `command_paths` table stores only relationship facts; command text already contains the original argument text, and `paths` owns the normalized path string.
+`path_exists` is a command-time analysis fact: it records whether the analyzer believed the argument resolved to an existing filesystem path when that command was materialized.
+It is intentionally separate from `paths.type`, which is the normalized path dimension's current known type and may be upgraded by later observations.
 
 == Partial Execution
 
