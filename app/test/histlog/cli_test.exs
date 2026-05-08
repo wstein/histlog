@@ -740,6 +740,69 @@ defmodule Histlog.CLITest do
     assert error =~ "invalid regex"
   end
 
+  test "query-family summary commands accept today shortcut", %{root: root} do
+    today = local_today()
+    today_string = Date.to_iso8601(today)
+    cwd = Path.join(root, "today/repo")
+    File.mkdir_p!(cwd)
+    File.write!(Path.join(cwd, "mix.exs"), "")
+
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: today,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "session-today",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "mix test ./mix.exs", cwd, %{
+        "timestamp" => today_string <> "T12:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, today_string <> "T12:00:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["consolidate", "--root", root])
+    end)
+
+    paths_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["paths", "--root", root, "--today", "--plain"])
+      end)
+
+    assert paths_output =~ cwd
+    assert paths_output =~ Path.join(cwd, "mix.exs")
+
+    commands_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["commands", "--root", root, "--today", "--plain"])
+      end)
+
+    assert commands_output == "mix test ./mix.exs\n"
+
+    statistics_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["statistics", "--root", root, "--today", "--plain"])
+      end)
+
+    assert statistics_output =~ "total_commands=1"
+
+    sessions_output =
+      capture_io(fn ->
+        assert :ok = CLI.run(["sessions", "--root", root, "--today", "--json"])
+      end)
+
+    assert [%{"session_id" => "session-today"}] = JSON.decode!(sessions_output)
+  end
+
   test "statistics command reports high-level history counts", %{root: root, date: date} do
     cwd = Path.join(root, "repo")
     File.mkdir_p!(cwd)
@@ -1666,6 +1729,11 @@ defmodule Histlog.CLITest do
   end
 
   defp strip_ansi(text), do: Regex.replace(~r/\e\[[0-9;]*m/, text, "")
+
+  defp local_today do
+    {{year, month, day}, _time} = :calendar.local_time()
+    Date.new!(year, month, day)
+  end
 
   defp local_display(timestamp) do
     {:ok, datetime, _offset} = DateTime.from_iso8601(timestamp)

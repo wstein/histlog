@@ -2,8 +2,10 @@ defmodule Histlog.CLI.Commands.Export do
   @moduledoc false
 
   alias Histlog.CLI.Options
+  alias Histlog.Query.Filter
 
   @switches Options.common_switches() ++
+              Options.time_switches() ++
               [
                 format: :string,
                 help: :boolean
@@ -26,7 +28,10 @@ defmodule Histlog.CLI.Commands.Export do
     with {:ok, opts} <- Options.normalize(opts),
          :ok <- validate_format(Keyword.get(opts, :format, "ndjson")),
          {:ok, rows} <- Histlog.Query.executions(Keyword.take(opts, [:root, :date])) do
-      Enum.each(rows, &IO.write(JSON.encode!(&1) <> "\n"))
+      rows
+      |> Filter.rows([], time_filter_opts(opts))
+      |> Enum.each(&IO.write(JSON.encode!(&1) <> "\n"))
+
       :ok
     end
   end
@@ -36,12 +41,23 @@ defmodule Histlog.CLI.Commands.Export do
   defp validate_format("ndjson"), do: :ok
   defp validate_format(format), do: {:error, "unsupported export format #{inspect(format)}"}
 
+  defp time_filter_opts(opts),
+    do: Keyword.take(opts, [:time, :since, :before, :today, :yesterday, :week])
+
   defp help do
     """
     Usage: histlog export [--format ndjson] [--root PATH] [--date YYYY-MM-DD]
 
     Export derived query rows as NDJSON for pipelines and migrations.
     NDJSON is intentionally available through export, not query.
+
+    Time options:
+      --today
+      --yesterday
+      --week
+      --since TIME
+      --before TIME
+      --time TIME
     """
   end
 end

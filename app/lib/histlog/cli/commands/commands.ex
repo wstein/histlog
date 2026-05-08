@@ -4,8 +4,10 @@ defmodule Histlog.CLI.Commands.Commands do
   alias Histlog.CLI.Options
   alias Histlog.Query
   alias Histlog.Query.Commands
+  alias Histlog.Query.Filter
 
   @switches Options.common_switches() ++
+              Options.time_switches() ++
               [
                 regex: :boolean,
                 fuzzy: :boolean,
@@ -39,7 +41,10 @@ defmodule Histlog.CLI.Commands.Commands do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, opts} <- normalize_command_options(opts, search),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])),
-         {:ok, summaries} <- Commands.rows(rows, Keyword.put(opts, :search, search)) do
+         {:ok, summaries} <-
+           rows
+           |> Filter.rows([], time_filter_opts(opts))
+           |> Commands.rows(Keyword.put(opts, :search, search)) do
       write_rows(summaries, output_format(opts))
     end
   end
@@ -158,6 +163,9 @@ defmodule Histlog.CLI.Commands.Commands do
 
   defp color(text, code), do: "\e[#{code}m#{text}\e[0m"
 
+  defp time_filter_opts(opts),
+    do: Keyword.take(opts, [:time, :since, :before, :today, :yesterday, :week])
+
   defp help do
     """
     Usage: histlog commands [search] [options]
@@ -168,6 +176,12 @@ defmodule Histlog.CLI.Commands.Commands do
       -h, --help             Show this help
       -l, --limit N          Maximum commands to show
           --date DATE        Summarize one date
+          --today            Summarize today
+          --yesterday        Summarize yesterday
+          --week             Summarize this week
+          --since TIME       Summarize commands since a time
+          --before TIME      Summarize commands before a time
+          --time TIME        Summarize a time range
           --root PATH        Use a specific histlog data root
           --regex            Treat search as a regular expression
           --fuzzy            Fuzzy-match search against command text

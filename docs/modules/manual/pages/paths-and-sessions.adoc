@@ -8,6 +8,7 @@ For live sessions, histlog derives the same shape from active session NDJSON unt
 [source,sh]
 ----
 histlog paths --root /tmp/histlog --date 2026-05-06
+histlog paths --today
 histlog paths --plain
 histlog paths --json
 ----
@@ -17,6 +18,9 @@ histlog paths --json
 [source,sh]
 ----
 histlog sessions --root /tmp/histlog --date 2026-05-06
+histlog sessions --today
 histlog sessions --details
 histlog sessions --json
 ----
+
+Both commands accept the query-family time shortcuts: `--today`, `--yesterday`, `--week`, `--since`, `--before`, and `--time`.

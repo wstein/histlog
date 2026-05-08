@@ -7,6 +7,7 @@
 ----
 histlog statistics
 histlog statistics --date 2026-05-06
+histlog statistics --today
 histlog statistics --top 20
 histlog statistics --json
 histlog statistics --plain
@@ -22,3 +23,4 @@ The report includes:
 * top paths
 
 `statistics` is a query-family command. It reads the same shared source stream as `query`, `commands`, `paths`, `sessions`, and `export`: the SQLite projection plus currently live session files.
+It accepts the same time shortcuts as the other query-family commands: `--today`, `--yesterday`, `--week`, `--since`, `--before`, and `--time`.

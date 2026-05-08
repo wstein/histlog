@@ -3,9 +3,11 @@ defmodule Histlog.CLI.Commands.Statistics do
 
   alias Histlog.CLI.Options
   alias Histlog.Query
+  alias Histlog.Query.Filter
   alias Histlog.Query.Statistics
 
   @switches Options.common_switches() ++
+              Options.time_switches() ++
               [
                 top: :integer,
                 json: :boolean,
@@ -31,6 +33,7 @@ defmodule Histlog.CLI.Commands.Statistics do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])) do
       rows
+      |> Filter.rows([], time_filter_opts(opts))
       |> Statistics.summary(top_limit: Keyword.get(opts, :top, 10))
       |> write(output_format(opts))
     end
@@ -100,6 +103,9 @@ defmodule Histlog.CLI.Commands.Statistics do
   defp color_label(label), do: color(label, "38;5;14")
   defp color(text, code), do: "\e[#{code}m#{text}\e[0m"
 
+  defp time_filter_opts(opts),
+    do: Keyword.take(opts, [:time, :since, :before, :today, :yesterday, :week])
+
   defp help do
     """
     Usage: histlog statistics [options]
@@ -109,6 +115,12 @@ defmodule Histlog.CLI.Commands.Statistics do
     Options:
       -h, --help             Show this help
           --date DATE        Summarize one date
+          --today            Summarize today
+          --yesterday        Summarize yesterday
+          --week             Summarize this week
+          --since TIME       Summarize commands since a time
+          --before TIME      Summarize commands before a time
+          --time TIME        Summarize a time range
           --root PATH        Use a specific histlog data root
           --top N            Number of top commands and paths to show
           --json             Output JSON

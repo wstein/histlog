@@ -3,9 +3,11 @@ defmodule Histlog.CLI.Commands.Paths do
 
   alias Histlog.CLI.Options
   alias Histlog.Query
+  alias Histlog.Query.Filter
   alias Histlog.Query.Paths
 
   @switches Options.common_switches() ++
+              Options.time_switches() ++
               [
                 limit: :integer,
                 json: :boolean,
@@ -30,6 +32,7 @@ defmodule Histlog.CLI.Commands.Paths do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])) do
       rows
+      |> Filter.rows([], time_filter_opts(opts))
       |> Paths.rows()
       |> filter_rows(search)
       |> Enum.sort_by(fn row -> row.path end)
@@ -43,6 +46,9 @@ defmodule Histlog.CLI.Commands.Paths do
 
   defp limit_rows(rows, nil), do: rows
   defp limit_rows(rows, limit), do: Enum.take(rows, limit)
+
+  defp time_filter_opts(opts),
+    do: Keyword.take(opts, [:time, :since, :before, :today, :yesterday, :week])
 
   defp write_rows(rows, "table") do
     IO.write(color("  Exec", "38;5;207") <> " " <> color("  Args", "38;5;80") <> " Path\n")
@@ -97,6 +103,12 @@ defmodule Histlog.CLI.Commands.Paths do
     """
     Usage: histlog paths [options]
             --date YYYY-MM-DD           Summarize paths for one date
+            --today                     Summarize paths from today
+            --yesterday                 Summarize paths from yesterday
+            --week                      Summarize paths from this week
+            --since TIME                Summarize paths since a time
+            --before TIME               Summarize paths before a time
+            --time TIME                 Summarize paths in a time range
             --root PATH                 Use a specific histlog data root
             --limit N                   Limit number of paths
             --json                      Output JSON with exec/args/path fields

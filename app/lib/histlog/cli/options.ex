@@ -15,6 +15,17 @@ defmodule Histlog.CLI.Options do
     ]
   end
 
+  def time_switches do
+    [
+      time: :string,
+      since: :string,
+      before: :string,
+      today: :boolean,
+      yesterday: :boolean,
+      week: :boolean
+    ]
+  end
+
   def parse(argv, switches, aliases \\ []) do
     case OptionParser.parse(argv, strict: switches, aliases: aliases) do
       {opts, args, []} -> {:ok, opts, args}

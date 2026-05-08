@@ -8,6 +8,7 @@ It is useful when you want to see what you actually run most often, find an old 
 ----
 histlog commands
 histlog commands mix
+histlog commands --today
 histlog commands --sort-by count --limit 20
 histlog commands --context
 histlog commands --plain
@@ -23,6 +24,8 @@ Search behavior:
 Scope options:
 
 * `--date YYYY-MM-DD` limits the summary to one day
+* `--today`, `--yesterday`, and `--week` use local-time calendar shortcuts
+* `--since`, `--before`, and `--time` apply the same time filters as `query`
 * `--session ID` limits the summary to one session
 * `--dir PATH` limits the summary to one working directory
 

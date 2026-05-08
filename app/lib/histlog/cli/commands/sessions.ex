@@ -3,9 +3,11 @@ defmodule Histlog.CLI.Commands.Sessions do
 
   alias Histlog.CLI.Options
   alias Histlog.Query
+  alias Histlog.Query.Filter
   alias Histlog.Query.Sessions
 
   @switches Options.common_switches() ++
+              Options.time_switches() ++
               [
                 limit: :integer,
                 details: :boolean,
@@ -31,6 +33,7 @@ defmodule Histlog.CLI.Commands.Sessions do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])) do
       rows
+      |> Filter.rows([], time_filter_opts(opts))
       |> Sessions.rows()
       |> limit_rows(Keyword.get(opts, :limit))
       |> write_rows(output_format(opts), Keyword.get(opts, :details, false))
@@ -114,6 +117,9 @@ defmodule Histlog.CLI.Commands.Sessions do
     if Keyword.get(opts, :json, false), do: "json", else: "table"
   end
 
+  defp time_filter_opts(opts),
+    do: Keyword.take(opts, [:time, :since, :before, :today, :yesterday, :week])
+
   defp color(text, code), do: "\e[#{code}m#{text}\e[0m"
 
   defp help do
@@ -130,6 +136,12 @@ defmodule Histlog.CLI.Commands.Sessions do
       -l, --limit N    Maximum sessions to show. Negative N returns earliest N
       -d, --details    Show sample commands for each listed session
           --date DATE  Show sessions for one date
+          --today      Show sessions from today
+          --yesterday  Show sessions from yesterday
+          --week       Show sessions from this week
+          --since TIME Show sessions since a time
+          --before TIME Show sessions before a time
+          --time TIME  Show sessions in a time range
           --root PATH  Use a specific histlog data root
           --json       Output JSON with full metadata
     """
