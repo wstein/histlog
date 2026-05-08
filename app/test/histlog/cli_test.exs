@@ -17,7 +17,7 @@ defmodule Histlog.CLITest do
     {:ok, root: root, date: ~D[2026-05-06]}
   end
 
-  test "consolidate and query commands emit human-readable table output", %{
+  test "sync and query commands emit human-readable table output", %{
     root: root,
     date: date
   } do
@@ -46,7 +46,7 @@ defmodule Histlog.CLITest do
 
     report_output =
       capture_io(fn ->
-        assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+        assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
       end)
 
     assert strip_ansi(report_output) =~ "events: 5"
@@ -97,7 +97,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:02Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     query_output =
@@ -207,10 +207,14 @@ defmodule Histlog.CLITest do
     assert help_output =~ "Usage: histlog <command> [options]"
     assert help_output =~ "query       - Flexible query"
     assert help_output =~ "commands    - Summarize command usage"
+    assert help_output =~ "sync        - Materialize closed session logs"
+    assert help_output =~ "rebuild     - Rebuild the derived database projection"
     assert help_output =~ "info        - Show runtime paths and environment"
-    assert help_output =~ "db          - Maintain the derived database"
     assert help_output =~ "histlog help <command>"
     refute help_output =~ "hook"
+    refute help_output =~ "db          -"
+    refute help_output =~ "consolidate"
+    refute help_output =~ "statistics  -"
 
     short_help_output =
       capture_io(fn ->
@@ -238,10 +242,10 @@ defmodule Histlog.CLITest do
 
     statistics_help_output =
       capture_io(fn ->
-        assert :ok = CLI.run(["help", "statistics"])
+        assert :ok = CLI.run(["help", "stats"])
       end)
 
-    assert statistics_help_output =~ "Usage: histlog statistics [options]"
+    assert statistics_help_output =~ "Usage: histlog stats [options]"
 
     sessions_help_output =
       capture_io(fn ->
@@ -251,12 +255,12 @@ defmodule Histlog.CLITest do
     assert sessions_help_output =~ "Usage: histlog sessions [options]"
 
     for {command, expected} <- [
-          {"consolidate", "Usage: histlog consolidate [options]"},
+          {"sync", "Usage: histlog sync [options]"},
           {"import", "Usage: histlog import FILE [options]"},
           {"init", "Usage: histlog init [zsh|bash|fish]"},
           {"info", "Usage: histlog info [shell]"},
           {"doctor", "Usage: histlog doctor [zsh|bash|fish]"},
-          {"db", "Usage: histlog db <command> [options]"}
+          {"rebuild", "Usage: histlog rebuild [options]"}
         ] do
       help_output =
         capture_io(fn ->
@@ -273,14 +277,10 @@ defmodule Histlog.CLITest do
       assert short_help_output == help_output
     end
 
-    db_rebuild_help_output =
-      capture_io(fn ->
-        assert :ok = CLI.run(["help", "db", "rebuild"])
-      end)
-
-    assert db_rebuild_help_output =~ "Usage: histlog db rebuild [options]"
-
     assert {:error, "no command-specific help for \"missing\""} = CLI.run(["help", "missing"])
+    assert {:error, {:unknown_command, "consolidate"}} = CLI.run(["consolidate"])
+    assert {:error, {:unknown_command, "statistics"}} = CLI.run(["statistics"])
+    assert {:error, {:unknown_command, "db"}} = CLI.run(["db"])
   end
 
   test "query searches all dates by default and supports public filters", %{
@@ -318,7 +318,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:02:00Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     output =
@@ -364,7 +364,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:02:00Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     plain =
@@ -439,7 +439,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     local_time = local_display("2026-05-06T20:00:00Z")
@@ -568,7 +568,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     output =
@@ -666,7 +666,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:02:01Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     output =
@@ -779,7 +779,7 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, today_string <> "T12:00:01Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root])
+      assert :ok = CLI.run(["sync", "--root", root])
     end)
 
     paths_output =
@@ -799,7 +799,7 @@ defmodule Histlog.CLITest do
 
     statistics_output =
       capture_io(fn ->
-        assert :ok = CLI.run(["statistics", "--root", root, "--today", "--plain"])
+        assert :ok = CLI.run(["stats", "--root", root, "--today", "--plain"])
       end)
 
     assert statistics_output =~ "total_commands=1"
@@ -812,7 +812,7 @@ defmodule Histlog.CLITest do
     assert [%{"session_id" => "session-today"}] = JSON.decode!(sessions_output)
   end
 
-  test "statistics command reports high-level history counts", %{root: root, date: date} do
+  test "stats command reports high-level history counts", %{root: root, date: date} do
     cwd = Path.join(root, "repo")
     File.mkdir_p!(cwd)
     File.write!(Path.join(cwd, "mix.exs"), "")
@@ -848,14 +848,14 @@ defmodule Histlog.CLITest do
     {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:01:01Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     json =
       capture_io(fn ->
         assert :ok =
                  CLI.run([
-                   "statistics",
+                   "stats",
                    "--root",
                    root,
                    "--date",
@@ -881,7 +881,7 @@ defmodule Histlog.CLITest do
       capture_io(fn ->
         assert :ok =
                  CLI.run([
-                   "statistics",
+                   "stats",
                    "--root",
                    root,
                    "--date",
@@ -948,7 +948,7 @@ defmodule Histlog.CLITest do
     {:ok, _second, _event} = SessionWriter.close(second, "2026-05-06T20:02:01Z")
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     output =
@@ -1012,7 +1012,7 @@ defmodule Histlog.CLITest do
              "\e[38;5;141mSess\e[0m \e[38;5;14mTimestamp\e[0m          \e[33m Duration\e[0m \e[38;5;84mExit\e[0m Command\n--------------------------------------------------\n"
   end
 
-  test "consolidate command emits human output by default and json when requested", %{
+  test "sync command emits human output by default and json when requested", %{
     root: root,
     date: date
   } do
@@ -1042,7 +1042,7 @@ defmodule Histlog.CLITest do
       capture_io(fn ->
         assert :ok =
                  CLI.run([
-                   "consolidate",
+                   "sync",
                    "--root",
                    root,
                    "--date",
@@ -1059,7 +1059,6 @@ defmodule Histlog.CLITest do
       capture_io(fn ->
         assert :ok =
                  CLI.run([
-                   "db",
                    "rebuild",
                    "--root",
                    root,
@@ -1235,7 +1234,7 @@ defmodule Histlog.CLITest do
     )
 
     capture_io(fn ->
-      assert :ok = CLI.run(["consolidate", "--root", root, "--date", Date.to_iso8601(date)])
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
     end)
 
     capture_io(fn ->
@@ -1424,7 +1423,7 @@ defmodule Histlog.CLITest do
     output = strip_ansi(output)
     assert output =~ "diagnosis: attention"
     assert output =~ "materialization_counts: failed"
-    assert output =~ "recommendation: run `histlog db rebuild --date YYYY-MM-DD`"
+    assert output =~ "recommendation: run `histlog rebuild --date YYYY-MM-DD`"
 
     output =
       capture_io(fn ->

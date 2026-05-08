@@ -27,7 +27,7 @@ Public filters must fail loudly when the user supplies malformed syntax. Invalid
 
 `histlog commands` is a public query-family command for command discovery. It accepts a positional search term and command-specific switches such as `--regex`, `--fuzzy`, `--session`, `--dir`, `--sort-by`, `--context`, `--plain`, and `--json`.
 
-`histlog statistics` is a public query-family command for high-level counts and top lists. It should share query semantics rather than implement its own storage reads.
+`histlog stats` is a public query-family command for high-level counts and top lists. It should share query semantics rather than implement its own storage reads.
 
 All query-family commands must apply parsing, filtering, sorting, and rendering after merging consolidated SQLite rows with live session NDJSON rows. Command-specific option parsing should not accidentally limit results to only one source.
 

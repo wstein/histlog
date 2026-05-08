@@ -21,8 +21,8 @@ The Mix project exposes an escript entrypoint:
 
 ```sh
 mix escript.build
-./histlog consolidate --root /tmp/histlog --date 2026-05-06
-./histlog consolidate --root /tmp/histlog --date 2026-05-06 --rebuild
+./histlog sync --root /tmp/histlog --date 2026-05-06
+./histlog rebuild --root /tmp/histlog --date 2026-05-06
 ./histlog info --root /tmp/histlog
 ./histlog doctor zsh --root /tmp/histlog --date 2026-05-06
 ./histlog query --root /tmp/histlog --date 2026-05-06 --command mix

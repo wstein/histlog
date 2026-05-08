@@ -19,7 +19,7 @@ Write checkpoint metadata in the same SQLite transaction that materializes close
 
 `histlog doctor` recomputes expected record counts and schema facts from the database and compares them to the checkpoint. Verification is read-only; rebuild support is a separate operational workflow.
 
-`histlog db rebuild` recreates the materialized database from closed session files. It does not need to preserve compatibility with `histlog2` tables or migrations.
+`histlog rebuild` recreates the materialized database from closed session files. It does not need to preserve compatibility with `histlog2` tables or migrations.
 
 ## Links
 

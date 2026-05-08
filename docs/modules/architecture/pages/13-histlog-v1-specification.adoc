@@ -14,7 +14,7 @@ histlog v1 must:
 * preserve raw shell activity as immutable events
 * keep one append-only logfile per CLI session
 * use NDJSON as the subsystem boundary and storage format
-* consolidate finished sessions into a native SQLite query database
+* sync finished sessions into a native SQLite query database
 * tolerate partial sessions, crashes, malformed records, and missing finish information
 * query consolidated SQLite rows plus currently live session NDJSON
 
@@ -167,7 +167,7 @@ If the local projection schema is incompatible during the early rewrite, it may 
 Consolidation is idempotent.
 It must never mutate the canonical meaning of source events.
 
-`histlog db rebuild --date YYYY-MM-DD` deletes materialized rows and checkpoints for the selected date before rebuilding them from current closed sessions.
+`histlog rebuild --date YYYY-MM-DD` deletes materialized rows and checkpoints for the selected date before rebuilding them from current closed sessions.
 
 == Integrity And Safety
 

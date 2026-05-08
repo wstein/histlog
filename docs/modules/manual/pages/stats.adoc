@@ -1,0 +1,26 @@
+= Stats
+:page-layout: default
+
+`stats` shows a compact overview of materialized history and currently live sessions.
+
+[source,sh]
+----
+histlog stats
+histlog stats --date 2026-05-06
+histlog stats --today
+histlog stats --top 20
+histlog stats --json
+histlog stats --plain
+----
+
+The report includes:
+
+* total and unique command counts
+* session, imported, and live command counts
+* successful and failed command counts
+* first and last observed timestamps
+* top commands
+* top paths
+
+`stats` is a query-family command. It reads the same shared source stream as `query`, `commands`, `paths`, `sessions`, and `export`: the SQLite projection plus currently live session files.
+It accepts the same time shortcuts as the other query-family commands: `--today`, `--yesterday`, `--week`, `--since`, `--before`, and `--time`.

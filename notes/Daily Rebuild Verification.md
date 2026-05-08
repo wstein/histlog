@@ -15,7 +15,7 @@ Consolidation is trustworthy only if the materialized database and the processed
 
 ## How
 
-Verification does not repair the database. `histlog info` shows passive runtime inventory only; `histlog doctor` adds diagnostic detail and recommendations, and returns the full verifier report through `histlog doctor --json`. `histlog db rebuild` can then regenerate the database from current closed sessions.
+Verification does not repair the database. `histlog info` shows passive runtime inventory only; `histlog doctor` adds diagnostic detail and recommendations, and returns the full verifier report through `histlog doctor --json`. `histlog rebuild` can then regenerate the database from current closed sessions.
 
 Consolidation should use a transaction when updating `histlog.db`. A later run must recover or retry safely so a crash during database materialization does not cause duplicate rows or a partially trusted checkpoint.
 If the derived database schema is incompatible and gets reset, the consolidation report must expose that reset so operators are not surprised by a rebuild.

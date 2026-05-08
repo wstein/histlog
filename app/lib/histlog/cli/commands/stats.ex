@@ -1,4 +1,4 @@
-defmodule Histlog.CLI.Commands.Statistics do
+defmodule Histlog.CLI.Commands.Stats do
   @moduledoc false
 
   alias Histlog.CLI.Options
@@ -24,12 +24,12 @@ defmodule Histlog.CLI.Commands.Statistics do
         IO.write(help())
         :ok
       else
-        run_statistics(opts)
+        run_stats(opts)
       end
     end
   end
 
-  defp run_statistics(opts) do
+  defp run_stats(opts) do
     with {:ok, opts} <- Options.normalize(opts),
          {:ok, rows} <- Query.executions(Keyword.take(opts, [:root, :date])) do
       rows
@@ -108,9 +108,9 @@ defmodule Histlog.CLI.Commands.Statistics do
 
   defp help do
     """
-    Usage: histlog statistics [options]
+    Usage: histlog stats [options]
 
-    Show high-level history statistics over materialized history and live sessions.
+    Show high-level history stats over materialized history and live sessions.
 
     Options:
       -h, --help             Show this help

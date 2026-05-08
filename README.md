@@ -98,7 +98,7 @@ histlog query --limit 20
 
 ```sh
 histlog commands
-histlog statistics
+histlog stats
 histlog sessions
 histlog paths
 histlog info

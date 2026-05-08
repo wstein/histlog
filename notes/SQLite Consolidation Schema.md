@@ -3,7 +3,7 @@ id: 20260507103500
 aliases: ["histlog.db", "sqlite consolidation schema"]
 tags: ["sqlite", "consolidation", "schema"]
 ---
-`histlog.db` is the rewrite-native SQLite materialization produced by `histlog consolidate`.
+`histlog.db` is the rewrite-native SQLite materialization produced by `histlog sync`.
 
 ## What
 
@@ -29,7 +29,7 @@ No backward compatibility with `histlog2` tables, views, migrations, or identifi
 The schema may still learn from `histlog2`'s mature relational shape: command text, paths, shells, ttys, sessions, imports, and commands are separate concepts instead of one flat execution table.
 
 SQLite access uses `exqlite` directly through a small `Histlog.Database` wrapper. The project should not add a larger persistence framework unless the query model outgrows explicit SQL.
-Writable database workflows create the database parent directory before opening SQLite so a fresh `$HISTLOG_ROOT` can be initialized by `histlog consolidate`.
+Writable database workflows create the database parent directory before opening SQLite so a fresh `$HISTLOG_ROOT` can be initialized by `histlog sync`.
 Read-only workflows must not create missing roots or databases; diagnostics should report missing state rather than materialize it.
 
 ## Projection Shape

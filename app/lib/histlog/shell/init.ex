@@ -374,7 +374,8 @@ defmodule Histlog.Shell.Init do
     """
     alias hl='histlog'
     alias hq='histlog query'
-    alias hc='histlog consolidate'
+    alias hs='histlog sync'
+    alias hr='histlog rebuild'
     """
   end
 
@@ -384,7 +385,8 @@ defmodule Histlog.Shell.Init do
     """
     alias hl='histlog'
     alias hq='histlog query'
-    alias hc='histlog consolidate'
+    alias hs='histlog sync'
+    alias hr='histlog rebuild'
     """
   end
 

@@ -3,7 +3,7 @@ id: 20260506221341
 aliases: ["24h consolidation", "session consolidation"]
 tags: ["consolidation", "operations", "sqlite"]
 ---
-`histlog consolidate` materializes finished CLI sessions into the local histlog database.
+`histlog sync` materializes finished CLI sessions into the local histlog database.
 
 ## What
 
@@ -29,7 +29,7 @@ Implement consolidation as an explicitly triggered or externally scheduled Elixi
 4. materialize those rows into `$HISTLOG_ROOT/histlog.db`
 5. record enough consolidation state to avoid processing the same session twice
 
-`histlog consolidate` without a date scans every dated closed-session directory. `histlog consolidate --date YYYY-MM-DD` is the narrow form for one date. This keeps query-family commands from depending on direct closed-NDJSON scans while still making one materialization pass enough to index all finished sessions.
+`histlog sync` without a date scans every closed-session file. `histlog sync --date YYYY-MM-DD` is the narrow form for one date. This keeps query-family commands from depending on direct closed-NDJSON scans while still making one materialization pass enough to index all finished sessions.
 
 Consolidation is also the initializer for a fresh data root. If `$HISTLOG_ROOT` does not exist, writable SQLite open creates the root and `histlog.db` before schema setup. Read-only diagnostics intentionally do not do this.
 

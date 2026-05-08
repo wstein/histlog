@@ -7,7 +7,7 @@ Histlog must remain a short-lived CLI/escript tool and must not become a daemon 
 
 ## What
 
-Every workflow runs through `histlog ...` CLI invocations: shell hooks, query, paths, sessions, import, doctor, and consolidate. Recurring work may be driven by cron, launchd, systemd timers, or other external schedulers, but the histlog process exits after completing the command.
+Every workflow runs through `histlog ...` CLI invocations: shell hooks, query, paths, sessions, import, sync, rebuild, doctor, and info. Recurring work may be driven by cron, launchd, systemd timers, or other external schedulers, but the histlog process exits after completing the command.
 
 ## Why
 

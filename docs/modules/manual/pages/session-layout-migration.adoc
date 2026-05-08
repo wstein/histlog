@@ -53,6 +53,6 @@ After applying, run:
 
 [source,sh]
 ----
-histlog consolidate
+histlog sync
 histlog query
 ----

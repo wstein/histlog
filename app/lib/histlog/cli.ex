@@ -17,19 +17,19 @@ defmodule Histlog.CLI do
     end
   end
 
-  def run(["consolidate" | argv]), do: Commands.Consolidate.run(argv)
   def run(["query" | argv]), do: Commands.Query.run(argv)
   def run(["commands" | argv]), do: Commands.Commands.run(argv)
-  def run(["statistics" | argv]), do: Commands.Statistics.run(argv)
+  def run(["stats" | argv]), do: Commands.Stats.run(argv)
   def run(["paths" | argv]), do: Commands.Paths.run(argv)
   def run(["sessions" | argv]), do: Commands.Sessions.run(argv)
+  def run(["sync" | argv]), do: Commands.Sync.run(argv)
+  def run(["rebuild" | argv]), do: Commands.Rebuild.run(argv)
   def run(["export" | argv]), do: Commands.Export.run(argv)
   def run(["import" | argv]), do: Commands.Import.run(argv)
   def run(["hook" | argv]), do: Commands.Hook.run(argv)
   def run(["init" | argv]), do: Commands.Init.run(argv)
   def run(["info" | argv]), do: Commands.Info.run(argv)
   def run(["doctor" | argv]), do: Commands.Doctor.run(argv)
-  def run(["db" | argv]), do: Commands.Db.run(argv)
   def run(["help" | argv]), do: Commands.Help.run(argv)
   def run(["--help" | _argv]), do: Commands.Help.run([])
   def run(["-h" | _argv]), do: Commands.Help.run([])

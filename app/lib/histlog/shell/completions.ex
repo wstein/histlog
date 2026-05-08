@@ -4,16 +4,16 @@ defmodule Histlog.Shell.Completions do
   @commands [
     {"query", "Query history"},
     {"commands", "Summarize command usage"},
-    {"statistics", "Show history statistics"},
-    {"sessions", "List shell sessions"},
     {"paths", "Summarize filesystem paths"},
-    {"export", "Export history rows"},
-    {"import", "Import history"},
-    {"consolidate", "Consolidate ended sessions"},
-    {"info", "Show runtime information"},
-    {"doctor", "Diagnose setup"},
+    {"sessions", "List shell sessions"},
+    {"stats", "Show history statistics"},
+    {"sync", "Materialize closed sessions"},
+    {"rebuild", "Rebuild the derived database"},
     {"init", "Print shell integration"},
-    {"db", "Maintain the derived database"}
+    {"import", "Import history"},
+    {"export", "Export history rows"},
+    {"info", "Show runtime information"},
+    {"doctor", "Diagnose setup"}
   ]
 
   @global ["--help", "-h"]
@@ -25,7 +25,7 @@ defmodule Histlog.Shell.Completions do
     "commands" =>
       @global ++
         ~w(--root --date --time --since --before --today --yesterday --week --regex --fuzzy --session --dir --sort-by --context --asc --desc --limit --json --plain),
-    "statistics" =>
+    "stats" =>
       @global ++
         ~w(--root --date --time --since --before --today --yesterday --week --top --json --plain),
     "sessions" =>
@@ -36,12 +36,12 @@ defmodule Histlog.Shell.Completions do
         ~w(--root --date --time --since --before --today --yesterday --week --limit --json --plain),
     "export" =>
       @global ++ ~w(--root --date --time --since --before --today --yesterday --week --format),
-    "import" => @global ++ ~w(--root --date --source --session-id --import-batch-id),
-    "consolidate" => @global ++ ~w(--root --date --json),
-    "info" => @global ++ ~w(--root --json --plain),
-    "doctor" => @global ++ ~w(--root --date --json --plain),
+    "sync" => @global ++ ~w(--root --date --json),
+    "rebuild" => @global ++ ~w(--root --date --json),
     "init" => @global ++ ~w(--aliases --binary --durability),
-    "db" => @global ++ ~w(rebuild --root --date --json)
+    "import" => @global ++ ~w(--root --date --source --session-id --import-batch-id),
+    "info" => @global ++ ~w(--root --json --plain),
+    "doctor" => @global ++ ~w(--root --date --json --plain)
   }
 
   def commands, do: @commands

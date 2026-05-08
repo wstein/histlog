@@ -17,7 +17,7 @@ SQLite-backed workflows require the compiled `exqlite` NIF tree, so the release 
 ## Why
 
 Dogfooding proved that a plain escript can print help but cannot reliably load `exqlite` for database commands.
-Homebrew must install the launcher bundle so `histlog consolidate` and `histlog doctor` database checks work after installation.
+Homebrew must install the launcher bundle so `histlog sync` and `histlog doctor` database checks work after installation.
 
 ## Links
 

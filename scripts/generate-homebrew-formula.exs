@@ -68,7 +68,7 @@ defmodule Histlog.GenerateHomebrewFormula do
 
       test do
         assert_match "histlog", shell_output("\#{bin}/histlog --help")
-        system "\#{bin}/histlog", "consolidate", "--root", testpath/"histlog-root", "--date", "2026-05-07"
+        system "\#{bin}/histlog", "sync", "--root", testpath/"histlog-root", "--date", "2026-05-07"
         system "\#{bin}/histlog", "info", "zsh", "--root", testpath/"histlog-root"
         system "\#{bin}/histlog", "doctor", "zsh", "--root", testpath/"histlog-root", "--date", "2026-05-07"
       end

@@ -1,9 +1,9 @@
 ---
 id: 20260507173000
-aliases: ["histlog statistics", "history statistics"]
+aliases: ["histlog stats", "history statistics"]
 tags: ["cli", "query", "analytics"]
 ---
-`histlog statistics` reports high-level history counts and top lists over the shared query row stream.
+`histlog stats` reports high-level history counts and top lists over the shared query row stream.
 
 ## What
 

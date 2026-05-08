@@ -22,7 +22,7 @@ The canonical boundary remains the session NDJSON file:
 == Consolidation
 
 `Histlog.Consolidator` scans closed sessions for a date, validates NDJSON and sequence numbers, quarantines malformed files, and writes normalized session, command, command-text, path, and processed-session checkpoint rows to `$HISTLOG_ROOT/histlog.db` inside one SQLite transaction.
-It is invoked explicitly by `histlog consolidate` or by an external scheduler that runs the CLI.
+It is invoked explicitly by `histlog sync` or by an external scheduler that runs the CLI.
 
 == Info And Doctor
 
