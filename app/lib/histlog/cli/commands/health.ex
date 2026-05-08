@@ -117,10 +117,13 @@ defmodule Histlog.CLI.Commands.Health do
 
     report
     |> Map.put("checks", checks)
+    |> Map.put("ok", Enum.all?(checks, &healthy_check?/1))
     |> Map.put("database", database_summary(verify_result))
     |> Map.put("database_verification", verify_result)
     |> Map.put("database_maintenance", maintenance)
   end
+
+  defp healthy_check?(%{"status" => status}), do: status in ["ok", "active", "present"]
 
   defp database_checks(report) do
     checks = report["checks"] || %{}

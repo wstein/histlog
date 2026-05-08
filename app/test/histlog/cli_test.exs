@@ -1433,6 +1433,7 @@ defmodule Histlog.CLITest do
       end)
 
     assert %{
+             "ok" => false,
              "database_verification" => %{
                "ok" => false,
                "errors" => errors,
@@ -1705,7 +1706,7 @@ defmodule Histlog.CLITest do
                  ])
       end)
 
-    assert %{"database_verification" => %{"ok" => false}} = JSON.decode!(output)
+    assert %{"ok" => false, "database_verification" => %{"ok" => false}} = JSON.decode!(output)
 
     assert {:error, "choose only one doctor output format"} =
              CLI.run(["doctor", "zsh", "--json", "--plain"])
