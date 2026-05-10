@@ -5,13 +5,11 @@ defmodule Histlog.Storage do
 
   alias Histlog.Event
 
-  @default_root Path.expand("~/.local/share/histlog")
-
   @doc """
   Returns the configured histlog data root.
   """
   def root(opts \\ []) do
-    Keyword.get(opts, :root, @default_root)
+    Keyword.get(opts, :root) || System.get_env("HISTLOG_ROOT") || default_root()
   end
 
   @doc """
@@ -137,5 +135,9 @@ defmodule Histlog.Storage do
     8
     |> :crypto.strong_rand_bytes()
     |> Base.url_encode64(padding: false)
+  end
+
+  defp default_root do
+    Path.join(System.user_home!(), ".local/share/histlog")
   end
 end

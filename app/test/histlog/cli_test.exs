@@ -1701,6 +1701,53 @@ defmodule Histlog.CLITest do
              CLI.run(["info", "zsh", "--json", "--plain"])
   end
 
+  test "commands honor HISTLOG_ROOT environment when root option is omitted", %{
+    root: root,
+    date: date
+  } do
+    File.mkdir_p!(root)
+
+    {:ok, writer} =
+      SessionWriter.start(
+        root: root,
+        date: date,
+        host: "machine",
+        process_id: 1234,
+        parent_process_id: 1200,
+        shell: "zsh",
+        session_id: "env-root-session",
+        monotonic_start: 12_345
+      )
+
+    {:ok, writer, _event} =
+      SessionWriter.observe_execution(writer, "echo env-root", root, %{
+        "timestamp" => "2026-05-06T20:00:00Z",
+        "duration_ms" => 10,
+        "exit_status" => 0,
+        "completeness" => "complete"
+      })
+
+    {:ok, _writer, _event} = SessionWriter.close(writer, "2026-05-06T20:00:01Z")
+
+    capture_io(fn ->
+      assert :ok = CLI.run(["sync", "--root", root, "--date", Date.to_iso8601(date)])
+    end)
+
+    previous_root = System.get_env("HISTLOG_ROOT")
+    System.put_env("HISTLOG_ROOT", root)
+
+    try do
+      output =
+        capture_io(fn ->
+          assert :ok = CLI.run(["query", "--date", Date.to_iso8601(date), "--plain"])
+        end)
+
+      assert output =~ "echo env-root"
+    after
+      restore_env("HISTLOG_ROOT", previous_root)
+    end
+  end
+
   test "doctor supports explicit json output mode", %{root: root, date: date} do
     output =
       capture_io(fn ->
@@ -1756,6 +1803,9 @@ defmodule Histlog.CLITest do
       "#{pad(year, 4)}-#{pad(month, 2)}-#{pad(day, 2)} #{pad(hour, 2)}:#{pad(minute, 2)}:#{pad(second, 2)}"
     end)
   end
+
+  defp restore_env(key, nil), do: System.delete_env(key)
+  defp restore_env(key, value), do: System.put_env(key, value)
 
   defp pad(value, count), do: value |> Integer.to_string() |> String.pad_leading(count, "0")
 end

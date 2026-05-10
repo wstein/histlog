@@ -39,7 +39,7 @@ defmodule Histlog.CLI.Commands.Info do
 
   defp report(opts, shell_arg) do
     env = System.get_env()
-    root = Keyword.get(opts, :root) || env["HISTLOG_ROOT"] || Storage.root()
+    root = Storage.root(opts)
 
     %{
       "version" => version(),
