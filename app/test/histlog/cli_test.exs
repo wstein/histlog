@@ -1668,6 +1668,7 @@ defmodule Histlog.CLITest do
 
     plain = strip_ansi(plain)
     assert plain =~ "version:"
+    refute plain =~ "version: unknown"
     assert plain =~ "data_root: #{root}"
     assert plain =~ "database: #{Path.join(root, "histlog.db")}"
     assert plain =~ "shell_argument: zsh"

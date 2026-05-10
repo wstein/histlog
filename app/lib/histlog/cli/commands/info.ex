@@ -112,9 +112,14 @@ defmodule Histlog.CLI.Commands.Info do
   end
 
   defp version do
-    case Application.spec(:histlog, :vsn) do
+    with nil <- Application.spec(:histlog, :vsn),
+         :ok <- Application.load(:histlog) do
+      Application.spec(:histlog, :vsn)
+    end
+    |> case do
       nil -> "unknown"
-      version -> List.to_string(version)
+      version when is_list(version) -> List.to_string(version)
+      version when is_binary(version) -> version
     end
   end
 
