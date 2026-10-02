@@ -226,6 +226,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - gate
+      - release-assets
 
     steps:
       - name: Checkout
