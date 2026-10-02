@@ -176,48 +176,25 @@ jobs:
       - build-artifacts
       - release-assets
     environment: homebrew
-    env:
-      HOMEBREW_TAP_PUSH_TOKEN: ${{ secrets.HOMEBREW_TAP_PUSH_TOKEN }}
-
+    permissions: {}
     steps:
-      - name: Download formula artifact
-        uses: actions/download-artifact@v8
+      - name: Create GitHub App token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
-          path: dist
-          merge-multiple: true
+          app-id: ${{ secrets.TAP_APP_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
+          owner: wstein
+          repositories: homebrew-tap
 
-      - name: Check Homebrew tap token
+      - name: Notify Homebrew tap
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
-          set -euo pipefail
-          if [ -z "${HOMEBREW_TAP_PUSH_TOKEN}" ]; then
-            echo "HOMEBREW_TAP_PUSH_TOKEN is required in the homebrew environment." >&2
-            echo "Create a token that can push to wstein/homebrew-tap and add it as an environment secret." >&2
-            exit 1
-          fi
-
-      - name: Checkout Homebrew tap
-        uses: actions/checkout@v6
-        with:
-          repository: wstein/homebrew-tap
-          token: ${{ env.HOMEBREW_TAP_PUSH_TOKEN }}
-          path: homebrew-tap
-
-      - name: Commit formula
-        run: |
-          set -euo pipefail
-          mkdir -p homebrew-tap/Formula
-          cp dist/histlog.rb homebrew-tap/Formula/histlog.rb
-          cd homebrew-tap
-          ruby -c Formula/histlog.rb
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/histlog.rb
-          if git diff --cached --quiet; then
-            echo "Formula unchanged"
-          else
-            git commit -m "histlog ${{ needs.gate.outputs.tag }}"
-            git push origin HEAD:main
-          fi
+          gh api repos/wstein/homebrew-tap/dispatches \
+            -f event_type=new-release \
+            -f 'client_payload[formula]=histlog' \
+            -f 'client_payload[version]=${{ needs.gate.outputs.version }}'
 
   promote-main:
     name: Promote Main
